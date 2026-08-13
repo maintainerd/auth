@@ -465,7 +465,7 @@ func TestHandleSAMLSingleLogout_SPInitiatedRoundTrip(t *testing.T) {
 
 	t.Run("relay state from an SSO flow is refused here", func(t *testing.T) {
 		f, _, rs := startLogout(t)
-		ssoRelay, err := newSAMLRelayState(sloTestProviderID, "app", "https://app.test/cb", tenantID, rs.RequestID)
+		ssoRelay, err := newSAMLRelayState(sloTestProviderID, "app", "https://app.test/cb", rs.RequestID)
 		require.NoError(t, err)
 		_, err = f.svc.HandleSAMLSingleLogout(context.Background(), newResponse(t, f, rs.RequestID, ssoRelay), sloTestProviderID)
 		require.Error(t, err)

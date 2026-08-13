@@ -92,7 +92,7 @@ func (s *federationService) InitiateSAMLLogout(ctx context.Context, in SAMLLogou
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate SAML LogoutRequest", err)
 	}
-	relayState, err := newSAMLLogoutRelayState(in.ProviderIdentifier, in.ClientID, postLogoutRedirectURI, idp.TenantID, logoutReq.ID)
+	relayState, err := newSAMLLogoutRelayState(in.ProviderIdentifier, in.ClientID, postLogoutRedirectURI, logoutReq.ID)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate relay state", err)
 	}

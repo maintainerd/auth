@@ -37,9 +37,7 @@ type ManagementAuditLogResponseDTO struct {
 	Outcome         string  `json:"outcome"`
 	IPAddress       string  `json:"ip_address,omitempty"`
 	CreatedAt       string  `json:"created_at"`
-	ActorUserID     *int64  `json:"actor_user_id,omitempty"`
 	ActorUserName   *string `json:"actor_user_name,omitempty"`
-	ActorClientID   *int64  `json:"actor_client_id,omitempty"`
 	ActorClientName *string `json:"actor_client_name,omitempty"`
 	Changes         string  `json:"changes,omitempty"`
 	ErrorMessage    *string `json:"error_message,omitempty"`

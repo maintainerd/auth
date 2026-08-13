@@ -148,7 +148,7 @@ func TestSAMLEmailDomainAllowed(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSAMLRelayStateRoundTripCarriesRequestID(t *testing.T) {
-	token, err := newSAMLRelayState("prov", "client-abc", "https://app.example.com/cb", 7, "req-id-123")
+	token, err := newSAMLRelayState("prov", "client-abc", "https://app.example.com/cb", "req-id-123")
 	require.NoError(t, err)
 
 	rs, err := verifyRelayState(token)
@@ -156,7 +156,6 @@ func TestSAMLRelayStateRoundTripCarriesRequestID(t *testing.T) {
 	assert.Equal(t, "prov", rs.ProviderIdentifier)
 	assert.Equal(t, "client-abc", rs.ClientID)
 	assert.Equal(t, "https://app.example.com/cb", rs.RedirectURI)
-	assert.Equal(t, int64(7), rs.TenantID)
 	assert.Equal(t, "req-id-123", rs.RequestID)
 	assert.NotEmpty(t, rs.Nonce)
 }

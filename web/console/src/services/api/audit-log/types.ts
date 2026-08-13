@@ -5,9 +5,7 @@ export interface AuditLogEntry {
   resource_id: string
   changes: Record<string, unknown> | string | null
   ip_address: string | null
-  actor_user_id?: number | null
   actor_user_name?: string | null
-  actor_client_id?: number | null
   actor_client_name?: string | null
   outcome: 'success' | 'failure' | 'partial'
   created_at: string

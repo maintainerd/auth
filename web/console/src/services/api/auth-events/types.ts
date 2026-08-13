@@ -1,8 +1,5 @@
 export interface AuthEvent {
   auth_event_id: string
-  tenant_id: number
-  actor_user_id?: number | null
-  target_user_id?: number | null
   ip_address: string
   user_agent?: string | null
   category: string

@@ -258,7 +258,9 @@ func (s *workloadIdentityFederationService) ExchangeWorkloadToken(ctx context.Co
 		strings.TrimRight(config.AppPublicHostname, "/"),
 		audience,
 		subject,
-		fmt.Sprintf("tenant:%d", fed.TenantID),
+		// Realm label for the provider_id claim. Uses the federation's PUBLIC UUID,
+		// never the internal tenant PK — only UUIDs may leave the service.
+		fmt.Sprintf("wif:%s", fed.WorkloadIdentityFederationUUID),
 		opts,
 	)
 	if gerr != nil {

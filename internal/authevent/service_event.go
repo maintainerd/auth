@@ -371,9 +371,6 @@ func (s *authEventService) exportCSV(events []AuthEventServiceDataResult) (*Auth
 	writer := csv.NewWriter(&buffer)
 	if err := writer.Write([]string{
 		"auth_event_id",
-		"tenant_id",
-		"actor_user_id",
-		"target_user_id",
 		"ip_address",
 		"user_agent",
 		"category",
@@ -419,9 +416,6 @@ func (b *csvBuffer) Bytes() []byte {
 func authEventCSVRow(event AuthEventServiceDataResult) []string {
 	return []string{
 		event.AuthEventUUID.String(),
-		fmt.Sprintf("%d", event.TenantID),
-		int64PtrString(event.ActorUserID),
-		int64PtrString(event.TargetUserID),
 		event.IPAddress,
 		stringPtrValue(event.UserAgent),
 		event.Category,

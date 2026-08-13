@@ -306,9 +306,9 @@ func TestInflateSAMLMessageRejectsOversizedPayload(t *testing.T) {
 // are signed with the same key and carry the same fields, so without the purpose
 // stamp a live SSO RelayState could be presented at the SLO endpoint.
 func TestRelayStatePurposeIsEnforced(t *testing.T) {
-	ssoToken, err := newSAMLRelayState("prov", "client", "https://app.test/cb", 1, "req-1")
+	ssoToken, err := newSAMLRelayState("prov", "client", "https://app.test/cb", "req-1")
 	require.NoError(t, err)
-	sloToken, err := newSAMLLogoutRelayState("prov", "client", "https://app.test/bye", 1, "req-2")
+	sloToken, err := newSAMLLogoutRelayState("prov", "client", "https://app.test/bye", "req-2")
 	require.NoError(t, err)
 
 	t.Run("sso relay state is refused at the SLO endpoint", func(t *testing.T) {

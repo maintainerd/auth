@@ -10,12 +10,9 @@ import (
 )
 
 func TestAuthEventResponseDTO_JSONContract(t *testing.T) {
-	actorID := int64(11)
 	metadata := map[string]any{"ip_risk": "low"}
 	dto := AuthEventResponseDTO{
 		AuthEventID: "event-1",
-		TenantID:    1,
-		ActorUserID: &actorID,
 		IPAddress:   "10.0.0.1",
 		Category:    AuthEventCategoryAuthn,
 		EventType:   AuthEventTypeLoginSuccess,
@@ -29,6 +26,10 @@ func TestAuthEventResponseDTO_JSONContract(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, string(body), `"auth_event_id":"event-1"`)
-	assert.Contains(t, string(body), `"tenant_id":1`)
 	assert.Contains(t, string(body), `"ip_risk":"low"`)
+	// Internal integer identifiers must never be serialized outbound — only UUIDs
+	// (auth_event_id) leave the service.
+	assert.NotContains(t, string(body), `"tenant_id"`)
+	assert.NotContains(t, string(body), `"actor_user_id"`)
+	assert.NotContains(t, string(body), `"target_user_id"`)
 }

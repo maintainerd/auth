@@ -24,7 +24,11 @@ type samlRelayState struct {
 	ProviderIdentifier string `json:"pi"`
 	ClientID           string `json:"cid"`
 	RedirectURI        string `json:"ruri"`
-	TenantID           int64  `json:"tid"`
+	// The tenant is intentionally NOT carried here. RelayState is HMAC-signed but
+	// NOT encrypted and traverses the user's browser and the external SAML IdP, so
+	// any field is readable by third parties. The tenant is re-derived server-side
+	// from the provider identifier at ACS/SLO, so an internal PK never needs to
+	// travel — leaving it out closes an internal-identifier disclosure.
 	// RequestID is the ID of the SAML AuthnRequest this flow generated. It is
 	// carried back through RelayState and fed to ParseResponse as the only
 	// accepted InResponseTo value, binding the IdP's Response to the exact
@@ -256,24 +260,23 @@ func samlSPURLs(providerIdentifier string) (entityID, acsURL, metadataURL, sloUR
 // newSAMLRelayState creates a signed relay state token for the given flow params.
 // requestID is the AuthnRequest ID so the ACS handler can bind the IdP Response
 // to the request we issued.
-func newSAMLRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
-	return newSAMLRelayStateForPurpose(samlRelayPurposeSSO, providerIdentifier, clientID, redirectURI, tenantID, requestID)
+func newSAMLRelayState(providerIdentifier, clientID, redirectURI, requestID string) (string, error) {
+	return newSAMLRelayStateForPurpose(samlRelayPurposeSSO, providerIdentifier, clientID, redirectURI, requestID)
 }
 
 // newSAMLLogoutRelayState creates the RelayState for an SP-initiated Single
 // Logout. redirectURI is the already-validated post-logout landing page and
 // requestID is the LogoutRequest ID, so the SLO endpoint can tie the IdP's
 // LogoutResponse back to the logout this server started.
-func newSAMLLogoutRelayState(providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
-	return newSAMLRelayStateForPurpose(samlRelayPurposeSLO, providerIdentifier, clientID, redirectURI, tenantID, requestID)
+func newSAMLLogoutRelayState(providerIdentifier, clientID, redirectURI, requestID string) (string, error) {
+	return newSAMLRelayStateForPurpose(samlRelayPurposeSLO, providerIdentifier, clientID, redirectURI, requestID)
 }
 
-func newSAMLRelayStateForPurpose(purpose, providerIdentifier, clientID, redirectURI string, tenantID int64, requestID string) (string, error) {
+func newSAMLRelayStateForPurpose(purpose, providerIdentifier, clientID, redirectURI, requestID string) (string, error) {
 	rs := &samlRelayState{
 		ProviderIdentifier: providerIdentifier,
 		ClientID:           clientID,
 		RedirectURI:        redirectURI,
-		TenantID:           tenantID,
 		RequestID:          requestID,
 		Nonce:              uuid.New().String(),
 		IssuedAt:           time.Now().Unix(),

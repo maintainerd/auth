@@ -226,21 +226,18 @@ func toAuthEventResponseDTO(e AuthEventServiceDataResult) AuthEventResponseDTO {
 	}
 
 	return AuthEventResponseDTO{
-		AuthEventID:  e.AuthEventUUID.String(),
-		TenantID:     e.TenantID,
-		ActorUserID:  e.ActorUserID,
-		TargetUserID: e.TargetUserID,
-		IPAddress:    e.IPAddress,
-		UserAgent:    e.UserAgent,
-		Category:     e.Category,
-		EventType:    e.EventType,
-		Severity:     e.Severity,
-		Result:       e.Result,
-		Description:  e.Description,
-		ErrorReason:  e.ErrorReason,
-		TraceID:      e.TraceID,
-		Metadata:     metadata,
-		CreatedAt:    e.CreatedAt,
+		AuthEventID: e.AuthEventUUID.String(),
+		IPAddress:   e.IPAddress,
+		UserAgent:   e.UserAgent,
+		Category:    e.Category,
+		EventType:   e.EventType,
+		Severity:    e.Severity,
+		Result:      e.Result,
+		Description: e.Description,
+		ErrorReason: e.ErrorReason,
+		TraceID:     e.TraceID,
+		Metadata:    metadata,
+		CreatedAt:   e.CreatedAt,
 	}
 }
 

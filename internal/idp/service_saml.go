@@ -74,7 +74,7 @@ func (s *federationService) InitiateSAMLSSO(ctx context.Context, in SAMLInitiate
 		return nil, apperror.NewInternal("failed to generate SAML AuthnRequest", err)
 	}
 
-	relayState, err := newSAMLRelayState(in.ProviderIdentifier, in.ClientID, in.RedirectURI, in.TenantID, authnReq.ID)
+	relayState, err := newSAMLRelayState(in.ProviderIdentifier, in.ClientID, in.RedirectURI, authnReq.ID)
 	if err != nil {
 		return nil, apperror.NewInternal("failed to generate relay state", err)
 	}
