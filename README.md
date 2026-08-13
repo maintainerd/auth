@@ -8,6 +8,7 @@
 [![CI](https://github.com/maintainerd/maintainerd-auth/actions/workflows/ci.yml/badge.svg)](https://github.com/maintainerd/maintainerd-auth/actions/workflows/ci.yml)
 [![Security](https://github.com/maintainerd/maintainerd-auth/actions/workflows/security.yml/badge.svg)](https://github.com/maintainerd/maintainerd-auth/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/maintainerd/maintainerd-auth/badge)](https://scorecard.dev/viewer/?uri=github.com/maintainerd/maintainerd-auth)
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/14034/baseline)](https://www.bestpractices.dev/projects/14034)
 [![Coverage](https://codecov.io/gh/maintainerd/maintainerd-auth/graph/badge.svg)](https://codecov.io/gh/maintainerd/maintainerd-auth)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
