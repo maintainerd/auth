@@ -19,7 +19,7 @@
 # --- Stage 1: build the admin console SPA ---
 # SPA output is architecture-independent, so build on BUILDPLATFORM (never under
 # QEMU emulation for arm64 — npm/vite under emulation is slow and OOM-prone).
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS console
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:aadf416b2cdce311a8811ba3f0608a61b77dbf997500e2eafe781b51f6a0b019 AS console
 WORKDIR /app
 COPY web/console/package*.json ./
 RUN npm ci
@@ -27,7 +27,7 @@ COPY web/console/ ./
 RUN npm run build
 
 # --- Stage 2: build the hosted identity SPA ---
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS identity
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:aadf416b2cdce311a8811ba3f0608a61b77dbf997500e2eafe781b51f6a0b019 AS identity
 WORKDIR /app
 COPY web/identity/package*.json ./
 RUN npm ci
