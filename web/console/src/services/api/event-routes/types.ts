@@ -1,6 +1,6 @@
 export interface EventRoute {
   uuid: string
-  event_type_uuid: string
+  event_type_id: string
   event_type_key: string
   channel: string
   enabled: boolean
@@ -9,7 +9,7 @@ export interface EventRoute {
 }
 
 export interface CreateEventRouteRequest {
-  event_type_uuid: string
+  event_type_id: string
 }
 
 export interface UpdateEventRouteRequest {

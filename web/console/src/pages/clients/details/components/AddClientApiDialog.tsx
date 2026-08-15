@@ -109,7 +109,7 @@ export function AddClientApiDialog({ open, onOpenChange, clientId }: AddClientAp
       await addClientApisMutation.mutateAsync({
         clientId,
         data: {
-          api_uuids: [selectedApi.api_id]
+          api_ids: [selectedApi.api_id]
         }
       })
 
@@ -119,7 +119,7 @@ export function AddClientApiDialog({ open, onOpenChange, clientId }: AddClientAp
           clientId,
           apiId: selectedApi.api_id,
           data: {
-            permission_uuids: selectedPermissions
+            permission_ids: selectedPermissions
           }
         })
       }

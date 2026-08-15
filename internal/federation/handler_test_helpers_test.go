@@ -139,7 +139,7 @@ func jsonReq(t *testing.T, method, url string, body any) *http.Request {
 // validCreateBody returns a request body that passes DTO validation.
 func validCreateBody() map[string]any {
 	return map[string]any{
-		"client_uuid":     testClientUUID.String(),
+		"client_id":       testClientUUID.String(),
 		"name":            "github-actions",
 		"issuer_url":      "https://token.actions.githubusercontent.com",
 		"audience":        "https://api.maintainerd.local",

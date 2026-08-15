@@ -116,7 +116,7 @@ export default function PasskeySetupPage() {
               <div className="space-y-2">
                 {keys.map((key) => (
                   <ListingItemCard
-                    key={key.credential_uuid}
+                    key={key.credential_id}
                     icon={Key}
                     className="items-center p-3"
                     contentClassName="items-center"
@@ -127,7 +127,7 @@ export default function PasskeySetupPage() {
                         className="size-10 text-destructive hover:text-destructive sm:size-8"
                         onClick={() => setPendingDelete(key)}
                         title="Remove passkey"
-                        aria-label={`Remove passkey ${key.name || key.credential_uuid}`}
+                        aria-label={`Remove passkey ${key.name || key.credential_id}`}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -148,7 +148,7 @@ export default function PasskeySetupPage() {
       <ConfirmRemoveDialog
         open={pendingDelete !== null}
         onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
-        onConfirm={() => { if (pendingDelete) deleteMutation.mutate(pendingDelete.credential_uuid) }}
+        onConfirm={() => { if (pendingDelete) deleteMutation.mutate(pendingDelete.credential_id) }}
         title="Remove passkey"
         description={pendingDelete ? `"${pendingDelete.name || "This passkey"}" will no longer be able to sign in to your account.` : ""}
         isLoading={deleteMutation.isPending}

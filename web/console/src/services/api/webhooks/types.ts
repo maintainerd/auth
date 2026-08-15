@@ -65,10 +65,10 @@ export interface UpdateWebhookStatusRequest {
 }
 
 export interface WebhookSubscription {
-  event_type_uuid: string
+  event_type_id: string
   event_type_key: string
 }
 
 export interface SetWebhookSubscriptionRequest {
-  event_type_uuid: string
+  event_type_id: string
 }

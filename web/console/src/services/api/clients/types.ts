@@ -164,7 +164,7 @@ export interface ClientListResponse {
  */
 export interface ClientResponse {
   /**
-   * The MANAGEMENT handle (clients.client_uuid). Named client_id in JSON for
+   * The MANAGEMENT handle (clients.client_id). Named client_id in JSON for
    * backward compatibility — it is NOT the OAuth client_id. See `identifier`.
    */
   client_id: string
@@ -225,7 +225,7 @@ export interface ClientResponse {
  * once at creation, alongside the created client resource.
  */
 export interface ClientCredentialsResponse {
-  client_uuid: string
+  client_id: string
   /** The OAuth client_id (clients.identifier). */
   client_id: string
   /** Plaintext, returned exactly once. Unrecoverable afterwards. */
@@ -393,12 +393,12 @@ export interface ClientApisResponse {
  * Add APIs to client request interface
  */
 export interface AddClientApisRequest {
-  api_uuids: string[]
+  api_ids: string[]
 }
 
 /**
  * Add permissions to client API request interface
  */
 export interface AddClientApiPermissionsRequest {
-  permission_uuids: string[]
+  permission_ids: string[]
 }

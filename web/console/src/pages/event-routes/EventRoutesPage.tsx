@@ -39,7 +39,7 @@ export default function EventRoutesPage({ standalone = true }: { standalone?: bo
   const routeMap = useMemo(() => {
     const map = new Map<string, EventRoute>()
     for (const r of routes ?? []) {
-      if (r.channel === CHANNEL) map.set(r.event_type_uuid, r)
+      if (r.channel === CHANNEL) map.set(r.event_type_id, r)
     }
     return map
   }, [routes])

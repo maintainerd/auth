@@ -48,7 +48,7 @@ export async function fetchTenantBootstrap(host: string, clientId?: string): Pro
  */
 export function bootstrapToTenantEntity(bootstrap: TenantBootstrap): TenantEntity {
   return {
-    tenant_id: bootstrap.tenant.tenant_uuid,
+    tenant_id: bootstrap.tenant.tenant_id,
     name: bootstrap.tenant.name,
     display_name: bootstrap.tenant.display_name,
     description: bootstrap.tenant.description,

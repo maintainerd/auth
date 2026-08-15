@@ -24,14 +24,14 @@ export interface EventType {
  * propagating to ANY webhook or message broker for the tenant.
  */
 export interface TenantEventTypeConfig {
-  tenant_event_type_uuid: string
-  tenant_uuid: string
-  event_type_uuid: string
+  tenant_event_type_id: string
+  tenant_id: string
+  event_type_id: string
   event_type_key: string
   enabled: boolean
 }
 
 export interface SetTenantEventTypeRequest {
-  event_type_uuid: string
+  event_type_id: string
   enabled: boolean
 }

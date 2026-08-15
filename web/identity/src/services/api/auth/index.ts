@@ -354,7 +354,7 @@ export async function confirmAccountLink(token: string): Promise<{ provider: str
 // Resume a brokered OAuth flow after a user has confirmed an account link.
 // Returns the downstream redirect URL the browser should navigate to.
 export async function resumeBrokerSession(data: {
-  broker_session_uuid: string
+  broker_session_id: string
   account_link_token: string
 }): Promise<{ redirect_url: string; access_token?: string }> {
   const r = await post<ApiResponse<{ redirect_url: string; access_token?: string }>>(

@@ -164,7 +164,7 @@ describe("registration flow API", () => {
 
     const roles = await assignRegistrationFlowRoles("f1", ["r1"])
 
-    expect(postMock).toHaveBeenCalledWith("/registration_flows/f1/roles", { role_uuids: ["r1"] })
+    expect(postMock).toHaveBeenCalledWith("/registration_flows/f1/roles", { role_ids: ["r1"] })
     expect(roles).toEqual([ROLE])
   })
 

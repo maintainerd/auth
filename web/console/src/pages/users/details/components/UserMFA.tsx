@@ -205,7 +205,7 @@ export function UserMFA({ userId }: UserMFAProps) {
                 {passkeys.map((key: UserMFAWebAuthnKey) => (
                   <div
                     data-md-listing-item
-                    key={key.credential_uuid}
+                    key={key.credential_id}
                     className="flex items-start gap-3 rounded-lg border p-4"
                   >
                     <div data-md-listing-icon className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">

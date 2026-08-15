@@ -28,7 +28,7 @@ export function WorkloadIdentityListing({ tableInCard }: { tableInCard?: boolean
       useData={useWorkloadIdentitiesList}
       filterGroups={FILTER_GROUPS}
       onRowClick={(federation) =>
-        navigate(`/workload-identity/${federation.workload_identity_federation_uuid}`)
+        navigate(`/workload-identity/${federation.workload_identity_federation_id}`)
       }
       onCreate={() => navigate(`/workload-identity/create`)}
       createLabel="New Federation"

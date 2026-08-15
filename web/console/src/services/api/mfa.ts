@@ -44,7 +44,7 @@ export interface MFAStatusResponse {
 }
 
 export interface MFAWebAuthnKey {
-  credential_uuid: string
+  credential_id: string
   name: string
   transport: string
   last_used_at?: string | null

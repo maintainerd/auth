@@ -84,7 +84,7 @@ describe("AssignRegistrationFlowRolesDialog", () => {
     await waitFor(() =>
       expect(assignMutateAsync).toHaveBeenCalledWith({
         registrationFlowId: "f1",
-        data: { role_uuids: ["r1"] },
+        data: { role_ids: ["r1"] },
       }),
     )
     expect(showSuccessMock).toHaveBeenCalledWith("1 role assigned successfully")
@@ -104,7 +104,7 @@ describe("AssignRegistrationFlowRolesDialog", () => {
     await waitFor(() =>
       expect(assignMutateAsync).toHaveBeenCalledWith({
         registrationFlowId: "f1",
-        data: { role_uuids: ["r1", "r2"] },
+        data: { role_ids: ["r1", "r2"] },
       }),
     )
     expect(showSuccessMock).toHaveBeenCalledWith("2 roles assigned successfully")

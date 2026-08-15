@@ -68,7 +68,7 @@ describe('oauth api', () => {
       data: {
         challenge_id: 'challenge/1',
         client_name: 'Calendar',
-        client_uuid: 'client-uuid',
+        client_id: 'client-uuid',
         scopes: ['openid', 'profile'],
         redirect_uri: 'https://app.example/callback',
         expires_at: 123,

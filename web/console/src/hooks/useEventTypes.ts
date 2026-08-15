@@ -53,7 +53,7 @@ export function useSetTenantEventType() {
 
       queryClient.setQueryData<TenantEventTypeConfig[]>(tenantEventTypeKeys.list(), (old) => {
         const list = old ?? []
-        const idx = list.findIndex((c) => c.event_type_uuid === vars.event_type_uuid)
+        const idx = list.findIndex((c) => c.event_type_id === vars.event_type_id)
         if (idx >= 0) {
           const next = list.slice()
           next[idx] = { ...next[idx], enabled: vars.enabled }
@@ -62,9 +62,9 @@ export function useSetTenantEventType() {
         return [
           ...list,
           {
-            tenant_event_type_uuid: '',
-            tenant_uuid: '',
-            event_type_uuid: vars.event_type_uuid,
+            tenant_event_type_id: '',
+            tenant_id: '',
+            event_type_id: vars.event_type_id,
             event_type_key: '',
             enabled: vars.enabled,
           },
@@ -76,7 +76,7 @@ export function useSetTenantEventType() {
     onSuccess: (result) => {
       queryClient.setQueryData<TenantEventTypeConfig[]>(tenantEventTypeKeys.list(), (old) => {
         const list = old ?? []
-        const idx = list.findIndex((c) => c.event_type_uuid === result.event_type_uuid)
+        const idx = list.findIndex((c) => c.event_type_id === result.event_type_id)
         if (idx >= 0) {
           const next = list.slice()
           next[idx] = result

@@ -30,8 +30,8 @@ vi.mock("@/hooks/useToast", () => ({
 }))
 
 const federation = {
-  workload_identity_federation_uuid: "fed-1",
-  client_uuid: "client-1",
+  workload_identity_federation_id: "fed-1",
+  client_id: "client-1",
   name: "github-actions",
   description: "CI deploys",
   issuer_url: "https://token.actions.githubusercontent.com",

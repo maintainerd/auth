@@ -82,7 +82,7 @@ export interface RegistrationFlow {
 /**
  * Registration flow detail projection: the list shape plus `required_fields` and
  * the resolved client. Returned by GET/POST/PUT /{uuid}, PATCH /{uuid}/status,
- * and DELETE /{uuid}/roles/{role_uuid}.
+ * and DELETE /{uuid}/roles/{role_id}.
  */
 export interface RegistrationFlowDetail extends RegistrationFlow {
   required_fields: string[]
