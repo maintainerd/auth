@@ -227,7 +227,7 @@ export interface ClientResponse {
 export interface ClientCredentialsResponse {
   client_id: string
   /** The OAuth client_id (clients.identifier). */
-  client_id: string
+  oauth_client_id: string
   /** Plaintext, returned exactly once. Unrecoverable afterwards. */
   client_secret: string
 }

@@ -17,7 +17,7 @@ type ClientSecretResponseDTO struct {
 // The plaintext secret is never stored and cannot be retrieved again.
 type ClientCreateSecretResponseDTO struct {
 	ClientUUID   string `json:"client_id"`
-	ClientID     string `json:"client_id"`
+	ClientID     string `json:"oauth_client_id"`
 	ClientSecret string `json:"client_secret"`
 }
 
