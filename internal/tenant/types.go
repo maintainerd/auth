@@ -79,7 +79,7 @@ type TenantBootstrapConnectionDTO struct {
 // TenantBootstrapTenantDTO is the public tenant projection embedded in the
 // bootstrap response — only non-sensitive identifying fields.
 type TenantBootstrapTenantDTO struct {
-	TenantUUID  uuid.UUID `json:"tenant_uuid"`
+	TenantUUID  uuid.UUID `json:"tenant_id"`
 	Name        string    `json:"name"`
 	DisplayName string    `json:"display_name"`
 	Description string    `json:"description"`

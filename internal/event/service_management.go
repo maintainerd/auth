@@ -236,13 +236,13 @@ func NewManagementHandler(eventRouteService EventRouteService) *ManagementHandle
 
 // eventRouteRequestDTO is the request body for creating/updating an event route.
 type eventRouteRequestDTO struct {
-	EventTypeUUID string `json:"event_type_uuid"`
+	EventTypeUUID string `json:"event_type_id"`
 	Enabled       *bool  `json:"enabled"`
 }
 
 type eventRouteResponseDTO struct {
 	UUID          string    `json:"uuid"`
-	EventTypeUUID string    `json:"event_type_uuid"`
+	EventTypeUUID string    `json:"event_type_id"`
 	EventTypeKey  string    `json:"event_type_key"`
 	Channel       string    `json:"channel"`
 	Enabled       bool      `json:"enabled"`

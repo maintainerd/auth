@@ -9,8 +9,8 @@ import (
 
 // EventType represents a canonical integration event type in the catalog.
 type EventType struct {
-	EventTypeID   int64     `gorm:"column:event_type_id;primaryKey;autoIncrement" json:"event_type_id"`
-	EventTypeUUID uuid.UUID `gorm:"column:event_type_uuid;type:uuid;uniqueIndex;not null" json:"event_type_uuid"`
+	EventTypeID   int64     `gorm:"column:event_type_id;primaryKey;autoIncrement" json:"-"`
+	EventTypeUUID uuid.UUID `gorm:"column:event_type_uuid;type:uuid;uniqueIndex;not null" json:"event_type_id"`
 	TenantID      int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Key           string    `gorm:"column:key;type:varchar(100);not null" json:"key"`
 	Category      string    `gorm:"column:category;type:varchar(50);not null" json:"category"`

@@ -66,7 +66,7 @@ func (h *ConfigHandler) ListEventTypes(w http.ResponseWriter, r *http.Request) {
 
 // tenantEventTypeRequestDTO is the request body for toggling a tenant event type.
 type tenantEventTypeRequestDTO struct {
-	EventTypeUUID string `json:"event_type_uuid"`
+	EventTypeUUID string `json:"event_type_id"`
 	Enabled       bool   `json:"enabled"`
 }
 

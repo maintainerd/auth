@@ -21,7 +21,7 @@ func NewAccountLinkHandler(service AccountLinkRequestService) *AccountLinkHandle
 
 // AccountLinkConfirmResponseDTO is the JSON response of a successful confirmation.
 type AccountLinkConfirmResponseDTO struct {
-	UUID         string `json:"account_link_request_uuid"`
+	UUID         string `json:"account_link_request_id"`
 	Provider     string `json:"provider"`
 	Status       string `json:"status"`
 	LinkedUserID string `json:"-"`

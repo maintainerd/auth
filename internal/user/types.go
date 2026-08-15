@@ -49,7 +49,7 @@ type AccountDeleteDTO struct {
 
 // AccountExportDTO is the response payload for account data export.
 type AccountExportDTO struct {
-	UserUUID  string      `json:"user_uuid"`
+	UserUUID  string      `json:"user_id"`
 	Username  string      `json:"username"`
 	Email     string      `json:"email"`
 	Phone     string      `json:"phone"`
@@ -203,7 +203,7 @@ type UserMFAResponseDTO struct {
 }
 
 type UserMFAWebAuthnKeyDTO struct {
-	CredentialUUID string  `json:"credential_uuid"`
+	CredentialUUID string  `json:"credential_id"`
 	Name           string  `json:"name"`
 	Transport      string  `json:"transport,omitempty"`
 	LastUsedAt     *string `json:"last_used_at,omitempty"`

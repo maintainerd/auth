@@ -11,8 +11,8 @@ import (
 // SMSConfig holds tenant-level SMS delivery configuration (Twilio, SNS,
 // Vonage, MessageBird, etc.).
 type SMSConfig struct {
-	SMSConfigID        int64          `gorm:"column:sms_config_id;primaryKey;autoIncrement" json:"sms_config_id"`
-	SMSConfigUUID      uuid.UUID      `gorm:"column:sms_config_uuid;type:uuid;uniqueIndex;not null" json:"sms_config_uuid"`
+	SMSConfigID        int64          `gorm:"column:sms_config_id;primaryKey;autoIncrement" json:"-"`
+	SMSConfigUUID      uuid.UUID      `gorm:"column:sms_config_uuid;type:uuid;uniqueIndex;not null" json:"sms_config_id"`
 	TenantID           int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Provider           string         `gorm:"column:provider;type:varchar(50);not null" json:"provider"`
 	AccountSID         string         `gorm:"column:account_sid;type:varchar(255)" json:"account_sid"`

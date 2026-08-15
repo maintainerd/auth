@@ -15,7 +15,7 @@ import (
 
 // ClientRoleAssignRequestDTO submits a role assignment to a client.
 type ClientRoleAssignRequestDTO struct {
-	RoleUUID string `json:"role_uuid"`
+	RoleUUID string `json:"role_id"`
 }
 
 func (r ClientRoleAssignRequestDTO) Validate() error {
@@ -30,8 +30,8 @@ func (r ClientRoleAssignRequestDTO) Validate() error {
 
 // ClientRoleResponseDTO is a single client_role entry.
 type ClientRoleResponseDTO struct {
-	ClientRoleUUID string `json:"client_role_uuid"`
-	RoleUUID       string `json:"role_uuid"`
+	ClientRoleUUID string `json:"client_role_id"`
+	RoleUUID       string `json:"role_id"`
 	// Name and Description identify the role for a human; a UUID alone forces the
 	// console into a second lookup per row.
 	Name        string `json:"name,omitempty"`

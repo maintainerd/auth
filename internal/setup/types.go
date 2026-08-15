@@ -56,10 +56,10 @@ type RegisterControlServiceRequestDTO struct {
 }
 
 type RegisterControlServiceResponseDTO struct {
-	ServiceUUID       string `json:"service_uuid"`
+	ServiceUUID       string `json:"service_id"`
 	Name              string `json:"name"`
 	DisplayName       string `json:"display_name"`
-	PolicyUUID        string `json:"policy_uuid"`
+	PolicyUUID        string `json:"policy_id"`
 	PolicyName        string `json:"policy_name"`
 	AlreadyExisted    bool   `json:"already_existed"`
 	PolicyWasAttached bool   `json:"policy_was_attached"`

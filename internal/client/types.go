@@ -16,7 +16,7 @@ type ClientSecretResponseDTO struct {
 // ClientCreateSecretResponseDTO is returned exactly once at client creation.
 // The plaintext secret is never stored and cannot be retrieved again.
 type ClientCreateSecretResponseDTO struct {
-	ClientUUID   string `json:"client_uuid"`
+	ClientUUID   string `json:"client_id"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 }

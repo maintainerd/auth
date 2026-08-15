@@ -32,11 +32,11 @@ func NewSubscriptionHandler(
 }
 
 type subscriptionRequestDTO struct {
-	EventTypeUUID string `json:"event_type_uuid"`
+	EventTypeUUID string `json:"event_type_id"`
 }
 
 type subscriptionDTO struct {
-	EventTypeUUID string `json:"event_type_uuid"`
+	EventTypeUUID string `json:"event_type_id"`
 	EventTypeKey  string `json:"event_type_key"`
 }
 

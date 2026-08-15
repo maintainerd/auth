@@ -9,8 +9,8 @@ import (
 
 // EventRoute represents a per-tenant broker (RabbitMQ) routing configuration.
 type EventRoute struct {
-	EventRouteID   int64     `gorm:"column:event_route_id;primaryKey;autoIncrement" json:"event_route_id"`
-	EventRouteUUID uuid.UUID `gorm:"column:event_route_uuid;type:uuid;uniqueIndex;not null" json:"event_route_uuid"`
+	EventRouteID   int64     `gorm:"column:event_route_id;primaryKey;autoIncrement" json:"-"`
+	EventRouteUUID uuid.UUID `gorm:"column:event_route_uuid;type:uuid;uniqueIndex;not null" json:"event_route_id"`
 	TenantID       int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	EventTypeID    int64     `gorm:"column:event_type_id;not null" json:"event_type_id"`
 	Channel        string    `gorm:"column:channel;type:varchar(50);not null;default:'rabbitmq'" json:"channel"`

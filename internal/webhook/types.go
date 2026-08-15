@@ -7,7 +7,7 @@ import (
 )
 
 type DeliveryHistoryResponseDTO struct {
-	DeliveryHistoryUUID uuid.UUID `json:"delivery_history_uuid"`
+	DeliveryHistoryUUID uuid.UUID `json:"delivery_history_id"`
 	// EventID is what POST /webhook-replay actually replays. The DTO omitted it,
 	// so the console had nothing to send and posted the delivery-history UUID
 	// under the wrong key instead — every replay 400'd on "Invalid event_id UUID".

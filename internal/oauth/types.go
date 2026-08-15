@@ -96,7 +96,7 @@ type OAuthConsentRequiredResponseDTO struct {
 type OAuthConsentChallengeResponseDTO struct {
 	ChallengeID string   `json:"challenge_id"`
 	ClientName  string   `json:"client_name"`
-	ClientUUID  string   `json:"client_uuid"`
+	ClientUUID  string   `json:"client_id"`
 	Scopes      []string `json:"scopes"`
 	RedirectURI string   `json:"redirect_uri"`
 	ExpiresAt   int64    `json:"expires_at"`
@@ -271,7 +271,7 @@ type OAuthUserInfoResponseDTO struct {
 type OAuthConsentGrantResponseDTO struct {
 	ConsentGrantUUID string   `json:"consent_grant_id"`
 	ClientName       string   `json:"client_name"`
-	ClientUUID       string   `json:"client_uuid"`
+	ClientUUID       string   `json:"client_id"`
 	Scopes           []string `json:"scopes"`
 	GrantedAt        string   `json:"granted_at"`
 	UpdatedAt        string   `json:"updated_at"`

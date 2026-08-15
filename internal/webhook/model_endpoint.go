@@ -12,8 +12,8 @@ import (
 // belonging to a tenant. Multiple endpoints may exist per tenant, each
 // subscribing to a different set of events via webhook_endpoint_events.
 type WebhookEndpoint struct {
-	WebhookEndpointID   int64          `gorm:"column:webhook_endpoint_id;primaryKey;autoIncrement" json:"webhook_endpoint_id"`
-	WebhookEndpointUUID uuid.UUID      `gorm:"column:webhook_endpoint_uuid;type:uuid;uniqueIndex;not null" json:"webhook_endpoint_uuid"`
+	WebhookEndpointID   int64          `gorm:"column:webhook_endpoint_id;primaryKey;autoIncrement" json:"-"`
+	WebhookEndpointUUID uuid.UUID      `gorm:"column:webhook_endpoint_uuid;type:uuid;uniqueIndex;not null" json:"webhook_endpoint_id"`
 	TenantID            int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	URL                 string         `gorm:"column:url;type:text;not null" json:"url"`
 	SecretEncrypted     string         `gorm:"column:secret_encrypted;type:text" json:"-"`

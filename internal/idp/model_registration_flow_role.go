@@ -8,8 +8,8 @@ import (
 )
 
 type RegistrationFlowRole struct {
-	RegistrationFlowRoleID   int64             `gorm:"column:registration_flow_role_id;primaryKey;autoIncrement" json:"registration_flow_role_id"`
-	RegistrationFlowRoleUUID uuid.UUID         `gorm:"column:registration_flow_role_uuid;type:uuid;uniqueIndex;not null" json:"registration_flow_role_uuid"`
+	RegistrationFlowRoleID   int64             `gorm:"column:registration_flow_role_id;primaryKey;autoIncrement" json:"-"`
+	RegistrationFlowRoleUUID uuid.UUID         `gorm:"column:registration_flow_role_uuid;type:uuid;uniqueIndex;not null" json:"registration_flow_role_id"`
 	RegistrationFlowID       int64             `gorm:"column:registration_flow_id;not null" json:"registration_flow_id"`
 	RoleID                   int64             `gorm:"column:role_id;not null" json:"role_id"`
 	RegistrationFlow         *RegistrationFlow `gorm:"foreignKey:RegistrationFlowID;references:RegistrationFlowID" json:"registration_flow,omitempty"`
