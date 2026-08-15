@@ -23,17 +23,17 @@ const (
 )
 
 type Permission struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PermissionUuid string                 `protobuf:"bytes,1,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Api            *API                   `protobuf:"bytes,4,opt,name=api,proto3" json:"api,omitempty"`
-	Status         string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	IsSystem       bool                   `protobuf:"varint,7,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PermissionId  string                 `protobuf:"bytes,1,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Api           *API                   `protobuf:"bytes,4,opt,name=api,proto3" json:"api,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	IsSystem      bool                   `protobuf:"varint,7,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Permission) Reset() {
@@ -66,9 +66,9 @@ func (*Permission) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Permission) GetPermissionUuid() string {
+func (x *Permission) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -124,12 +124,12 @@ func (x *Permission) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListPermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,4,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,5,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,6,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ApiId         string                 `protobuf:"bytes,4,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,5,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,6,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	IsSystem      *bool                  `protobuf:"varint,9,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,10,opt,name=pagination,proto3" json:"pagination,omitempty"`
@@ -167,9 +167,9 @@ func (*ListPermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListPermissionsRequest) GetTenantUuid() string {
+func (x *ListPermissionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -188,23 +188,23 @@ func (x *ListPermissionsRequest) GetDescription() string {
 	return ""
 }
 
-func (x *ListPermissionsRequest) GetApiUuid() string {
+func (x *ListPermissionsRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
 
-func (x *ListPermissionsRequest) GetRoleUuid() string {
+func (x *ListPermissionsRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
 
-func (x *ListPermissionsRequest) GetClientUuid() string {
+func (x *ListPermissionsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -283,11 +283,11 @@ func (x *ListPermissionsResponse) GetPage() *PageMetadata {
 }
 
 type GetPermissionRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,2,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,2,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetPermissionRequest) Reset() {
@@ -320,16 +320,16 @@ func (*GetPermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetPermissionRequest) GetTenantUuid() string {
+func (x *GetPermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetPermissionRequest) GetPermissionUuid() string {
+func (x *GetPermissionRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -380,11 +380,11 @@ func (x *GetPermissionResponse) GetPermission() *Permission {
 
 type CreatePermissionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,5,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	ApiId         string                 `protobuf:"bytes,5,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -419,9 +419,9 @@ func (*CreatePermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreatePermissionRequest) GetTenantUuid() string {
+func (x *CreatePermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -447,9 +447,9 @@ func (x *CreatePermissionRequest) GetStatus() string {
 	return ""
 }
 
-func (x *CreatePermissionRequest) GetApiUuid() string {
+func (x *CreatePermissionRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -499,14 +499,14 @@ func (x *CreatePermissionResponse) GetPermission() *Permission {
 }
 
 type UpdatePermissionRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,2,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Status         string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,2,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdatePermissionRequest) Reset() {
@@ -539,16 +539,16 @@ func (*UpdatePermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdatePermissionRequest) GetTenantUuid() string {
+func (x *UpdatePermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdatePermissionRequest) GetPermissionUuid() string {
+func (x *UpdatePermissionRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -619,12 +619,12 @@ func (x *UpdatePermissionResponse) GetPermission() *Permission {
 }
 
 type SetPermissionStatusRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,2,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,2,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SetPermissionStatusRequest) Reset() {
@@ -657,16 +657,16 @@ func (*SetPermissionStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SetPermissionStatusRequest) GetTenantUuid() string {
+func (x *SetPermissionStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetPermissionStatusRequest) GetPermissionUuid() string {
+func (x *SetPermissionStatusRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -723,11 +723,11 @@ func (x *SetPermissionStatusResponse) GetPermission() *Permission {
 }
 
 type DeletePermissionRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,2,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,2,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeletePermissionRequest) Reset() {
@@ -760,16 +760,16 @@ func (*DeletePermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_permission_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeletePermissionRequest) GetTenantUuid() string {
+func (x *DeletePermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeletePermissionRequest) GetPermissionUuid() string {
+func (x *DeletePermissionRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -822,10 +822,10 @@ var File_maintainerd_auth_v1_permission_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"\n" +
-	"$maintainerd/auth/v1/permission.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dmaintainerd/auth/v1/api.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc8\x02\n" +
+	"$maintainerd/auth/v1/permission.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dmaintainerd/auth/v1/api.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc4\x02\n" +
 	"\n" +
-	"Permission\x12'\n" +
-	"\x0fpermission_uuid\x18\x01 \x01(\tR\x0epermissionUuid\x12\x12\n" +
+	"Permission\x12#\n" +
+	"\rpermission_id\x18\x01 \x01(\tR\fpermissionId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12*\n" +
 	"\x03api\x18\x04 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\x12\x16\n" +
@@ -834,16 +834,14 @@ const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\x06\x10\a\"\xd7\x02\n" +
-	"\x16ListPermissionsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\x06\x10\a\"\xc7\x02\n" +
+	"\x16ListPermissionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
-	"\bapi_uuid\x18\x04 \x01(\tR\aapiUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x05 \x01(\tR\broleUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x06 \x01(\tR\n" +
-	"clientUuid\x12\x16\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x15\n" +
+	"\x06api_id\x18\x04 \x01(\tR\x05apiId\x12\x17\n" +
+	"\arole_id\x18\x05 \x01(\tR\x06roleId\x12\x1b\n" +
+	"\tclient_id\x18\x06 \x01(\tR\bclientId\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x12 \n" +
 	"\tis_system\x18\t \x01(\bH\x00R\bisSystem\x88\x01\x01\x12?\n" +
 	"\n" +
@@ -854,50 +852,45 @@ const file_maintainerd_auth_v1_permission_proto_rawDesc = "" +
 	"_is_systemJ\x04\b\b\x10\t\"\x93\x01\n" +
 	"\x17ListPermissionsResponse\x12A\n" +
 	"\vpermissions\x18\x01 \x03(\v2\x1f.maintainerd.auth.v1.PermissionR\vpermissions\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"`\n" +
-	"\x14GetPermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x02 \x01(\tR\x0epermissionUuid\"X\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"X\n" +
+	"\x14GetPermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
+	"\rpermission_id\x18\x02 \x01(\tR\fpermissionId\"X\n" +
 	"\x15GetPermissionResponse\x12?\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.PermissionR\n" +
-	"permission\"\xa3\x01\n" +
-	"\x17CreatePermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"permission\"\x9b\x01\n" +
+	"\x17CreatePermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\x12\x19\n" +
-	"\bapi_uuid\x18\x05 \x01(\tR\aapiUuid\"[\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x15\n" +
+	"\x06api_id\x18\x05 \x01(\tR\x05apiId\"[\n" +
 	"\x18CreatePermissionResponse\x12?\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.PermissionR\n" +
-	"permission\"\xb1\x01\n" +
-	"\x17UpdatePermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x02 \x01(\tR\x0epermissionUuid\x12\x12\n" +
+	"permission\"\xa9\x01\n" +
+	"\x17UpdatePermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
+	"\rpermission_id\x18\x02 \x01(\tR\fpermissionId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\"[\n" +
 	"\x18UpdatePermissionResponse\x12?\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.PermissionR\n" +
-	"permission\"~\n" +
-	"\x1aSetPermissionStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x02 \x01(\tR\x0epermissionUuid\x12\x16\n" +
+	"permission\"v\n" +
+	"\x1aSetPermissionStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
+	"\rpermission_id\x18\x02 \x01(\tR\fpermissionId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"^\n" +
 	"\x1bSetPermissionStatusResponse\x12?\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.PermissionR\n" +
-	"permission\"c\n" +
-	"\x17DeletePermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x02 \x01(\tR\x0epermissionUuid\"[\n" +
+	"permission\"[\n" +
+	"\x17DeletePermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
+	"\rpermission_id\x18\x02 \x01(\tR\fpermissionId\"[\n" +
 	"\x18DeletePermissionResponse\x12?\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\v2\x1f.maintainerd.auth.v1.PermissionR\n" +

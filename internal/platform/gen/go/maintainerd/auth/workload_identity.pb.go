@@ -22,11 +22,11 @@ const (
 )
 
 type WorkloadIdentityFederation struct {
-	state                          protoimpl.MessageState `protogen:"open.v1"`
-	WorkloadIdentityFederationUuid string                 `protobuf:"bytes,1,opt,name=workload_identity_federation_uuid,json=workloadIdentityFederationUuid,proto3" json:"workload_identity_federation_uuid,omitempty"`
-	ClientUuid                     string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	Name                           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description                    string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	WorkloadIdentityFederationId string                 `protobuf:"bytes,1,opt,name=workload_identity_federation_id,json=workloadIdentityFederationId,proto3" json:"workload_identity_federation_id,omitempty"`
+	ClientId                     string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Name                         string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description                  string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// issuer_url is the OIDC issuer whose tokens are trusted. https only.
 	IssuerUrl string `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3" json:"issuer_url,omitempty"`
 	Audience  string `protobuf:"bytes,6,opt,name=audience,proto3" json:"audience,omitempty"`
@@ -76,16 +76,16 @@ func (*WorkloadIdentityFederation) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WorkloadIdentityFederation) GetWorkloadIdentityFederationUuid() string {
+func (x *WorkloadIdentityFederation) GetWorkloadIdentityFederationId() string {
 	if x != nil {
-		return x.WorkloadIdentityFederationUuid
+		return x.WorkloadIdentityFederationId
 	}
 	return ""
 }
 
-func (x *WorkloadIdentityFederation) GetClientUuid() string {
+func (x *WorkloadIdentityFederation) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -169,8 +169,8 @@ func (x *WorkloadIdentityFederation) GetUpdatedAt() string {
 
 type ListWorkloadIdentityFederationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	IsActive      *bool                  `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,5,opt,name=pagination,proto3" json:"pagination,omitempty"`
@@ -208,16 +208,16 @@ func (*ListWorkloadIdentityFederationsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListWorkloadIdentityFederationsRequest) GetTenantUuid() string {
+func (x *ListWorkloadIdentityFederationsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListWorkloadIdentityFederationsRequest) GetClientUuid() string {
+func (x *ListWorkloadIdentityFederationsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -296,11 +296,11 @@ func (x *ListWorkloadIdentityFederationsResponse) GetPage() *PageMetadata {
 }
 
 type GetWorkloadIdentityFederationRequest struct {
-	state                          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid                     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WorkloadIdentityFederationUuid string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_uuid,json=workloadIdentityFederationUuid,proto3" json:"workload_identity_federation_uuid,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	TenantId                     string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WorkloadIdentityFederationId string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_id,json=workloadIdentityFederationId,proto3" json:"workload_identity_federation_id,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *GetWorkloadIdentityFederationRequest) Reset() {
@@ -333,16 +333,16 @@ func (*GetWorkloadIdentityFederationRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetWorkloadIdentityFederationRequest) GetTenantUuid() string {
+func (x *GetWorkloadIdentityFederationRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationUuid() string {
+func (x *GetWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationId() string {
 	if x != nil {
-		return x.WorkloadIdentityFederationUuid
+		return x.WorkloadIdentityFederationId
 	}
 	return ""
 }
@@ -393,8 +393,8 @@ func (x *GetWorkloadIdentityFederationResponse) GetFederation() *WorkloadIdentit
 
 type CreateWorkloadIdentityFederationRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid       string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId         string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description      string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	IssuerUrl        string                 `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3" json:"issuer_url,omitempty"`
@@ -438,16 +438,16 @@ func (*CreateWorkloadIdentityFederationRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateWorkloadIdentityFederationRequest) GetTenantUuid() string {
+func (x *CreateWorkloadIdentityFederationRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *CreateWorkloadIdentityFederationRequest) GetClientUuid() string {
+func (x *CreateWorkloadIdentityFederationRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -560,20 +560,20 @@ func (x *CreateWorkloadIdentityFederationResponse) GetFederation() *WorkloadIden
 }
 
 type UpdateWorkloadIdentityFederationRequest struct {
-	state                          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid                     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WorkloadIdentityFederationUuid string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_uuid,json=workloadIdentityFederationUuid,proto3" json:"workload_identity_federation_uuid,omitempty"`
-	Name                           string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description                    string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	IssuerUrl                      string                 `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3" json:"issuer_url,omitempty"`
-	Audience                       string                 `protobuf:"bytes,6,opt,name=audience,proto3" json:"audience,omitempty"`
-	SubjectClaim                   string                 `protobuf:"bytes,7,opt,name=subject_claim,json=subjectClaim,proto3" json:"subject_claim,omitempty"`
-	SubjectPattern                 string                 `protobuf:"bytes,8,opt,name=subject_pattern,json=subjectPattern,proto3" json:"subject_pattern,omitempty"`
-	AllowedScopes                  []string               `protobuf:"bytes,9,rep,name=allowed_scopes,json=allowedScopes,proto3" json:"allowed_scopes,omitempty"`
-	AttributeMapping               map[string]string      `protobuf:"bytes,10,rep,name=attribute_mapping,json=attributeMapping,proto3" json:"attribute_mapping,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	IsActive                       *bool                  `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	TenantId                     string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WorkloadIdentityFederationId string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_id,json=workloadIdentityFederationId,proto3" json:"workload_identity_federation_id,omitempty"`
+	Name                         string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description                  string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	IssuerUrl                    string                 `protobuf:"bytes,5,opt,name=issuer_url,json=issuerUrl,proto3" json:"issuer_url,omitempty"`
+	Audience                     string                 `protobuf:"bytes,6,opt,name=audience,proto3" json:"audience,omitempty"`
+	SubjectClaim                 string                 `protobuf:"bytes,7,opt,name=subject_claim,json=subjectClaim,proto3" json:"subject_claim,omitempty"`
+	SubjectPattern               string                 `protobuf:"bytes,8,opt,name=subject_pattern,json=subjectPattern,proto3" json:"subject_pattern,omitempty"`
+	AllowedScopes                []string               `protobuf:"bytes,9,rep,name=allowed_scopes,json=allowedScopes,proto3" json:"allowed_scopes,omitempty"`
+	AttributeMapping             map[string]string      `protobuf:"bytes,10,rep,name=attribute_mapping,json=attributeMapping,proto3" json:"attribute_mapping,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	IsActive                     *bool                  `protobuf:"varint,11,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *UpdateWorkloadIdentityFederationRequest) Reset() {
@@ -606,16 +606,16 @@ func (*UpdateWorkloadIdentityFederationRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateWorkloadIdentityFederationRequest) GetTenantUuid() string {
+func (x *UpdateWorkloadIdentityFederationRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationUuid() string {
+func (x *UpdateWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationId() string {
 	if x != nil {
-		return x.WorkloadIdentityFederationUuid
+		return x.WorkloadIdentityFederationId
 	}
 	return ""
 }
@@ -728,11 +728,11 @@ func (x *UpdateWorkloadIdentityFederationResponse) GetFederation() *WorkloadIden
 }
 
 type DeleteWorkloadIdentityFederationRequest struct {
-	state                          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid                     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WorkloadIdentityFederationUuid string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_uuid,json=workloadIdentityFederationUuid,proto3" json:"workload_identity_federation_uuid,omitempty"`
-	unknownFields                  protoimpl.UnknownFields
-	sizeCache                      protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	TenantId                     string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WorkloadIdentityFederationId string                 `protobuf:"bytes,2,opt,name=workload_identity_federation_id,json=workloadIdentityFederationId,proto3" json:"workload_identity_federation_id,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *DeleteWorkloadIdentityFederationRequest) Reset() {
@@ -765,16 +765,16 @@ func (*DeleteWorkloadIdentityFederationRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_workload_identity_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *DeleteWorkloadIdentityFederationRequest) GetTenantUuid() string {
+func (x *DeleteWorkloadIdentityFederationRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationUuid() string {
+func (x *DeleteWorkloadIdentityFederationRequest) GetWorkloadIdentityFederationId() string {
 	if x != nil {
-		return x.WorkloadIdentityFederationUuid
+		return x.WorkloadIdentityFederationId
 	}
 	return ""
 }
@@ -827,11 +827,10 @@ var File_maintainerd_auth_v1_workload_identity_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_workload_identity_proto_rawDesc = "" +
 	"\n" +
-	"+maintainerd/auth/v1/workload_identity.proto\x12\x13maintainerd.auth.v1\x1a maintainerd/auth/v1/tenant.proto\"\x82\x05\n" +
-	"\x1aWorkloadIdentityFederation\x12I\n" +
-	"!workload_identity_federation_uuid\x18\x01 \x01(\tR\x1eworkloadIdentityFederationUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x12\n" +
+	"+maintainerd/auth/v1/workload_identity.proto\x12\x13maintainerd.auth.v1\x1a maintainerd/auth/v1/tenant.proto\"\xfa\x04\n" +
+	"\x1aWorkloadIdentityFederation\x12E\n" +
+	"\x1fworkload_identity_federation_id\x18\x01 \x01(\tR\x1cworkloadIdentityFederationId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
@@ -849,12 +848,10 @@ const file_maintainerd_auth_v1_workload_identity_proto_rawDesc = "" +
 	"updated_at\x18\r \x01(\tR\tupdatedAt\x1aC\n" +
 	"\x15AttributeMappingEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xef\x01\n" +
-	"&ListWorkloadIdentityFederationsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x12\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe7\x01\n" +
+	"&ListWorkloadIdentityFederationsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\tis_active\x18\x04 \x01(\bH\x00R\bisActive\x88\x01\x01\x12?\n" +
 	"\n" +
@@ -864,20 +861,17 @@ const file_maintainerd_auth_v1_workload_identity_proto_rawDesc = "" +
 	"_is_active\"\xb3\x01\n" +
 	"'ListWorkloadIdentityFederationsResponse\x12Q\n" +
 	"\vfederations\x18\x01 \x03(\v2/.maintainerd.auth.v1.WorkloadIdentityFederationR\vfederations\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x92\x01\n" +
-	"$GetWorkloadIdentityFederationRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12I\n" +
-	"!workload_identity_federation_uuid\x18\x02 \x01(\tR\x1eworkloadIdentityFederationUuid\"x\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x8a\x01\n" +
+	"$GetWorkloadIdentityFederationRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12E\n" +
+	"\x1fworkload_identity_federation_id\x18\x02 \x01(\tR\x1cworkloadIdentityFederationId\"x\n" +
 	"%GetWorkloadIdentityFederationResponse\x12O\n" +
 	"\n" +
 	"federation\x18\x01 \x01(\v2/.maintainerd.auth.v1.WorkloadIdentityFederationR\n" +
-	"federation\"\xc7\x04\n" +
-	"'CreateWorkloadIdentityFederationRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x12\n" +
+	"federation\"\xbf\x04\n" +
+	"'CreateWorkloadIdentityFederationRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
@@ -897,11 +891,10 @@ const file_maintainerd_auth_v1_workload_identity_proto_rawDesc = "" +
 	"(CreateWorkloadIdentityFederationResponse\x12O\n" +
 	"\n" +
 	"federation\x18\x01 \x01(\v2/.maintainerd.auth.v1.WorkloadIdentityFederationR\n" +
-	"federation\"\xf1\x04\n" +
-	"'UpdateWorkloadIdentityFederationRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12I\n" +
-	"!workload_identity_federation_uuid\x18\x02 \x01(\tR\x1eworkloadIdentityFederationUuid\x12\x12\n" +
+	"federation\"\xe9\x04\n" +
+	"'UpdateWorkloadIdentityFederationRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12E\n" +
+	"\x1fworkload_identity_federation_id\x18\x02 \x01(\tR\x1cworkloadIdentityFederationId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
@@ -921,11 +914,10 @@ const file_maintainerd_auth_v1_workload_identity_proto_rawDesc = "" +
 	"(UpdateWorkloadIdentityFederationResponse\x12O\n" +
 	"\n" +
 	"federation\x18\x01 \x01(\v2/.maintainerd.auth.v1.WorkloadIdentityFederationR\n" +
-	"federation\"\x95\x01\n" +
-	"'DeleteWorkloadIdentityFederationRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12I\n" +
-	"!workload_identity_federation_uuid\x18\x02 \x01(\tR\x1eworkloadIdentityFederationUuid\"{\n" +
+	"federation\"\x8d\x01\n" +
+	"'DeleteWorkloadIdentityFederationRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12E\n" +
+	"\x1fworkload_identity_federation_id\x18\x02 \x01(\tR\x1cworkloadIdentityFederationId\"{\n" +
 	"(DeleteWorkloadIdentityFederationResponse\x12O\n" +
 	"\n" +
 	"federation\x18\x01 \x01(\v2/.maintainerd.auth.v1.WorkloadIdentityFederationR\n" +

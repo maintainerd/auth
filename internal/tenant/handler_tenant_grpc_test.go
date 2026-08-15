@@ -75,7 +75,7 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		}}, nil)
 		resp, err := h.GetDefaultTenant(context.Background(), &authv1.GetDefaultTenantRequest{})
 		require.NoError(t, err)
-		assert.Equal(t, tenantUUID.String(), resp.Tenant.TenantUuid)
+		assert.Equal(t, tenantUUID.String(), resp.Tenant.TenantId)
 		assert.Equal(t, "pro", resp.Tenant.Metadata.AsMap()["plan"])
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: func() (*TenantServiceDataResult, error) {
@@ -135,16 +135,16 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			assert.Equal(t, tenantUUID, id)
 			return sample, nil
 		}}, nil)
-		resp, err := h.GetTenant(sysCtx, &authv1.GetTenantRequest{TenantUuid: tenantUUID.String()})
+		resp, err := h.GetTenant(sysCtx, &authv1.GetTenantRequest{TenantId: tenantUUID.String()})
 		require.NoError(t, err)
-		assert.Equal(t, tenantUUID.String(), resp.Tenant.TenantUuid)
+		assert.Equal(t, tenantUUID.String(), resp.Tenant.TenantId)
 
-		_, err = h.GetTenant(sysCtx, &authv1.GetTenantRequest{TenantUuid: "bad"})
+		_, err = h.GetTenant(sysCtx, &authv1.GetTenantRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: getSys, getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing")
-		}}, nil).GetTenant(sysCtx, &authv1.GetTenantRequest{TenantUuid: tenantUUID.String()})
+		}}, nil).GetTenant(sysCtx, &authv1.GetTenantRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 	})
 
@@ -155,13 +155,13 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			return sample, nil
 		}}, nil)
 
-		_, err := h.GetTenant(grpcAuthCtx(777, 5), &authv1.GetTenantRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.GetTenant(grpcAuthCtx(777, 5), &authv1.GetTenantRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
-		_, err = h.GetTenant(grpcAuthCtx(sample.TenantID, 5), &authv1.GetTenantRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.GetTenant(grpcAuthCtx(sample.TenantID, 5), &authv1.GetTenantRequest{TenantId: tenantUUID.String()})
 		require.NoError(t, err)
 
-		_, err = h.GetTenant(context.Background(), &authv1.GetTenantRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.GetTenant(context.Background(), &authv1.GetTenantRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 
@@ -217,39 +217,39 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 		}, &mockTenantMemberService{})
 
 		updateResp, err := h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{
-			TenantUuid: tenantUUID.String(), Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
+			TenantId: tenantUUID.String(), Name: "tenant-one", DisplayName: "Tenant One", Description: "Long enough description", Status: shared.StatusActive,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, updateResp.Tenant.Name)
 
-		statusResp, err := h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusSuspended})
+		statusResp, err := h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantId: tenantUUID.String(), Status: shared.StatusSuspended})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, statusResp.Tenant.Name)
 
 		// The actor now comes from the token; the body's actor_user_uuid is
 		// ignored, so a spoofed one cannot stand in for a real principal.
 		sysUserCtx := grpcAuthCtx(sysTID, 7)
-		deleteResp, err := h.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: uuid.New().String()})
+		deleteResp, err := h.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantId: tenantUUID.String(), ActorUserId: uuid.New().String()})
 		require.NoError(t, err)
 		assert.Equal(t, sample.Name, deleteResp.Tenant.Name)
 
 		// Boundary parity with HTTP: only a system-tenant principal may delete.
-		_, err = h.DeleteTenant(grpcAuthCtx(777, 7), &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.DeleteTenant(grpcAuthCtx(777, 7), &authv1.DeleteTenantRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		// A service principal carries no user identity to attribute the delete to.
-		_, err = h.DeleteTenant(grpcServiceCtx(sysTID), &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: uuid.New().String()})
+		_, err = h.DeleteTenant(grpcServiceCtx(sysTID), &authv1.DeleteTenantRequest{TenantId: tenantUUID.String(), ActorUserId: uuid.New().String()})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
-		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: "bad"})
+		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantId: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: "deleted"})
+		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantId: tenantUUID.String(), Status: "deleted"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: "bad", Status: shared.StatusActive})
+		_, err = h.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantId: "bad", Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantUuid: "bad"})
+		_, err = h.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		// Boundary: a principal bound to another tenant (not a member of the target,
@@ -258,7 +258,7 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return false, nil },
 		})
 		regularCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{TenantID: 777, UserUUID: uuid.New()})
-		_, err = deniedH.UpdateTenant(regularCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
+		_, err = deniedH.UpdateTenant(regularCtx, &authv1.TenantServiceUpdateTenantRequest{TenantId: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		errorSvc := &mockTenantService{
@@ -270,11 +270,11 @@ func TestTenantGRPCHandler_TenantRPCs(t *testing.T) {
 			deleteByUUIDFn:    func(uuid.UUID) (*TenantServiceDataResult, error) { return nil, errors.New("db") },
 		}
 		errHandler := NewTenantGRPCHandler(errorSvc, &mockTenantMemberService{})
-		_, err = errHandler.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantUuid: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
+		_, err = errHandler.UpdateTenant(sysCtx, &authv1.TenantServiceUpdateTenantRequest{TenantId: tenantUUID.String(), Name: "tenant-one", Description: "Long enough description", Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusActive})
+		_, err = errHandler.SetTenantStatus(sysCtx, &authv1.SetTenantStatusRequest{TenantId: tenantUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantUuid: tenantUUID.String()})
+		_, err = errHandler.DeleteTenant(sysUserCtx, &authv1.DeleteTenantRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }
@@ -330,7 +330,7 @@ func TestTenantGRPCHandler_MemberRPCs(t *testing.T) {
 	)
 
 	listResp, err := handler.ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{
-		TenantUuid: tenantUUID.String(), Role: "owner",
+		TenantId: tenantUUID.String(), Role: "owner",
 	})
 	require.NoError(t, err)
 	require.Len(t, listResp.Members, 1)
@@ -341,21 +341,21 @@ func TestTenantGRPCHandler_MemberRPCs(t *testing.T) {
 	spoofedActor := uuid.New().String()
 
 	addResp, err := handler.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{
-		TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "owner", ActorUserUuid: spoofedActor,
+		TenantId: tenantUUID.String(), UserId: userUUID.String(), Role: "owner", ActorUserId: spoofedActor,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, memberUUID.String(), addResp.Member.TenantMemberUuid)
+	assert.Equal(t, memberUUID.String(), addResp.Member.TenantMemberId)
 	assert.Equal(t, tokenActorUserID, members.lastActorUserID)
 
 	updateResp, err := handler.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{
-		TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "member", ActorUserUuid: spoofedActor,
+		TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), Role: "member", ActorUserId: spoofedActor,
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "owner", updateResp.Member.Role)
 	assert.Equal(t, tokenActorUserID, members.lastActorUserID)
 
 	removeResp, err := handler.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{
-		TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), ActorUserUuid: spoofedActor,
+		TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), ActorUserId: spoofedActor,
 	})
 	require.NoError(t, err)
 	assert.True(t, removeResp.Removed)
@@ -394,21 +394,21 @@ func TestTenantGRPCHandler_MemberRPCsEnforceBoundaryAndTokenActor(t *testing.T) 
 		})
 		ctx := grpcAuthCtx(777, 9)
 
-		_, err := h.ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		_, err = h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{
-			TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "owner", ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), UserId: userUUID.String(), Role: "owner", ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{
-			TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "owner", ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), Role: "owner", ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{
-			TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
@@ -421,24 +421,24 @@ func TestTenantGRPCHandler_MemberRPCsEnforceBoundaryAndTokenActor(t *testing.T) 
 		ctx := grpcServiceCtx(memberRPCSystemTenantID)
 
 		_, err := h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{
-			TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "owner", ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), UserId: userUUID.String(), Role: "owner", ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{
-			TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "owner", ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), Role: "owner", ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 
 		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{
-			TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), ActorUserUuid: userUUID.String(),
+			TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), ActorUserId: userUUID.String(),
 		})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
 	t.Run("an unauthenticated caller is refused", func(t *testing.T) {
 		h := NewTenantGRPCHandler(tenantSvc(), &mockTenantMemberService{})
-		_, err := h.ListTenantMembers(context.Background(), &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.ListTenantMembers(context.Background(), &authv1.ListTenantMembersRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 }
@@ -452,24 +452,24 @@ func TestTenantGRPCHandler_MemberRPCErrors(t *testing.T) {
 	ctx := grpcAuthCtx(memberRPCSystemTenantID, 7)
 
 	t.Run("resolve tenant and list errors", func(t *testing.T) {
-		_, err := NewTenantGRPCHandler(&mockTenantService{getSystemFn: memberRPCSystemTenant}, nil).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantUuid: "bad"})
+		_, err := NewTenantGRPCHandler(&mockTenantService{getSystemFn: memberRPCSystemTenant}, nil).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: memberRPCSystemTenant, getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing")
-		}}, nil).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String()})
+		}}, nil).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: memberRPCSystemTenant, getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{TenantID: 1}, nil
-		}}, &mockTenantMemberService{}).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String(), Role: "superuser"})
+		}}, &mockTenantMemberService{}).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantId: tenantUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		_, err = NewTenantGRPCHandler(&mockTenantService{getSystemFn: memberRPCSystemTenant, getByUUIDFn: func(uuid.UUID) (*TenantServiceDataResult, error) {
 			return &TenantServiceDataResult{TenantID: 1}, nil
 		}}, &mockTenantMemberService{listByTenantFn: func(TenantMemberServiceListFilter) (*TenantMemberServiceListResult, error) {
 			return nil, errors.New("db")
-		}}).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantUuid: tenantUUID.String()})
+		}}).ListTenantMembers(ctx, &authv1.ListTenantMembersRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 
@@ -479,21 +479,21 @@ func TestTenantGRPCHandler_MemberRPCErrors(t *testing.T) {
 		}}
 		h := NewTenantGRPCHandler(baseTenant, &mockTenantMemberService{})
 
-		_, err := h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", Role: "owner"})
+		_, err := h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantId: tenantUUID.String(), UserId: "bad", Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantUuid: "bad", UserUuid: userUUID.String(), Role: "owner"})
+		_, err = h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantId: "bad", UserId: userUUID.String(), Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "superuser"})
+		_, err = h.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: "bad", Role: "owner"})
+		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantId: tenantUUID.String(), TenantMemberId: "bad", Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantUuid: "bad", TenantMemberUuid: memberUUID.String(), Role: "owner"})
+		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantId: "bad", TenantMemberId: memberUUID.String(), Role: "owner"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "superuser"})
+		_, err = h.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), Role: "superuser"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: "bad"})
+		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantId: tenantUUID.String(), TenantMemberId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantUuid: "bad", TenantMemberUuid: memberUUID.String()})
+		_, err = h.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantId: "bad", TenantMemberId: memberUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		errMembers := &mockTenantMemberService{
@@ -502,11 +502,11 @@ func TestTenantGRPCHandler_MemberRPCErrors(t *testing.T) {
 			deleteByUUIDFn:     func(int64, uuid.UUID) error { return errors.New("db") },
 		}
 		errHandler := NewTenantGRPCHandler(baseTenant, errMembers)
-		_, err = errHandler.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Role: "owner", ActorUserUuid: userUUID.String()})
+		_, err = errHandler.AddTenantMember(ctx, &authv1.AddTenantMemberRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Role: "owner", ActorUserId: userUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), Role: "owner", ActorUserUuid: userUUID.String()})
+		_, err = errHandler.UpdateTenantMemberRole(ctx, &authv1.UpdateTenantMemberRoleRequest{TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), Role: "owner", ActorUserId: userUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = errHandler.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantUuid: tenantUUID.String(), TenantMemberUuid: memberUUID.String(), ActorUserUuid: userUUID.String()})
+		_, err = errHandler.RemoveTenantMember(ctx, &authv1.RemoveTenantMemberRequest{TenantId: tenantUUID.String(), TenantMemberId: memberUUID.String(), ActorUserId: userUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }

@@ -18,7 +18,7 @@ service PermissionService {
 }
 
 message Permission {
-  string permission_uuid = 1;
+  string permission_id = 1;
   string name = 2;
   string description = 3;
   API api = 4;
@@ -30,12 +30,12 @@ message Permission {
 }
 
 message ListPermissionsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string description = 3;
-  string api_uuid = 4;
-  string role_uuid = 5;
-  string client_uuid = 6;
+  string api_id = 4;
+  string role_id = 5;
+  string client_id = 6;
   string status = 7;
   reserved 8;
   optional bool is_system = 9;
@@ -48,8 +48,8 @@ message ListPermissionsResponse {
 }
 
 message GetPermissionRequest {
-  string tenant_uuid = 1;
-  string permission_uuid = 2;
+  string tenant_id = 1;
+  string permission_id = 2;
 }
 
 message GetPermissionResponse {
@@ -57,11 +57,11 @@ message GetPermissionResponse {
 }
 
 message CreatePermissionRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string description = 3;
   string status = 4;
-  string api_uuid = 5;
+  string api_id = 5;
 }
 
 message CreatePermissionResponse {
@@ -69,8 +69,8 @@ message CreatePermissionResponse {
 }
 
 message UpdatePermissionRequest {
-  string tenant_uuid = 1;
-  string permission_uuid = 2;
+  string tenant_id = 1;
+  string permission_id = 2;
   string name = 3;
   string description = 4;
   string status = 5;
@@ -81,8 +81,8 @@ message UpdatePermissionResponse {
 }
 
 message SetPermissionStatusRequest {
-  string tenant_uuid = 1;
-  string permission_uuid = 2;
+  string tenant_id = 1;
+  string permission_id = 2;
   string status = 3;
 }
 
@@ -91,8 +91,8 @@ message SetPermissionStatusResponse {
 }
 
 message DeletePermissionRequest {
-  string tenant_uuid = 1;
-  string permission_uuid = 2;
+  string tenant_id = 1;
+  string permission_id = 2;
 }
 
 message DeletePermissionResponse {

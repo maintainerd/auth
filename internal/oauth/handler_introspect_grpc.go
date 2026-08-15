@@ -24,16 +24,16 @@ func (h *OAuthIntrospectionGRPCHandler) Introspect(ctx context.Context, req *aut
 		return &authv1.IntrospectResponse{Active: false}, nil
 	}
 	return &authv1.IntrospectResponse{
-		Active:    result.Active,
-		Scope:     result.Scope,
-		ClientId:  result.ClientID,
-		Username:  result.Username,
-		TokenType: result.TokenType,
-		Exp:       result.Exp,
-		Iat:       result.Iat,
-		Sub:       result.Sub,
-		Aud:       result.Aud,
-		Iss:       result.Iss,
-		Jti:       result.Jti,
+		Active:        result.Active,
+		Scope:         result.Scope,
+		OauthClientId: result.ClientID,
+		Username:      result.Username,
+		TokenType:     result.TokenType,
+		Exp:           result.Exp,
+		Iat:           result.Iat,
+		Sub:           result.Sub,
+		Aud:           result.Aud,
+		Iss:           result.Iss,
+		Jti:           result.Jti,
 	}, nil
 }

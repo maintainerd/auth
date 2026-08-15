@@ -16,7 +16,7 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // kept as the agreed wire shape for the day a handler is written.
 
 message Branding {
-  string branding_uuid = 1;
+  string branding_id = 1;
   string company_name = 2;
   string logo_url = 3;
   string favicon_url = 4;
@@ -32,10 +32,10 @@ message Branding {
   string metadata = 18;
 }
 
-message GetBrandingRequest { string tenant_uuid = 1; }
+message GetBrandingRequest { string tenant_id = 1; }
 message GetBrandingResponse { Branding branding = 1; }
 message UpdateBrandingRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string company_name = 2;
   string logo_url = 3;
   string favicon_url = 4;
@@ -48,7 +48,7 @@ message UpdateBrandingRequest {
 message UpdateBrandingResponse { Branding branding = 1; }
 
 message EmailTemplate {
-  string email_template_uuid = 1;
+  string email_template_id = 1;
   string name = 2;
   string subject = 3;
   string body_html = 4;
@@ -61,7 +61,7 @@ message EmailTemplate {
 }
 
 message ListEmailTemplatesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   repeated string status = 3;
   optional bool is_default = 4;
@@ -69,10 +69,10 @@ message ListEmailTemplatesRequest {
   Pagination pagination = 6;
 }
 message ListEmailTemplatesResponse { repeated EmailTemplate email_templates = 1; PageMetadata page = 2; }
-message GetEmailTemplateRequest { string tenant_uuid = 1; string email_template_uuid = 2; }
+message GetEmailTemplateRequest { string tenant_id = 1; string email_template_id = 2; }
 message GetEmailTemplateResponse { EmailTemplate email_template = 1; }
 message CreateEmailTemplateRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string subject = 3;
   string body_html = 4;
@@ -82,8 +82,8 @@ message CreateEmailTemplateRequest {
 }
 message CreateEmailTemplateResponse { EmailTemplate email_template = 1; }
 message UpdateEmailTemplateRequest {
-  string tenant_uuid = 1;
-  string email_template_uuid = 2;
+  string tenant_id = 1;
+  string email_template_id = 2;
   string name = 3;
   string subject = 4;
   string body_html = 5;
@@ -91,13 +91,13 @@ message UpdateEmailTemplateRequest {
   string status = 7;
 }
 message UpdateEmailTemplateResponse { EmailTemplate email_template = 1; }
-message SetEmailTemplateStatusRequest { string tenant_uuid = 1; string email_template_uuid = 2; string status = 3; }
+message SetEmailTemplateStatusRequest { string tenant_id = 1; string email_template_id = 2; string status = 3; }
 message SetEmailTemplateStatusResponse { EmailTemplate email_template = 1; }
-message DeleteEmailTemplateRequest { string tenant_uuid = 1; string email_template_uuid = 2; }
+message DeleteEmailTemplateRequest { string tenant_id = 1; string email_template_id = 2; }
 message DeleteEmailTemplateResponse { EmailTemplate email_template = 1; }
 
 message SMSTemplate {
-  string sms_template_uuid = 1;
+  string sms_template_id = 1;
   string name = 2;
   optional string description = 3;
   string message = 4;
@@ -110,7 +110,7 @@ message SMSTemplate {
 }
 
 message ListSMSTemplatesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   repeated string status = 3;
   optional bool is_default = 4;
@@ -118,10 +118,10 @@ message ListSMSTemplatesRequest {
   Pagination pagination = 6;
 }
 message ListSMSTemplatesResponse { repeated SMSTemplate sms_templates = 1; PageMetadata page = 2; }
-message GetSMSTemplateRequest { string tenant_uuid = 1; string sms_template_uuid = 2; }
+message GetSMSTemplateRequest { string tenant_id = 1; string sms_template_id = 2; }
 message GetSMSTemplateResponse { SMSTemplate sms_template = 1; }
 message CreateSMSTemplateRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   optional string description = 3;
   string message = 4;
@@ -130,8 +130,8 @@ message CreateSMSTemplateRequest {
 }
 message CreateSMSTemplateResponse { SMSTemplate sms_template = 1; }
 message UpdateSMSTemplateRequest {
-  string tenant_uuid = 1;
-  string sms_template_uuid = 2;
+  string tenant_id = 1;
+  string sms_template_id = 2;
   string name = 3;
   optional string description = 4;
   string message = 5;
@@ -139,7 +139,7 @@ message UpdateSMSTemplateRequest {
   string status = 7;
 }
 message UpdateSMSTemplateResponse { SMSTemplate sms_template = 1; }
-message SetSMSTemplateStatusRequest { string tenant_uuid = 1; string sms_template_uuid = 2; string status = 3; }
+message SetSMSTemplateStatusRequest { string tenant_id = 1; string sms_template_id = 2; string status = 3; }
 message SetSMSTemplateStatusResponse { SMSTemplate sms_template = 1; }
-message DeleteSMSTemplateRequest { string tenant_uuid = 1; string sms_template_uuid = 2; }
+message DeleteSMSTemplateRequest { string tenant_id = 1; string sms_template_id = 2; }
 message DeleteSMSTemplateResponse { SMSTemplate sms_template = 1; }

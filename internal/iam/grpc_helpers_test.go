@@ -64,7 +64,7 @@ func grpcUserCallerCtx(tenantID int64, actorUUID uuid.UUID) context.Context {
 	})
 }
 
-// The actor used to be req.GetActorUserUuid(): a request-body field that drove both
+// The actor used to be req.GetActorUserId(): a request-body field that drove both
 // audit attribution AND the ValidateTenantAccess subject, so a caller could pin a
 // change on an innocent user and borrow that user's tenant membership.
 func TestIAMActorUserUUID(t *testing.T) {

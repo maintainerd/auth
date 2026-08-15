@@ -20,7 +20,7 @@ func NewAPIGRPCHandler(tenantService TenantResolver, apiService APIService) *API
 }
 
 func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsRequest) (*authv1.ListAPIsResponse, error) {
-	scope, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	scope, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsReque
 		Name:                 iamOptionalString(req.GetName()),
 		DisplayName:          iamOptionalString(req.GetDisplayName()),
 		Identifier:           iamOptionalString(req.GetIdentifier()),
-		ServiceUUID:          iamOptionalString(req.GetServiceUuid()),
+		ServiceUUID:          iamOptionalString(req.GetServiceId()),
 		Status:               req.GetStatus(),
 		IsSystem:             req.IsSystem,
 		PaginationRequestDTO: iamPaginationDTO(req.GetPagination()),
@@ -72,7 +72,7 @@ func (h *APIGRPCHandler) ListAPIs(ctx context.Context, req *authv1.ListAPIsReque
 }
 
 func (h *APIGRPCHandler) GetAPI(ctx context.Context, req *authv1.GetAPIRequest) (*authv1.GetAPIResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetApiUuid(), "API UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -84,13 +84,13 @@ func (h *APIGRPCHandler) GetAPI(ctx context.Context, req *authv1.GetAPIRequest) 
 }
 
 func (h *APIGRPCHandler) CreateAPI(ctx context.Context, req *authv1.CreateAPIRequest) (*authv1.CreateAPIResponse, error) {
-	scope, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	scope, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
 	// The tenant boundary is enforced BEFORE the ledger claim so a caller that may
 	// not act on this tenant cannot consume — or occupy — a key it may not spend.
-	dto := APICreateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
+	dto := APICreateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceId()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
@@ -102,11 +102,11 @@ func (h *APIGRPCHandler) CreateAPI(ctx context.Context, req *authv1.CreateAPIReq
 }
 
 func (h *APIGRPCHandler) UpdateAPI(ctx context.Context, req *authv1.UpdateAPIRequest) (*authv1.UpdateAPIResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetApiUuid(), "API UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
-	dto := APIUpdateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceUuid()}
+	dto := APIUpdateRequestDTO{Name: req.GetName(), DisplayName: req.GetDisplayName(), Description: req.GetDescription(), Status: req.GetStatus(), ServiceUUID: req.GetServiceId()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
@@ -118,7 +118,7 @@ func (h *APIGRPCHandler) UpdateAPI(ctx context.Context, req *authv1.UpdateAPIReq
 }
 
 func (h *APIGRPCHandler) SetAPIStatus(ctx context.Context, req *authv1.SetAPIStatusRequest) (*authv1.SetAPIStatusResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetApiUuid(), "API UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (h *APIGRPCHandler) SetAPIStatus(ctx context.Context, req *authv1.SetAPISta
 }
 
 func (h *APIGRPCHandler) DeleteAPI(ctx context.Context, req *authv1.DeleteAPIRequest) (*authv1.DeleteAPIResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetApiUuid(), "API UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}

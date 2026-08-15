@@ -25,7 +25,7 @@ const (
 
 type GetMFAConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -60,11 +60,11 @@ func (*GetMFAConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetMFAConfigRequest) GetTenantId() int64 {
+func (x *GetMFAConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetMFAConfigResponse struct {
@@ -113,7 +113,7 @@ func (x *GetMFAConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateMFAConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -152,11 +152,11 @@ func (*UpdateMFAConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UpdateMFAConfigRequest) GetTenantId() int64 {
+func (x *UpdateMFAConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateMFAConfigRequest) GetConfig() *structpb.Struct {
@@ -233,7 +233,7 @@ func (x *UpdateMFAConfigResponse) GetConfig() *structpb.Struct {
 
 type GetPasswordConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -268,11 +268,11 @@ func (*GetPasswordConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetPasswordConfigRequest) GetTenantId() int64 {
+func (x *GetPasswordConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetPasswordConfigResponse struct {
@@ -321,7 +321,7 @@ func (x *GetPasswordConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdatePasswordConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -360,11 +360,11 @@ func (*UpdatePasswordConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UpdatePasswordConfigRequest) GetTenantId() int64 {
+func (x *UpdatePasswordConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdatePasswordConfigRequest) GetConfig() *structpb.Struct {
@@ -441,7 +441,7 @@ func (x *UpdatePasswordConfigResponse) GetConfig() *structpb.Struct {
 
 type GetSessionConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -476,11 +476,11 @@ func (*GetSessionConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetSessionConfigRequest) GetTenantId() int64 {
+func (x *GetSessionConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetSessionConfigResponse struct {
@@ -529,7 +529,7 @@ func (x *GetSessionConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateSessionConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -568,11 +568,11 @@ func (*UpdateSessionConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UpdateSessionConfigRequest) GetTenantId() int64 {
+func (x *UpdateSessionConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateSessionConfigRequest) GetConfig() *structpb.Struct {
@@ -649,7 +649,7 @@ func (x *UpdateSessionConfigResponse) GetConfig() *structpb.Struct {
 
 type GetThreatConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -684,11 +684,11 @@ func (*GetThreatConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetThreatConfigRequest) GetTenantId() int64 {
+func (x *GetThreatConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetThreatConfigResponse struct {
@@ -737,7 +737,7 @@ func (x *GetThreatConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateThreatConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -776,11 +776,11 @@ func (*UpdateThreatConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *UpdateThreatConfigRequest) GetTenantId() int64 {
+func (x *UpdateThreatConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateThreatConfigRequest) GetConfig() *structpb.Struct {
@@ -857,7 +857,7 @@ func (x *UpdateThreatConfigResponse) GetConfig() *structpb.Struct {
 
 type GetLockoutConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -892,11 +892,11 @@ func (*GetLockoutConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *GetLockoutConfigRequest) GetTenantId() int64 {
+func (x *GetLockoutConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetLockoutConfigResponse struct {
@@ -945,7 +945,7 @@ func (x *GetLockoutConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateLockoutConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -984,11 +984,11 @@ func (*UpdateLockoutConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *UpdateLockoutConfigRequest) GetTenantId() int64 {
+func (x *UpdateLockoutConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateLockoutConfigRequest) GetConfig() *structpb.Struct {
@@ -1065,7 +1065,7 @@ func (x *UpdateLockoutConfigResponse) GetConfig() *structpb.Struct {
 
 type GetRegistrationConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1100,11 +1100,11 @@ func (*GetRegistrationConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *GetRegistrationConfigRequest) GetTenantId() int64 {
+func (x *GetRegistrationConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetRegistrationConfigResponse struct {
@@ -1153,7 +1153,7 @@ func (x *GetRegistrationConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateRegistrationConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1192,11 +1192,11 @@ func (*UpdateRegistrationConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *UpdateRegistrationConfigRequest) GetTenantId() int64 {
+func (x *UpdateRegistrationConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateRegistrationConfigRequest) GetConfig() *structpb.Struct {
@@ -1273,7 +1273,7 @@ func (x *UpdateRegistrationConfigResponse) GetConfig() *structpb.Struct {
 
 type GetTokenConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1308,11 +1308,11 @@ func (*GetTokenConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *GetTokenConfigRequest) GetTenantId() int64 {
+func (x *GetTokenConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 type GetTokenConfigResponse struct {
@@ -1361,7 +1361,7 @@ func (x *GetTokenConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateTokenConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantId      int64                  `protobuf:"varint,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	UpdatedBy     string                 `protobuf:"bytes,3,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1400,11 +1400,11 @@ func (*UpdateTokenConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{26}
 }
 
-func (x *UpdateTokenConfigRequest) GetTenantId() int64 {
+func (x *UpdateTokenConfigRequest) GetTenantId() string {
 	if x != nil {
 		return x.TenantId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateTokenConfigRequest) GetConfig() *structpb.Struct {
@@ -1480,16 +1480,16 @@ func (x *UpdateTokenConfigResponse) GetConfig() *structpb.Struct {
 }
 
 type IPRestrictionRule struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	IpRestrictionRuleUuid string                 `protobuf:"bytes,1,opt,name=ip_restriction_rule_uuid,json=ipRestrictionRuleUuid,proto3" json:"ip_restriction_rule_uuid,omitempty"`
-	Description           string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Type                  string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	IpAddress             string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
-	Status                string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	CreatedAt             *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt             *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	IpRestrictionRuleId string                 `protobuf:"bytes,1,opt,name=ip_restriction_rule_id,json=ipRestrictionRuleId,proto3" json:"ip_restriction_rule_id,omitempty"`
+	Description         string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Type                string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	IpAddress           string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
+	Status              string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *IPRestrictionRule) Reset() {
@@ -1522,9 +1522,9 @@ func (*IPRestrictionRule) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *IPRestrictionRule) GetIpRestrictionRuleUuid() string {
+func (x *IPRestrictionRule) GetIpRestrictionRuleId() string {
 	if x != nil {
-		return x.IpRestrictionRuleUuid
+		return x.IpRestrictionRuleId
 	}
 	return ""
 }
@@ -1573,7 +1573,7 @@ func (x *IPRestrictionRule) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListIPRestrictionRulesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
 	Status        []string               `protobuf:"bytes,3,rep,name=status,proto3" json:"status,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1613,9 +1613,9 @@ func (*ListIPRestrictionRulesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *ListIPRestrictionRulesRequest) GetTenantUuid() string {
+func (x *ListIPRestrictionRulesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1708,11 +1708,11 @@ func (x *ListIPRestrictionRulesResponse) GetPage() *PageMetadata {
 }
 
 type GetIPRestrictionRuleRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid            string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IpRestrictionRuleUuid string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_uuid,json=ipRestrictionRuleUuid,proto3" json:"ip_restriction_rule_uuid,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IpRestrictionRuleId string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_id,json=ipRestrictionRuleId,proto3" json:"ip_restriction_rule_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetIPRestrictionRuleRequest) Reset() {
@@ -1745,16 +1745,16 @@ func (*GetIPRestrictionRuleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *GetIPRestrictionRuleRequest) GetTenantUuid() string {
+func (x *GetIPRestrictionRuleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetIPRestrictionRuleRequest) GetIpRestrictionRuleUuid() string {
+func (x *GetIPRestrictionRuleRequest) GetIpRestrictionRuleId() string {
 	if x != nil {
-		return x.IpRestrictionRuleUuid
+		return x.IpRestrictionRuleId
 	}
 	return ""
 }
@@ -1805,7 +1805,7 @@ func (x *GetIPRestrictionRuleResponse) GetRule() *IPRestrictionRule {
 
 type CreateIPRestrictionRuleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	IpAddress     string                 `protobuf:"bytes,4,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
@@ -1845,9 +1845,9 @@ func (*CreateIPRestrictionRuleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *CreateIPRestrictionRuleRequest) GetTenantUuid() string {
+func (x *CreateIPRestrictionRuleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1932,16 +1932,16 @@ func (x *CreateIPRestrictionRuleResponse) GetRule() *IPRestrictionRule {
 }
 
 type UpdateIPRestrictionRuleRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid            string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IpRestrictionRuleUuid string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_uuid,json=ipRestrictionRuleUuid,proto3" json:"ip_restriction_rule_uuid,omitempty"`
-	Description           string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Type                  string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
-	IpAddress             string                 `protobuf:"bytes,5,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
-	Status                string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	UpdatedBy             int64                  `protobuf:"varint,7,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IpRestrictionRuleId string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_id,json=ipRestrictionRuleId,proto3" json:"ip_restriction_rule_id,omitempty"`
+	Description         string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Type                string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
+	IpAddress           string                 `protobuf:"bytes,5,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
+	Status              string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	UpdatedBy           int64                  `protobuf:"varint,7,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateIPRestrictionRuleRequest) Reset() {
@@ -1974,16 +1974,16 @@ func (*UpdateIPRestrictionRuleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *UpdateIPRestrictionRuleRequest) GetTenantUuid() string {
+func (x *UpdateIPRestrictionRuleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateIPRestrictionRuleRequest) GetIpRestrictionRuleUuid() string {
+func (x *UpdateIPRestrictionRuleRequest) GetIpRestrictionRuleId() string {
 	if x != nil {
-		return x.IpRestrictionRuleUuid
+		return x.IpRestrictionRuleId
 	}
 	return ""
 }
@@ -2068,13 +2068,13 @@ func (x *UpdateIPRestrictionRuleResponse) GetRule() *IPRestrictionRule {
 }
 
 type SetIPRestrictionRuleStatusRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid            string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IpRestrictionRuleUuid string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_uuid,json=ipRestrictionRuleUuid,proto3" json:"ip_restriction_rule_uuid,omitempty"`
-	Status                string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	UpdatedBy             int64                  `protobuf:"varint,4,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IpRestrictionRuleId string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_id,json=ipRestrictionRuleId,proto3" json:"ip_restriction_rule_id,omitempty"`
+	Status              string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	UpdatedBy           int64                  `protobuf:"varint,4,opt,name=updated_by,json=updatedBy,proto3" json:"updated_by,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SetIPRestrictionRuleStatusRequest) Reset() {
@@ -2107,16 +2107,16 @@ func (*SetIPRestrictionRuleStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *SetIPRestrictionRuleStatusRequest) GetTenantUuid() string {
+func (x *SetIPRestrictionRuleStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetIPRestrictionRuleStatusRequest) GetIpRestrictionRuleUuid() string {
+func (x *SetIPRestrictionRuleStatusRequest) GetIpRestrictionRuleId() string {
 	if x != nil {
-		return x.IpRestrictionRuleUuid
+		return x.IpRestrictionRuleId
 	}
 	return ""
 }
@@ -2180,11 +2180,11 @@ func (x *SetIPRestrictionRuleStatusResponse) GetRule() *IPRestrictionRule {
 }
 
 type DeleteIPRestrictionRuleRequest struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid            string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IpRestrictionRuleUuid string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_uuid,json=ipRestrictionRuleUuid,proto3" json:"ip_restriction_rule_uuid,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	TenantId            string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IpRestrictionRuleId string                 `protobuf:"bytes,2,opt,name=ip_restriction_rule_id,json=ipRestrictionRuleId,proto3" json:"ip_restriction_rule_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *DeleteIPRestrictionRuleRequest) Reset() {
@@ -2217,16 +2217,16 @@ func (*DeleteIPRestrictionRuleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_security_proto_rawDescGZIP(), []int{39}
 }
 
-func (x *DeleteIPRestrictionRuleRequest) GetTenantUuid() string {
+func (x *DeleteIPRestrictionRuleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteIPRestrictionRuleRequest) GetIpRestrictionRuleUuid() string {
+func (x *DeleteIPRestrictionRuleRequest) GetIpRestrictionRuleId() string {
 	if x != nil {
-		return x.IpRestrictionRuleUuid
+		return x.IpRestrictionRuleId
 	}
 	return ""
 }
@@ -2281,11 +2281,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"\"maintainerd/auth/v1/security.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"2\n" +
 	"\x13GetMFAConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"G\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"G\n" +
 	"\x14GetMFAConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc3\x01\n" +
 	"\x16UpdateMFAConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2296,11 +2296,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x17UpdateMFAConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"7\n" +
 	"\x18GetPasswordConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"L\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"L\n" +
 	"\x19GetPasswordConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc8\x01\n" +
 	"\x1bUpdatePasswordConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2311,11 +2311,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x1cUpdatePasswordConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"6\n" +
 	"\x17GetSessionConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"K\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"K\n" +
 	"\x18GetSessionConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc7\x01\n" +
 	"\x1aUpdateSessionConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2326,11 +2326,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x1bUpdateSessionConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"5\n" +
 	"\x16GetThreatConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"J\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"J\n" +
 	"\x17GetThreatConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc6\x01\n" +
 	"\x19UpdateThreatConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2341,11 +2341,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x1aUpdateThreatConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"6\n" +
 	"\x17GetLockoutConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"K\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"K\n" +
 	"\x18GetLockoutConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc7\x01\n" +
 	"\x1aUpdateLockoutConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2356,11 +2356,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\x1bUpdateLockoutConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\";\n" +
 	"\x1cGetRegistrationConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"P\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"P\n" +
 	"\x1dGetRegistrationConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xcc\x01\n" +
 	"\x1fUpdateRegistrationConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2371,11 +2371,11 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	" UpdateRegistrationConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"4\n" +
 	"\x15GetTokenConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\"I\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"I\n" +
 	"\x16GetTokenConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xc5\x01\n" +
 	"\x18UpdateTokenConfigRequest\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\x03R\btenantId\x12/\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x03 \x01(\tR\tupdatedBy\x12\x1d\n" +
@@ -2384,9 +2384,9 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\"L\n" +
 	"\x19UpdateTokenConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xaf\x02\n" +
-	"\x11IPRestrictionRule\x127\n" +
-	"\x18ip_restriction_rule_uuid\x18\x01 \x01(\tR\x15ipRestrictionRuleUuid\x12 \n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xab\x02\n" +
+	"\x11IPRestrictionRule\x123\n" +
+	"\x16ip_restriction_rule_id\x18\x01 \x01(\tR\x13ipRestrictionRuleId\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1d\n" +
 	"\n" +
@@ -2395,10 +2395,9 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xee\x01\n" +
-	"\x1dListIPRestrictionRulesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xea\x01\n" +
+	"\x1dListIPRestrictionRulesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
 	"\x06status\x18\x03 \x03(\tR\x06status\x12\x1d\n" +
 	"\n" +
@@ -2409,16 +2408,14 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"pagination\"\x95\x01\n" +
 	"\x1eListIPRestrictionRulesResponse\x12<\n" +
 	"\x05rules\x18\x01 \x03(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x05rules\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"w\n" +
-	"\x1bGetIPRestrictionRuleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x127\n" +
-	"\x18ip_restriction_rule_uuid\x18\x02 \x01(\tR\x15ipRestrictionRuleUuid\"Z\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"o\n" +
+	"\x1bGetIPRestrictionRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x123\n" +
+	"\x16ip_restriction_rule_id\x18\x02 \x01(\tR\x13ipRestrictionRuleId\"Z\n" +
 	"\x1cGetIPRestrictionRuleResponse\x12:\n" +
-	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\xcd\x01\n" +
-	"\x1eCreateIPRestrictionRuleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12 \n" +
+	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\xc9\x01\n" +
+	"\x1eCreateIPRestrictionRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1d\n" +
 	"\n" +
@@ -2427,11 +2424,10 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"created_by\x18\x06 \x01(\x03R\tcreatedBy\"]\n" +
 	"\x1fCreateIPRestrictionRuleResponse\x12:\n" +
-	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\x86\x02\n" +
-	"\x1eUpdateIPRestrictionRuleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x127\n" +
-	"\x18ip_restriction_rule_uuid\x18\x02 \x01(\tR\x15ipRestrictionRuleUuid\x12 \n" +
+	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\xfe\x01\n" +
+	"\x1eUpdateIPRestrictionRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x123\n" +
+	"\x16ip_restriction_rule_id\x18\x02 \x01(\tR\x13ipRestrictionRuleId\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12\x1d\n" +
 	"\n" +
@@ -2440,20 +2436,18 @@ const file_maintainerd_auth_v1_security_proto_rawDesc = "" +
 	"\n" +
 	"updated_by\x18\a \x01(\x03R\tupdatedBy\"]\n" +
 	"\x1fUpdateIPRestrictionRuleResponse\x12:\n" +
-	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\xb4\x01\n" +
-	"!SetIPRestrictionRuleStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x127\n" +
-	"\x18ip_restriction_rule_uuid\x18\x02 \x01(\tR\x15ipRestrictionRuleUuid\x12\x16\n" +
+	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"\xac\x01\n" +
+	"!SetIPRestrictionRuleStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x123\n" +
+	"\x16ip_restriction_rule_id\x18\x02 \x01(\tR\x13ipRestrictionRuleId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
 	"updated_by\x18\x04 \x01(\x03R\tupdatedBy\"`\n" +
 	"\"SetIPRestrictionRuleStatusResponse\x12:\n" +
-	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"z\n" +
-	"\x1eDeleteIPRestrictionRuleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x127\n" +
-	"\x18ip_restriction_rule_uuid\x18\x02 \x01(\tR\x15ipRestrictionRuleUuid\"]\n" +
+	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04rule\"r\n" +
+	"\x1eDeleteIPRestrictionRuleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x123\n" +
+	"\x16ip_restriction_rule_id\x18\x02 \x01(\tR\x13ipRestrictionRuleId\"]\n" +
 	"\x1fDeleteIPRestrictionRuleResponse\x12:\n" +
 	"\x04rule\x18\x01 \x01(\v2&.maintainerd.auth.v1.IPRestrictionRuleR\x04ruleBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 

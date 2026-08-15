@@ -24,7 +24,7 @@ const (
 
 type Branding struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	BrandingUuid      string                 `protobuf:"bytes,1,opt,name=branding_uuid,json=brandingUuid,proto3" json:"branding_uuid,omitempty"`
+	BrandingId        string                 `protobuf:"bytes,1,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
 	CompanyName       string                 `protobuf:"bytes,2,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
 	LogoUrl           string                 `protobuf:"bytes,3,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	FaviconUrl        string                 `protobuf:"bytes,4,opt,name=favicon_url,json=faviconUrl,proto3" json:"favicon_url,omitempty"`
@@ -72,9 +72,9 @@ func (*Branding) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Branding) GetBrandingUuid() string {
+func (x *Branding) GetBrandingId() string {
 	if x != nil {
-		return x.BrandingUuid
+		return x.BrandingId
 	}
 	return ""
 }
@@ -165,7 +165,7 @@ func (x *Branding) GetMetadata() string {
 
 type GetBrandingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -200,9 +200,9 @@ func (*GetBrandingRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetBrandingRequest) GetTenantUuid() string {
+func (x *GetBrandingRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -253,7 +253,7 @@ func (x *GetBrandingResponse) GetBranding() *Branding {
 
 type UpdateBrandingRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	CompanyName       string                 `protobuf:"bytes,2,opt,name=company_name,json=companyName,proto3" json:"company_name,omitempty"`
 	LogoUrl           string                 `protobuf:"bytes,3,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	FaviconUrl        string                 `protobuf:"bytes,4,opt,name=favicon_url,json=faviconUrl,proto3" json:"favicon_url,omitempty"`
@@ -296,9 +296,9 @@ func (*UpdateBrandingRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UpdateBrandingRequest) GetTenantUuid() string {
+func (x *UpdateBrandingRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -404,19 +404,19 @@ func (x *UpdateBrandingResponse) GetBranding() *Branding {
 }
 
 type EmailTemplate struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	EmailTemplateUuid string                 `protobuf:"bytes,1,opt,name=email_template_uuid,json=emailTemplateUuid,proto3" json:"email_template_uuid,omitempty"`
-	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Subject           string                 `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
-	BodyHtml          string                 `protobuf:"bytes,4,opt,name=body_html,json=bodyHtml,proto3" json:"body_html,omitempty"`
-	BodyPlain         *string                `protobuf:"bytes,5,opt,name=body_plain,json=bodyPlain,proto3,oneof" json:"body_plain,omitempty"`
-	Status            string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault         bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem          bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	EmailTemplateId string                 `protobuf:"bytes,1,opt,name=email_template_id,json=emailTemplateId,proto3" json:"email_template_id,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Subject         string                 `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	BodyHtml        string                 `protobuf:"bytes,4,opt,name=body_html,json=bodyHtml,proto3" json:"body_html,omitempty"`
+	BodyPlain       *string                `protobuf:"bytes,5,opt,name=body_plain,json=bodyPlain,proto3,oneof" json:"body_plain,omitempty"`
+	Status          string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	IsDefault       bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	IsSystem        bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EmailTemplate) Reset() {
@@ -449,9 +449,9 @@ func (*EmailTemplate) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *EmailTemplate) GetEmailTemplateUuid() string {
+func (x *EmailTemplate) GetEmailTemplateId() string {
 	if x != nil {
-		return x.EmailTemplateUuid
+		return x.EmailTemplateId
 	}
 	return ""
 }
@@ -521,7 +521,7 @@ func (x *EmailTemplate) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListEmailTemplatesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Status        []string               `protobuf:"bytes,3,rep,name=status,proto3" json:"status,omitempty"`
 	IsDefault     *bool                  `protobuf:"varint,4,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
@@ -561,9 +561,9 @@ func (*ListEmailTemplatesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ListEmailTemplatesRequest) GetTenantUuid() string {
+func (x *ListEmailTemplatesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -656,11 +656,11 @@ func (x *ListEmailTemplatesResponse) GetPage() *PageMetadata {
 }
 
 type GetEmailTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	EmailTemplateUuid string                 `protobuf:"bytes,2,opt,name=email_template_uuid,json=emailTemplateUuid,proto3" json:"email_template_uuid,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	EmailTemplateId string                 `protobuf:"bytes,2,opt,name=email_template_id,json=emailTemplateId,proto3" json:"email_template_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GetEmailTemplateRequest) Reset() {
@@ -693,16 +693,16 @@ func (*GetEmailTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetEmailTemplateRequest) GetTenantUuid() string {
+func (x *GetEmailTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetEmailTemplateRequest) GetEmailTemplateUuid() string {
+func (x *GetEmailTemplateRequest) GetEmailTemplateId() string {
 	if x != nil {
-		return x.EmailTemplateUuid
+		return x.EmailTemplateId
 	}
 	return ""
 }
@@ -753,7 +753,7 @@ func (x *GetEmailTemplateResponse) GetEmailTemplate() *EmailTemplate {
 
 type CreateEmailTemplateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Subject       string                 `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
 	BodyHtml      string                 `protobuf:"bytes,4,opt,name=body_html,json=bodyHtml,proto3" json:"body_html,omitempty"`
@@ -794,9 +794,9 @@ func (*CreateEmailTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *CreateEmailTemplateRequest) GetTenantUuid() string {
+func (x *CreateEmailTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -888,16 +888,16 @@ func (x *CreateEmailTemplateResponse) GetEmailTemplate() *EmailTemplate {
 }
 
 type UpdateEmailTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	EmailTemplateUuid string                 `protobuf:"bytes,2,opt,name=email_template_uuid,json=emailTemplateUuid,proto3" json:"email_template_uuid,omitempty"`
-	Name              string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Subject           string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	BodyHtml          string                 `protobuf:"bytes,5,opt,name=body_html,json=bodyHtml,proto3" json:"body_html,omitempty"`
-	BodyPlain         *string                `protobuf:"bytes,6,opt,name=body_plain,json=bodyPlain,proto3,oneof" json:"body_plain,omitempty"`
-	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	EmailTemplateId string                 `protobuf:"bytes,2,opt,name=email_template_id,json=emailTemplateId,proto3" json:"email_template_id,omitempty"`
+	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Subject         string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	BodyHtml        string                 `protobuf:"bytes,5,opt,name=body_html,json=bodyHtml,proto3" json:"body_html,omitempty"`
+	BodyPlain       *string                `protobuf:"bytes,6,opt,name=body_plain,json=bodyPlain,proto3,oneof" json:"body_plain,omitempty"`
+	Status          string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateEmailTemplateRequest) Reset() {
@@ -930,16 +930,16 @@ func (*UpdateEmailTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *UpdateEmailTemplateRequest) GetTenantUuid() string {
+func (x *UpdateEmailTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateEmailTemplateRequest) GetEmailTemplateUuid() string {
+func (x *UpdateEmailTemplateRequest) GetEmailTemplateId() string {
 	if x != nil {
-		return x.EmailTemplateUuid
+		return x.EmailTemplateId
 	}
 	return ""
 }
@@ -1024,12 +1024,12 @@ func (x *UpdateEmailTemplateResponse) GetEmailTemplate() *EmailTemplate {
 }
 
 type SetEmailTemplateStatusRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	EmailTemplateUuid string                 `protobuf:"bytes,2,opt,name=email_template_uuid,json=emailTemplateUuid,proto3" json:"email_template_uuid,omitempty"`
-	Status            string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	EmailTemplateId string                 `protobuf:"bytes,2,opt,name=email_template_id,json=emailTemplateId,proto3" json:"email_template_id,omitempty"`
+	Status          string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SetEmailTemplateStatusRequest) Reset() {
@@ -1062,16 +1062,16 @@ func (*SetEmailTemplateStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *SetEmailTemplateStatusRequest) GetTenantUuid() string {
+func (x *SetEmailTemplateStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetEmailTemplateStatusRequest) GetEmailTemplateUuid() string {
+func (x *SetEmailTemplateStatusRequest) GetEmailTemplateId() string {
 	if x != nil {
-		return x.EmailTemplateUuid
+		return x.EmailTemplateId
 	}
 	return ""
 }
@@ -1128,11 +1128,11 @@ func (x *SetEmailTemplateStatusResponse) GetEmailTemplate() *EmailTemplate {
 }
 
 type DeleteEmailTemplateRequest struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	EmailTemplateUuid string                 `protobuf:"bytes,2,opt,name=email_template_uuid,json=emailTemplateUuid,proto3" json:"email_template_uuid,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TenantId        string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	EmailTemplateId string                 `protobuf:"bytes,2,opt,name=email_template_id,json=emailTemplateId,proto3" json:"email_template_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DeleteEmailTemplateRequest) Reset() {
@@ -1165,16 +1165,16 @@ func (*DeleteEmailTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *DeleteEmailTemplateRequest) GetTenantUuid() string {
+func (x *DeleteEmailTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteEmailTemplateRequest) GetEmailTemplateUuid() string {
+func (x *DeleteEmailTemplateRequest) GetEmailTemplateId() string {
 	if x != nil {
-		return x.EmailTemplateUuid
+		return x.EmailTemplateId
 	}
 	return ""
 }
@@ -1224,19 +1224,19 @@ func (x *DeleteEmailTemplateResponse) GetEmailTemplate() *EmailTemplate {
 }
 
 type SMSTemplate struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	SmsTemplateUuid string                 `protobuf:"bytes,1,opt,name=sms_template_uuid,json=smsTemplateUuid,proto3" json:"sms_template_uuid,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description     *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Message         string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	SenderId        *string                `protobuf:"bytes,5,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
-	Status          string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault       bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem        bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SmsTemplateId string                 `protobuf:"bytes,1,opt,name=sms_template_id,json=smsTemplateId,proto3" json:"sms_template_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	SenderId      *string                `protobuf:"bytes,5,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	IsDefault     bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	IsSystem      bool                   `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SMSTemplate) Reset() {
@@ -1269,9 +1269,9 @@ func (*SMSTemplate) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *SMSTemplate) GetSmsTemplateUuid() string {
+func (x *SMSTemplate) GetSmsTemplateId() string {
 	if x != nil {
-		return x.SmsTemplateUuid
+		return x.SmsTemplateId
 	}
 	return ""
 }
@@ -1341,7 +1341,7 @@ func (x *SMSTemplate) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListSMSTemplatesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Status        []string               `protobuf:"bytes,3,rep,name=status,proto3" json:"status,omitempty"`
 	IsDefault     *bool                  `protobuf:"varint,4,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
@@ -1381,9 +1381,9 @@ func (*ListSMSTemplatesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ListSMSTemplatesRequest) GetTenantUuid() string {
+func (x *ListSMSTemplatesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1476,11 +1476,11 @@ func (x *ListSMSTemplatesResponse) GetPage() *PageMetadata {
 }
 
 type GetSMSTemplateRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SmsTemplateUuid string                 `protobuf:"bytes,2,opt,name=sms_template_uuid,json=smsTemplateUuid,proto3" json:"sms_template_uuid,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SmsTemplateId string                 `protobuf:"bytes,2,opt,name=sms_template_id,json=smsTemplateId,proto3" json:"sms_template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetSMSTemplateRequest) Reset() {
@@ -1513,16 +1513,16 @@ func (*GetSMSTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *GetSMSTemplateRequest) GetTenantUuid() string {
+func (x *GetSMSTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetSMSTemplateRequest) GetSmsTemplateUuid() string {
+func (x *GetSMSTemplateRequest) GetSmsTemplateId() string {
 	if x != nil {
-		return x.SmsTemplateUuid
+		return x.SmsTemplateId
 	}
 	return ""
 }
@@ -1573,7 +1573,7 @@ func (x *GetSMSTemplateResponse) GetSmsTemplate() *SMSTemplate {
 
 type CreateSMSTemplateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
@@ -1613,9 +1613,9 @@ func (*CreateSMSTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *CreateSMSTemplateRequest) GetTenantUuid() string {
+func (x *CreateSMSTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1700,16 +1700,16 @@ func (x *CreateSMSTemplateResponse) GetSmsTemplate() *SMSTemplate {
 }
 
 type UpdateSMSTemplateRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SmsTemplateUuid string                 `protobuf:"bytes,2,opt,name=sms_template_uuid,json=smsTemplateUuid,proto3" json:"sms_template_uuid,omitempty"`
-	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description     *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Message         string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	SenderId        *string                `protobuf:"bytes,6,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
-	Status          string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SmsTemplateId string                 `protobuf:"bytes,2,opt,name=sms_template_id,json=smsTemplateId,proto3" json:"sms_template_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	SenderId      *string                `protobuf:"bytes,6,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
+	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateSMSTemplateRequest) Reset() {
@@ -1742,16 +1742,16 @@ func (*UpdateSMSTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *UpdateSMSTemplateRequest) GetTenantUuid() string {
+func (x *UpdateSMSTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateSMSTemplateRequest) GetSmsTemplateUuid() string {
+func (x *UpdateSMSTemplateRequest) GetSmsTemplateId() string {
 	if x != nil {
-		return x.SmsTemplateUuid
+		return x.SmsTemplateId
 	}
 	return ""
 }
@@ -1836,12 +1836,12 @@ func (x *UpdateSMSTemplateResponse) GetSmsTemplate() *SMSTemplate {
 }
 
 type SetSMSTemplateStatusRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SmsTemplateUuid string                 `protobuf:"bytes,2,opt,name=sms_template_uuid,json=smsTemplateUuid,proto3" json:"sms_template_uuid,omitempty"`
-	Status          string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SmsTemplateId string                 `protobuf:"bytes,2,opt,name=sms_template_id,json=smsTemplateId,proto3" json:"sms_template_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SetSMSTemplateStatusRequest) Reset() {
@@ -1874,16 +1874,16 @@ func (*SetSMSTemplateStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *SetSMSTemplateStatusRequest) GetTenantUuid() string {
+func (x *SetSMSTemplateStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetSMSTemplateStatusRequest) GetSmsTemplateUuid() string {
+func (x *SetSMSTemplateStatusRequest) GetSmsTemplateId() string {
 	if x != nil {
-		return x.SmsTemplateUuid
+		return x.SmsTemplateId
 	}
 	return ""
 }
@@ -1940,11 +1940,11 @@ func (x *SetSMSTemplateStatusResponse) GetSmsTemplate() *SMSTemplate {
 }
 
 type DeleteSMSTemplateRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	SmsTemplateUuid string                 `protobuf:"bytes,2,opt,name=sms_template_uuid,json=smsTemplateUuid,proto3" json:"sms_template_uuid,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	SmsTemplateId string                 `protobuf:"bytes,2,opt,name=sms_template_id,json=smsTemplateId,proto3" json:"sms_template_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeleteSMSTemplateRequest) Reset() {
@@ -1977,16 +1977,16 @@ func (*DeleteSMSTemplateRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_branding_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *DeleteSMSTemplateRequest) GetTenantUuid() string {
+func (x *DeleteSMSTemplateRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteSMSTemplateRequest) GetSmsTemplateUuid() string {
+func (x *DeleteSMSTemplateRequest) GetSmsTemplateId() string {
 	if x != nil {
-		return x.SmsTemplateUuid
+		return x.SmsTemplateId
 	}
 	return ""
 }
@@ -2039,9 +2039,10 @@ var File_maintainerd_auth_v1_branding_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
-	"\"maintainerd/auth/v1/branding.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xee\x03\n" +
-	"\bBranding\x12#\n" +
-	"\rbranding_uuid\x18\x01 \x01(\tR\fbrandingUuid\x12!\n" +
+	"\"maintainerd/auth/v1/branding.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xea\x03\n" +
+	"\bBranding\x12\x1f\n" +
+	"\vbranding_id\x18\x01 \x01(\tR\n" +
+	"brandingId\x12!\n" +
 	"\fcompany_name\x18\x02 \x01(\tR\vcompanyName\x12\x19\n" +
 	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x12\x1f\n" +
 	"\vfavicon_url\x18\x04 \x01(\tR\n" +
@@ -2058,15 +2059,13 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\x04name\x18\x0f \x01(\tR\x04name\x12\x1b\n" +
 	"\tis_system\x18\x10 \x01(\bR\bisSystem\x12\x1b\n" +
 	"\tis_active\x18\x11 \x01(\bR\bisActive\x12\x1a\n" +
-	"\bmetadata\x18\x12 \x01(\tR\bmetadata\"5\n" +
-	"\x12GetBrandingRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"P\n" +
+	"\bmetadata\x18\x12 \x01(\tR\bmetadata\"1\n" +
+	"\x12GetBrandingRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"P\n" +
 	"\x13GetBrandingResponse\x129\n" +
-	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\xc7\x02\n" +
-	"\x15UpdateBrandingRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
+	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\xc3\x02\n" +
+	"\x15UpdateBrandingRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12!\n" +
 	"\fcompany_name\x18\x02 \x01(\tR\vcompanyName\x12\x19\n" +
 	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x12\x1f\n" +
 	"\vfavicon_url\x18\x04 \x01(\tR\n" +
@@ -2079,9 +2078,9 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\x04name\x18\r \x01(\tR\x04name\x12\x1a\n" +
 	"\bmetadata\x18\x0e \x01(\tR\bmetadata\"S\n" +
 	"\x16UpdateBrandingResponse\x129\n" +
-	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\x87\x03\n" +
-	"\rEmailTemplate\x12.\n" +
-	"\x13email_template_uuid\x18\x01 \x01(\tR\x11emailTemplateUuid\x12\x12\n" +
+	"\bbranding\x18\x01 \x01(\v2\x1d.maintainerd.auth.v1.BrandingR\bbranding\"\x83\x03\n" +
+	"\rEmailTemplate\x12*\n" +
+	"\x11email_template_id\x18\x01 \x01(\tR\x0femailTemplateId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\x12\x1b\n" +
 	"\tbody_html\x18\x04 \x01(\tR\bbodyHtml\x12\"\n" +
@@ -2096,10 +2095,9 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\r\n" +
-	"\v_body_plain\"\x8c\x02\n" +
-	"\x19ListEmailTemplatesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\v_body_plain\"\x88\x02\n" +
+	"\x19ListEmailTemplatesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x03 \x03(\tR\x06status\x12\"\n" +
 	"\n" +
@@ -2113,16 +2111,14 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"_is_system\"\xa0\x01\n" +
 	"\x1aListEmailTemplatesResponse\x12K\n" +
 	"\x0femail_templates\x18\x01 \x03(\v2\".maintainerd.auth.v1.EmailTemplateR\x0eemailTemplates\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"j\n" +
-	"\x17GetEmailTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13email_template_uuid\x18\x02 \x01(\tR\x11emailTemplateUuid\"e\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"b\n" +
+	"\x17GetEmailTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12*\n" +
+	"\x11email_template_id\x18\x02 \x01(\tR\x0femailTemplateId\"e\n" +
 	"\x18GetEmailTemplateResponse\x12I\n" +
-	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\xf2\x01\n" +
-	"\x1aCreateEmailTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\xee\x01\n" +
+	"\x1aCreateEmailTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\x12\x1b\n" +
 	"\tbody_html\x18\x04 \x01(\tR\bbodyHtml\x12\"\n" +
@@ -2133,11 +2129,10 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"is_default\x18\a \x01(\bR\tisDefaultB\r\n" +
 	"\v_body_plain\"h\n" +
 	"\x1bCreateEmailTemplateResponse\x12I\n" +
-	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\x83\x02\n" +
-	"\x1aUpdateEmailTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13email_template_uuid\x18\x02 \x01(\tR\x11emailTemplateUuid\x12\x12\n" +
+	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\xfb\x01\n" +
+	"\x1aUpdateEmailTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12*\n" +
+	"\x11email_template_id\x18\x02 \x01(\tR\x0femailTemplateId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
 	"\asubject\x18\x04 \x01(\tR\asubject\x12\x1b\n" +
 	"\tbody_html\x18\x05 \x01(\tR\bbodyHtml\x12\"\n" +
@@ -2146,22 +2141,20 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\x06status\x18\a \x01(\tR\x06statusB\r\n" +
 	"\v_body_plain\"h\n" +
 	"\x1bUpdateEmailTemplateResponse\x12I\n" +
-	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\x88\x01\n" +
-	"\x1dSetEmailTemplateStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13email_template_uuid\x18\x02 \x01(\tR\x11emailTemplateUuid\x12\x16\n" +
+	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\x80\x01\n" +
+	"\x1dSetEmailTemplateStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12*\n" +
+	"\x11email_template_id\x18\x02 \x01(\tR\x0femailTemplateId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"k\n" +
 	"\x1eSetEmailTemplateStatusResponse\x12I\n" +
-	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"m\n" +
-	"\x1aDeleteEmailTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12.\n" +
-	"\x13email_template_uuid\x18\x02 \x01(\tR\x11emailTemplateUuid\"h\n" +
+	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"e\n" +
+	"\x1aDeleteEmailTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12*\n" +
+	"\x11email_template_id\x18\x02 \x01(\tR\x0femailTemplateId\"h\n" +
 	"\x1bDeleteEmailTemplateResponse\x12I\n" +
-	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\x98\x03\n" +
-	"\vSMSTemplate\x12*\n" +
-	"\x11sms_template_uuid\x18\x01 \x01(\tR\x0fsmsTemplateUuid\x12\x12\n" +
+	"\x0eemail_template\x18\x01 \x01(\v2\".maintainerd.auth.v1.EmailTemplateR\remailTemplate\"\x94\x03\n" +
+	"\vSMSTemplate\x12&\n" +
+	"\x0fsms_template_id\x18\x01 \x01(\tR\rsmsTemplateId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12 \n" +
@@ -2177,10 +2170,9 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
 	"\f_descriptionB\f\n" +
 	"\n" +
-	"_sender_id\"\x8a\x02\n" +
-	"\x17ListSMSTemplatesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"_sender_id\"\x86\x02\n" +
+	"\x17ListSMSTemplatesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x03 \x03(\tR\x06status\x12\"\n" +
 	"\n" +
@@ -2194,16 +2186,14 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"_is_system\"\x98\x01\n" +
 	"\x18ListSMSTemplatesResponse\x12E\n" +
 	"\rsms_templates\x18\x01 \x03(\v2 .maintainerd.auth.v1.SMSTemplateR\fsmsTemplates\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"d\n" +
-	"\x15GetSMSTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12*\n" +
-	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\"]\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\\\n" +
+	"\x15GetSMSTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12&\n" +
+	"\x0fsms_template_id\x18\x02 \x01(\tR\rsmsTemplateId\"]\n" +
 	"\x16GetSMSTemplateResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\xe8\x01\n" +
-	"\x18CreateSMSTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\xe4\x01\n" +
+	"\x18CreateSMSTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12 \n" +
@@ -2213,11 +2203,10 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"_sender_id\"`\n" +
 	"\x19CreateSMSTemplateResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\x94\x02\n" +
-	"\x18UpdateSMSTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12*\n" +
-	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\x12\x12\n" +
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\x8c\x02\n" +
+	"\x18UpdateSMSTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12&\n" +
+	"\x0fsms_template_id\x18\x02 \x01(\tR\rsmsTemplateId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x12 \n" +
@@ -2227,18 +2216,16 @@ const file_maintainerd_auth_v1_branding_proto_rawDesc = "" +
 	"\n" +
 	"_sender_id\"`\n" +
 	"\x19UpdateSMSTemplateResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"\x82\x01\n" +
-	"\x1bSetSMSTemplateStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12*\n" +
-	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\x12\x16\n" +
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"z\n" +
+	"\x1bSetSMSTemplateStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12&\n" +
+	"\x0fsms_template_id\x18\x02 \x01(\tR\rsmsTemplateId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"c\n" +
 	"\x1cSetSMSTemplateStatusResponse\x12C\n" +
-	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"g\n" +
-	"\x18DeleteSMSTemplateRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12*\n" +
-	"\x11sms_template_uuid\x18\x02 \x01(\tR\x0fsmsTemplateUuid\"`\n" +
+	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplate\"_\n" +
+	"\x18DeleteSMSTemplateRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12&\n" +
+	"\x0fsms_template_id\x18\x02 \x01(\tR\rsmsTemplateId\"`\n" +
 	"\x19DeleteSMSTemplateResponse\x12C\n" +
 	"\fsms_template\x18\x01 \x01(\v2 .maintainerd.auth.v1.SMSTemplateR\vsmsTemplateBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 

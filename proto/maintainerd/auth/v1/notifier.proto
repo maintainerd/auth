@@ -13,7 +13,7 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // shape for the day a handler is written.
 
 message EmailConfig {
-  string email_config_uuid = 1;
+  string email_config_id = 1;
   string provider = 2;
   string host = 3;
   int32 port = 4;
@@ -26,10 +26,10 @@ message EmailConfig {
   string status = 11;
 }
 
-message GetEmailConfigRequest { string tenant_uuid = 1; }
+message GetEmailConfigRequest { string tenant_id = 1; }
 message GetEmailConfigResponse { EmailConfig config = 1; }
 message UpdateEmailConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string provider = 2;
   string host = 3;
   int32 port = 4;
@@ -44,7 +44,7 @@ message UpdateEmailConfigRequest {
 message UpdateEmailConfigResponse { EmailConfig config = 1; }
 
 message SMSConfig {
-  string sms_config_uuid = 1;
+  string sms_config_id = 1;
   string provider = 2;
   string account_sid = 3;
   string from_number = 4;
@@ -53,10 +53,10 @@ message SMSConfig {
   string status = 7;
 }
 
-message GetSMSConfigRequest { string tenant_uuid = 1; }
+message GetSMSConfigRequest { string tenant_id = 1; }
 message GetSMSConfigResponse { SMSConfig config = 1; }
 message UpdateSMSConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string provider = 2;
   string account_sid = 3;
   string auth_token = 4;

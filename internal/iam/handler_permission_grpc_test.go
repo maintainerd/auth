@@ -69,59 +69,59 @@ func TestPermissionGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewPermissionGRPCHandler(tenantResolver, svc)
 
-		list, err := h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantUuid: tenantUUID.String(), Name: "read:users", Status: shared.StatusActive, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		list, err := h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantId: tenantUUID.String(), Name: "read:users", Status: shared.StatusActive, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		require.NoError(t, err)
 		assert.Equal(t, "users", list.Permissions[0].Api.Name)
-		got, err := h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String()})
+		got, err := h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "read:users", got.Permission.Name)
 		created, err := h.CreatePermission(ctx, validCreatePermissionRequest(tenantUUID, apiUUID))
 		require.NoError(t, err)
-		assert.Equal(t, permissionUUID.String(), created.Permission.PermissionUuid)
+		assert.Equal(t, permissionUUID.String(), created.Permission.PermissionId)
 		updated, err := h.UpdatePermission(ctx, validUpdatePermissionRequest(tenantUUID, permissionUUID))
 		require.NoError(t, err)
 		assert.Equal(t, "read:users", updated.Permission.Name)
-		statusRes, err := h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String(), Status: shared.StatusInactive})
+		statusRes, err := h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String(), Status: shared.StatusInactive})
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, statusRes.Permission.Status)
-		deleted, err := h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String()})
+		deleted, err := h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String()})
 		require.NoError(t, err)
-		assert.Equal(t, permissionUUID.String(), deleted.Permission.PermissionUuid)
+		assert.Equal(t, permissionUUID.String(), deleted.Permission.PermissionId)
 	})
 
 	t.Run("validation and service errors", func(t *testing.T) {
 		h := NewPermissionGRPCHandler(mockTenantResolver{}, &mockPermissionService{})
-		_, err := h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantUuid: "bad"})
+		_, err := h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantUuid: tenantUUID.String(), Status: "bad"})
+		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantId: tenantUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: "bad"})
+		_, err = h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantId: tenantUUID.String(), PermissionId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreatePermission(ctx, &authv1.CreatePermissionRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.CreatePermission(ctx, &authv1.CreatePermissionRequest{TenantId: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantCreate := validCreatePermissionRequest(tenantUUID, apiUUID)
-		badTenantCreate.TenantUuid = "bad"
+		badTenantCreate.TenantId = "bad"
 		_, err = h.CreatePermission(ctx, badTenantCreate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdatePermission(ctx, &authv1.UpdatePermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String(), Name: "x"})
+		_, err = h.UpdatePermission(ctx, &authv1.UpdatePermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantUpdate := validUpdatePermissionRequest(tenantUUID, permissionUUID)
-		badTenantUpdate.TenantUuid = "bad"
+		badTenantUpdate.TenantId = "bad"
 		_, err = h.UpdatePermission(ctx, badTenantUpdate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String(), Status: "bad"})
+		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantUuid: "bad", PermissionUuid: permissionUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantId: "bad", PermissionId: permissionUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantUuid: "bad", PermissionUuid: permissionUUID.String()})
+		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantId: "bad", PermissionId: permissionUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: "bad"})
+		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantId: tenantUUID.String(), PermissionId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		h = NewPermissionGRPCHandler(mockTenantResolver{getByUUIDFn: func(uuid.UUID) (*tenantpkg.TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing tenant")
 		}}, &mockPermissionService{})
-		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 
 		serviceErr := errors.New("db")
@@ -137,25 +137,25 @@ func TestPermissionGRPCHandler_RPCS(t *testing.T) {
 			setStatusFn:    func(uuid.UUID, int64, string) (*PermissionServiceDataResult, error) { return nil, serviceErr },
 			deleteByUUIDFn: func(uuid.UUID, int64) (*PermissionServiceDataResult, error) { return nil, serviceErr },
 		})
-		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListPermissions(ctx, &authv1.ListPermissionsRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String()})
+		_, err = h.GetPermission(ctx, &authv1.GetPermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.CreatePermission(ctx, validCreatePermissionRequest(tenantUUID, apiUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.UpdatePermission(ctx, validUpdatePermissionRequest(tenantUUID, permissionUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetPermissionStatus(ctx, &authv1.SetPermissionStatusRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String()})
+		_, err = h.DeletePermission(ctx, &authv1.DeletePermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }
 
 func validCreatePermissionRequest(tenantUUID uuid.UUID, apiUUID uuid.UUID) *authv1.CreatePermissionRequest {
-	return &authv1.CreatePermissionRequest{TenantUuid: tenantUUID.String(), Name: "read:users", Description: "Read users permission", Status: shared.StatusActive, ApiUuid: apiUUID.String()}
+	return &authv1.CreatePermissionRequest{TenantId: tenantUUID.String(), Name: "read:users", Description: "Read users permission", Status: shared.StatusActive, ApiId: apiUUID.String()}
 }
 
 func validUpdatePermissionRequest(tenantUUID uuid.UUID, permissionUUID uuid.UUID) *authv1.UpdatePermissionRequest {
-	return &authv1.UpdatePermissionRequest{TenantUuid: tenantUUID.String(), PermissionUuid: permissionUUID.String(), Name: "read:users", Description: "Read users permission", Status: shared.StatusActive}
+	return &authv1.UpdatePermissionRequest{TenantId: tenantUUID.String(), PermissionId: permissionUUID.String(), Name: "read:users", Description: "Read users permission", Status: shared.StatusActive}
 }

@@ -91,16 +91,16 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 		h := NewAPIGRPCHandler(tenantResolver, apiSvc)
 
 		list, err := h.ListAPIs(ctx, &authv1.ListAPIsRequest{
-			TenantUuid:  tenantUUID.String(),
-			ServiceUuid: serviceUUID.String(),
-			Status:      []string{shared.StatusActive},
-			Pagination:  &authv1.Pagination{Page: 1, Limit: 10},
+			TenantId:   tenantUUID.String(),
+			ServiceId:  serviceUUID.String(),
+			Status:     []string{shared.StatusActive},
+			Pagination: &authv1.Pagination{Page: 1, Limit: 10},
 		})
 		require.NoError(t, err)
 		assert.Len(t, list.Apis, 1)
 		assert.Equal(t, "auth", list.Apis[0].Service.Name)
 
-		got, err := h.GetAPI(ctx, &authv1.GetAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String()})
+		got, err := h.GetAPI(ctx, &authv1.GetAPIRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "login", got.Api.Name)
 
@@ -112,48 +112,48 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "auth.login", updated.Api.Identifier)
 
-		statusRes, err := h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String(), Status: shared.StatusInactive})
+		statusRes, err := h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String(), Status: shared.StatusInactive})
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, statusRes.Api.Status)
 
-		deleted, err := h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String()})
+		deleted, err := h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "login", deleted.Api.Name)
 	})
 
 	t.Run("validation and dependency errors", func(t *testing.T) {
 		h := NewAPIGRPCHandler(mockTenantResolver{}, &mockAPIService{})
-		_, err := h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: "bad"})
+		_, err := h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad"})
+		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantId: tenantUUID.String(), ServiceId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetAPI(ctx, &authv1.GetAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: "bad"})
+		_, err = h.GetAPI(ctx, &authv1.GetAPIRequest{TenantId: tenantUUID.String(), ApiId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreateAPI(ctx, &authv1.CreateAPIRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.CreateAPI(ctx, &authv1.CreateAPIRequest{TenantId: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantCreateAPI := validCreateAPIRequest(tenantUUID, serviceUUID)
-		badTenantCreateAPI.TenantUuid = "bad"
+		badTenantCreateAPI.TenantId = "bad"
 		_, err = h.CreateAPI(ctx, badTenantCreateAPI)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateAPI(ctx, &authv1.UpdateAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String(), Name: "x"})
+		_, err = h.UpdateAPI(ctx, &authv1.UpdateAPIRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantUpdateAPI := validUpdateAPIRequest(tenantUUID, apiUUID, serviceUUID)
-		badTenantUpdateAPI.TenantUuid = "bad"
+		badTenantUpdateAPI.TenantId = "bad"
 		_, err = h.UpdateAPI(ctx, badTenantUpdateAPI)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String(), Status: "bad"})
+		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantUuid: "bad", ApiUuid: apiUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantId: "bad", ApiId: apiUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantUuid: "bad", ApiUuid: apiUUID.String()})
+		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantId: "bad", ApiId: apiUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: "bad"})
+		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantId: tenantUUID.String(), ApiId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		h = NewAPIGRPCHandler(mockTenantResolver{getByUUIDFn: func(uuid.UUID) (*tenantpkg.TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing tenant")
 		}}, &mockAPIService{})
-		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 
 		serviceErr := errors.New("db")
@@ -170,11 +170,11 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 			setStatusByUUIDFn: func(uuid.UUID, int64, string) (*APIServiceDataResult, error) { return nil, serviceErr },
 			deleteByUUIDFn:    func(uuid.UUID, int64) (*APIServiceDataResult, error) { return nil, serviceErr },
 		})
-		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
+		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 
 		h = NewAPIGRPCHandler(tenantResolver, &mockAPIService{getFn: func(APIServiceGetFilter) (*APIServiceGetResult, error) { return nil, serviceErr }})
-		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListAPIs(ctx, &authv1.ListAPIsRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 
 		h = NewAPIGRPCHandler(tenantResolver, &mockAPIService{
@@ -188,38 +188,38 @@ func TestAPIGRPCHandler_RPCS(t *testing.T) {
 			setStatusByUUIDFn: func(uuid.UUID, int64, string) (*APIServiceDataResult, error) { return nil, serviceErr },
 			deleteByUUIDFn:    func(uuid.UUID, int64) (*APIServiceDataResult, error) { return nil, serviceErr },
 		})
-		_, err = h.GetAPI(ctx, &authv1.GetAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.GetAPI(ctx, &authv1.GetAPIRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.CreateAPI(ctx, validCreateAPIRequest(tenantUUID, serviceUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.UpdateAPI(ctx, validUpdateAPIRequest(tenantUUID, apiUUID, serviceUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetAPIStatus(ctx, &authv1.SetAPIStatusRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantUuid: tenantUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.DeleteAPI(ctx, &authv1.DeleteAPIRequest{TenantId: tenantUUID.String(), ApiId: apiUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }
 
 func validCreateAPIRequest(tenantUUID uuid.UUID, serviceUUID uuid.UUID) *authv1.CreateAPIRequest {
 	return &authv1.CreateAPIRequest{
-		TenantUuid:  tenantUUID.String(),
+		TenantId:    tenantUUID.String(),
 		Name:        "login",
 		DisplayName: "Login API",
 		Description: "Login API endpoint",
 		Status:      shared.StatusActive,
-		ServiceUuid: serviceUUID.String(),
+		ServiceId:   serviceUUID.String(),
 	}
 }
 
 func validUpdateAPIRequest(tenantUUID uuid.UUID, apiUUID uuid.UUID, serviceUUID uuid.UUID) *authv1.UpdateAPIRequest {
 	return &authv1.UpdateAPIRequest{
-		TenantUuid:  tenantUUID.String(),
-		ApiUuid:     apiUUID.String(),
+		TenantId:    tenantUUID.String(),
+		ApiId:       apiUUID.String(),
 		Name:        "login",
 		DisplayName: "Login API",
 		Description: "Login API endpoint",
 		Status:      shared.StatusActive,
-		ServiceUuid: serviceUUID.String(),
+		ServiceId:   serviceUUID.String(),
 	}
 }

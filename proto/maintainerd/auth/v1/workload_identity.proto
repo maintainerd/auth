@@ -29,8 +29,8 @@ service WorkloadIdentityFederationService {
 }
 
 message WorkloadIdentityFederation {
-  string workload_identity_federation_uuid = 1;
-  string client_uuid = 2;
+  string workload_identity_federation_id = 1;
+  string client_id = 2;
   string name = 3;
   string description = 4;
   // issuer_url is the OIDC issuer whose tokens are trusted. https only.
@@ -51,8 +51,8 @@ message WorkloadIdentityFederation {
 }
 
 message ListWorkloadIdentityFederationsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
   string name = 3;
   optional bool is_active = 4;
   Pagination pagination = 5;
@@ -64,8 +64,8 @@ message ListWorkloadIdentityFederationsResponse {
 }
 
 message GetWorkloadIdentityFederationRequest {
-  string tenant_uuid = 1;
-  string workload_identity_federation_uuid = 2;
+  string tenant_id = 1;
+  string workload_identity_federation_id = 2;
 }
 
 message GetWorkloadIdentityFederationResponse {
@@ -73,8 +73,8 @@ message GetWorkloadIdentityFederationResponse {
 }
 
 message CreateWorkloadIdentityFederationRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
   string name = 3;
   string description = 4;
   string issuer_url = 5;
@@ -91,8 +91,8 @@ message CreateWorkloadIdentityFederationResponse {
 }
 
 message UpdateWorkloadIdentityFederationRequest {
-  string tenant_uuid = 1;
-  string workload_identity_federation_uuid = 2;
+  string tenant_id = 1;
+  string workload_identity_federation_id = 2;
   string name = 3;
   string description = 4;
   string issuer_url = 5;
@@ -109,8 +109,8 @@ message UpdateWorkloadIdentityFederationResponse {
 }
 
 message DeleteWorkloadIdentityFederationRequest {
-  string tenant_uuid = 1;
-  string workload_identity_federation_uuid = 2;
+  string tenant_id = 1;
+  string workload_identity_federation_id = 2;
 }
 
 message DeleteWorkloadIdentityFederationResponse {

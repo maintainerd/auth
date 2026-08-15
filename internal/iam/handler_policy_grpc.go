@@ -20,13 +20,13 @@ func NewPolicyGRPCHandler(tenantService TenantResolver, policyService PolicyServ
 }
 
 func (h *PolicyGRPCHandler) ListPolicies(ctx context.Context, req *authv1.ListPoliciesRequest) (*authv1.ListPoliciesResponse, error) {
-	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantUuid())
+	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
 	var serviceID *uuid.UUID
-	if req.GetServiceUuid() != "" {
-		parsed, err := iamParseUUID(req.GetServiceUuid(), "Service UUID")
+	if req.GetServiceId() != "" {
+		parsed, err := iamParseUUID(req.GetServiceId(), "Service UUID")
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func (h *PolicyGRPCHandler) ListPolicies(ctx context.Context, req *authv1.ListPo
 }
 
 func (h *PolicyGRPCHandler) GetPolicy(ctx context.Context, req *authv1.GetPolicyRequest) (*authv1.GetPolicyResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPolicyUuid(), "Policy UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPolicyId(), "Policy UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (h *PolicyGRPCHandler) GetPolicy(ctx context.Context, req *authv1.GetPolicy
 }
 
 func (h *PolicyGRPCHandler) ListPolicyServices(ctx context.Context, req *authv1.ListPolicyServicesRequest) (*authv1.ListPolicyServicesResponse, error) {
-	scope, policyUUID, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPolicyUuid(), "Policy UUID")
+	scope, policyUUID, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPolicyId(), "Policy UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (h *PolicyGRPCHandler) ListPolicyServices(ctx context.Context, req *authv1.
 }
 
 func (h *PolicyGRPCHandler) CreatePolicy(ctx context.Context, req *authv1.CreatePolicyRequest) (*authv1.CreatePolicyResponse, error) {
-	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantUuid())
+	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (h *PolicyGRPCHandler) CreatePolicy(ctx context.Context, req *authv1.Create
 }
 
 func (h *PolicyGRPCHandler) UpdatePolicy(ctx context.Context, req *authv1.UpdatePolicyRequest) (*authv1.UpdatePolicyResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPolicyUuid(), "Policy UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPolicyId(), "Policy UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (h *PolicyGRPCHandler) UpdatePolicy(ctx context.Context, req *authv1.Update
 }
 
 func (h *PolicyGRPCHandler) SetPolicyStatus(ctx context.Context, req *authv1.SetPolicyStatusRequest) (*authv1.SetPolicyStatusResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPolicyUuid(), "Policy UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPolicyId(), "Policy UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func (h *PolicyGRPCHandler) SetPolicyStatus(ctx context.Context, req *authv1.Set
 }
 
 func (h *PolicyGRPCHandler) DeletePolicy(ctx context.Context, req *authv1.DeletePolicyRequest) (*authv1.DeletePolicyResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPolicyUuid(), "Policy UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPolicyId(), "Policy UUID")
 	if err != nil {
 		return nil, err
 	}

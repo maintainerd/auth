@@ -36,7 +36,7 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 				return map[string]any{"enabled": true, "message": "brb"}, nil
 			},
 		})
-		resp, err := h.GetMaintenanceConfig(sysCtx, &authv1.GetMaintenanceConfigRequest{TenantUuid: tenantUUID.String()})
+		resp, err := h.GetMaintenanceConfig(sysCtx, &authv1.GetMaintenanceConfigRequest{TenantId: tenantUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, true, resp.Config.AsMap()["enabled"])
 		assert.Equal(t, "brb", resp.Config.AsMap()["message"])
@@ -54,7 +54,7 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 			},
 		})
 		in, _ := structpb.NewStruct(map[string]any{"enabled": true, "requests_per_window": float64(100)})
-		resp, err := h.UpdateRateLimitConfig(sysCtx, &authv1.UpdateRateLimitConfigRequest{TenantUuid: tenantUUID.String(), Config: in})
+		resp, err := h.UpdateRateLimitConfig(sysCtx, &authv1.UpdateRateLimitConfigRequest{TenantId: tenantUUID.String(), Config: in})
 		require.NoError(t, err)
 		assert.Equal(t, true, updatedWith["enabled"])
 		assert.Equal(t, float64(100), resp.Config.AsMap()["requests_per_window"])
@@ -65,7 +65,7 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 			canManageTenantFn: func(int64, uuid.UUID) (bool, error) { return false, nil },
 		}, &mockTenantSettingService{})
 		otherCtx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{TenantID: 777, UserUUID: uuid.New()})
-		_, err := h.GetMaintenanceConfig(otherCtx, &authv1.GetMaintenanceConfigRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.GetMaintenanceConfig(otherCtx, &authv1.GetMaintenanceConfigRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.PermissionDenied, status.Code(err))
 	})
 
@@ -92,17 +92,17 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 
 		// Out of range: requests_per_window caps at 100000.
 		badRate, _ := structpb.NewStruct(map[string]any{"requests_per_window": float64(999999)})
-		_, err := h.UpdateRateLimitConfig(sysCtx, &authv1.UpdateRateLimitConfigRequest{TenantUuid: tenantUUID.String(), Config: badRate})
+		_, err := h.UpdateRateLimitConfig(sysCtx, &authv1.UpdateRateLimitConfigRequest{TenantId: tenantUUID.String(), Config: badRate})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		// Unknown field.
 		badAudit, _ := structpb.NewStruct(map[string]any{"retention_dayz": float64(30)})
-		_, err = h.UpdateAuditConfig(sysCtx, &authv1.UpdateAuditConfigRequest{TenantUuid: tenantUUID.String(), Config: badAudit})
+		_, err = h.UpdateAuditConfig(sysCtx, &authv1.UpdateAuditConfigRequest{TenantId: tenantUUID.String(), Config: badAudit})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		// Wrong type for a known field.
 		badMaint, _ := structpb.NewStruct(map[string]any{"enabled": "yes"})
-		_, err = h.UpdateMaintenanceConfig(sysCtx, &authv1.UpdateMaintenanceConfigRequest{TenantUuid: tenantUUID.String(), Config: badMaint})
+		_, err = h.UpdateMaintenanceConfig(sysCtx, &authv1.UpdateMaintenanceConfigRequest{TenantId: tenantUUID.String(), Config: badMaint})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		assert.False(t, reached, "an invalid config must never reach the service")
@@ -110,7 +110,7 @@ func TestTenantSettingGRPCHandler(t *testing.T) {
 
 	t.Run("unauthenticated is rejected", func(t *testing.T) {
 		h := NewTenantSettingGRPCHandler(tenantSvc(), &mockTenantMemberService{}, &mockTenantSettingService{})
-		_, err := h.GetAuditConfig(context.Background(), &authv1.GetAuditConfigRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.GetAuditConfig(context.Background(), &authv1.GetAuditConfigRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Unauthenticated, status.Code(err))
 	})
 }

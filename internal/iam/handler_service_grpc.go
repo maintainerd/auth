@@ -44,7 +44,7 @@ func (h *ServiceGRPCHandler) GetMyPolicyBundle(ctx context.Context, req *authv1.
 }
 
 func (h *ServiceGRPCHandler) ListServices(ctx context.Context, req *authv1.ListServicesRequest) (*authv1.ListServicesResponse, error) {
-	scope, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	scope, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +147,7 @@ func stringValues(values []string) []any {
 }
 
 func (h *ServiceGRPCHandler) GetService(ctx context.Context, req *authv1.GetServiceRequest) (*authv1.GetServiceResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetServiceUuid(), "Service UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetServiceId(), "Service UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (h *ServiceGRPCHandler) GetService(ctx context.Context, req *authv1.GetServ
 }
 
 func (h *ServiceGRPCHandler) CreateService(ctx context.Context, req *authv1.CreateServiceRequest) (*authv1.CreateServiceResponse, error) {
-	scope, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	scope, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (h *ServiceGRPCHandler) CreateService(ctx context.Context, req *authv1.Crea
 }
 
 func (h *ServiceGRPCHandler) UpdateService(ctx context.Context, req *authv1.UpdateServiceRequest) (*authv1.UpdateServiceResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetServiceUuid(), "Service UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetServiceId(), "Service UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func (h *ServiceGRPCHandler) UpdateService(ctx context.Context, req *authv1.Upda
 }
 
 func (h *ServiceGRPCHandler) SetServiceStatus(ctx context.Context, req *authv1.SetServiceStatusRequest) (*authv1.SetServiceStatusResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetServiceUuid(), "Service UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetServiceId(), "Service UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (h *ServiceGRPCHandler) SetServiceStatus(ctx context.Context, req *authv1.S
 }
 
 func (h *ServiceGRPCHandler) DeleteService(ctx context.Context, req *authv1.DeleteServiceRequest) (*authv1.DeleteServiceResponse, error) {
-	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantUuid(), req.GetServiceUuid(), "Service UUID")
+	scope, id, err := h.resolveTenantAndUUID(ctx, req.GetTenantId(), req.GetServiceId(), "Service UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (h *ServiceGRPCHandler) DeleteService(ctx context.Context, req *authv1.Dele
 }
 
 func (h *ServiceGRPCHandler) AssignServicePolicy(ctx context.Context, req *authv1.AssignServicePolicyRequest) (*authv1.AssignServicePolicyResponse, error) {
-	scope, serviceUUID, policyUUID, err := h.resolveServicePolicyScope(ctx, req.GetTenantUuid(), req.GetServiceUuid(), req.GetPolicyUuid())
+	scope, serviceUUID, policyUUID, err := h.resolveServicePolicyScope(ctx, req.GetTenantId(), req.GetServiceId(), req.GetPolicyId())
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (h *ServiceGRPCHandler) AssignServicePolicy(ctx context.Context, req *authv
 }
 
 func (h *ServiceGRPCHandler) RemoveServicePolicy(ctx context.Context, req *authv1.RemoveServicePolicyRequest) (*authv1.RemoveServicePolicyResponse, error) {
-	scope, serviceUUID, policyUUID, err := h.resolveServicePolicyScope(ctx, req.GetTenantUuid(), req.GetServiceUuid(), req.GetPolicyUuid())
+	scope, serviceUUID, policyUUID, err := h.resolveServicePolicyScope(ctx, req.GetTenantId(), req.GetServiceId(), req.GetPolicyId())
 	if err != nil {
 		return nil, err
 	}

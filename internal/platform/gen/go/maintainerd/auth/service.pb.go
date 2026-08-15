@@ -25,7 +25,7 @@ const (
 
 type Service struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServiceUuid   string                 `protobuf:"bytes,1,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -70,9 +70,9 @@ func (*Service) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Service) GetServiceUuid() string {
+func (x *Service) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -321,7 +321,7 @@ func (x *GetMyPolicyBundleResponse) GetNotModified() bool {
 
 type ListServicesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -363,9 +363,9 @@ func (*ListServicesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ListServicesRequest) GetTenantUuid() string {
+func (x *ListServicesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -473,8 +473,8 @@ func (x *ListServicesResponse) GetPage() *PageMetadata {
 
 type GetServiceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -509,16 +509,16 @@ func (*GetServiceRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetServiceRequest) GetTenantUuid() string {
+func (x *GetServiceRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetServiceRequest) GetServiceUuid() string {
+func (x *GetServiceRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -569,7 +569,7 @@ func (x *GetServiceResponse) GetService() *Service {
 
 type CreateServiceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -609,9 +609,9 @@ func (*CreateServiceRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *CreateServiceRequest) GetTenantUuid() string {
+func (x *CreateServiceRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -697,8 +697,8 @@ func (x *CreateServiceResponse) GetService() *Service {
 
 type UpdateServiceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
@@ -738,16 +738,16 @@ func (*UpdateServiceRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UpdateServiceRequest) GetTenantUuid() string {
+func (x *UpdateServiceRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateServiceRequest) GetServiceUuid() string {
+func (x *UpdateServiceRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -833,8 +833,8 @@ func (x *UpdateServiceResponse) GetService() *Service {
 
 type SetServiceStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -870,16 +870,16 @@ func (*SetServiceStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *SetServiceStatusRequest) GetTenantUuid() string {
+func (x *SetServiceStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetServiceStatusRequest) GetServiceUuid() string {
+func (x *SetServiceStatusRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -937,8 +937,8 @@ func (x *SetServiceStatusResponse) GetService() *Service {
 
 type DeleteServiceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -973,16 +973,16 @@ func (*DeleteServiceRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *DeleteServiceRequest) GetTenantUuid() string {
+func (x *DeleteServiceRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteServiceRequest) GetServiceUuid() string {
+func (x *DeleteServiceRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -1033,9 +1033,9 @@ func (x *DeleteServiceResponse) GetService() *Service {
 
 type AssignServicePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,3,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,3,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1070,23 +1070,23 @@ func (*AssignServicePolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *AssignServicePolicyRequest) GetTenantUuid() string {
+func (x *AssignServicePolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AssignServicePolicyRequest) GetServiceUuid() string {
+func (x *AssignServicePolicyRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
 
-func (x *AssignServicePolicyRequest) GetPolicyUuid() string {
+func (x *AssignServicePolicyRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -1137,9 +1137,9 @@ func (x *AssignServicePolicyResponse) GetAssigned() bool {
 
 type RemoveServicePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,2,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,3,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,2,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,3,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1174,23 +1174,23 @@ func (*RemoveServicePolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_service_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *RemoveServicePolicyRequest) GetTenantUuid() string {
+func (x *RemoveServicePolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveServicePolicyRequest) GetServiceUuid() string {
+func (x *RemoveServicePolicyRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
 
-func (x *RemoveServicePolicyRequest) GetPolicyUuid() string {
+func (x *RemoveServicePolicyRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -1243,9 +1243,10 @@ var File_maintainerd_auth_v1_service_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"!maintainerd/auth/v1/service.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\x8a\x03\n" +
-	"\aService\x12!\n" +
-	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x12\n" +
+	"!maintainerd/auth/v1/service.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\x86\x03\n" +
+	"\aService\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x01 \x01(\tR\tserviceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x18\n" +
@@ -1269,10 +1270,9 @@ const file_maintainerd_auth_v1_service_proto_rawDesc = "" +
 	"\x19GetMyPolicyBundleResponse\x12@\n" +
 	"\x06bundle\x18\x01 \x01(\v2(.maintainerd.auth.v1.ServicePolicyBundleR\x06bundle\x12\x12\n" +
 	"\x04etag\x18\x02 \x01(\tR\x04etag\x12!\n" +
-	"\fnot_modified\x18\x03 \x01(\bR\vnotModified\"\xb2\x02\n" +
-	"\x13ListServicesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\fnot_modified\x18\x03 \x01(\bR\vnotModified\"\xae\x02\n" +
+	"\x13ListServicesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x18\n" +
@@ -1286,61 +1286,58 @@ const file_maintainerd_auth_v1_service_proto_rawDesc = "" +
 	"_is_system\"\x87\x01\n" +
 	"\x14ListServicesResponse\x128\n" +
 	"\bservices\x18\x01 \x03(\v2\x1c.maintainerd.auth.v1.ServiceR\bservices\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"W\n" +
-	"\x11GetServiceRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\"L\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"O\n" +
+	"\x11GetServiceRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\"L\n" +
 	"\x12GetServiceResponse\x126\n" +
-	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"\xc2\x01\n" +
-	"\x14CreateServiceRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"\xbe\x01\n" +
+	"\x14CreateServiceRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\"O\n" +
 	"\x15CreateServiceResponse\x126\n" +
-	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"\xe5\x01\n" +
-	"\x14UpdateServiceRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\x12\x12\n" +
+	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"\xdd\x01\n" +
+	"\x14UpdateServiceRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x18\n" +
 	"\aversion\x18\x06 \x01(\tR\aversion\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\"O\n" +
 	"\x15UpdateServiceResponse\x126\n" +
-	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"u\n" +
-	"\x17SetServiceStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\x12\x16\n" +
+	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"m\n" +
+	"\x17SetServiceStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"R\n" +
 	"\x18SetServiceStatusResponse\x126\n" +
-	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"Z\n" +
-	"\x14DeleteServiceRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\"O\n" +
+	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"R\n" +
+	"\x14DeleteServiceRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\"O\n" +
 	"\x15DeleteServiceResponse\x126\n" +
-	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"\x81\x01\n" +
-	"\x1aAssignServicePolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x03 \x01(\tR\n" +
-	"policyUuid\"9\n" +
+	"\aservice\x18\x01 \x01(\v2\x1c.maintainerd.auth.v1.ServiceR\aservice\"u\n" +
+	"\x1aAssignServicePolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\x12\x1b\n" +
+	"\tpolicy_id\x18\x03 \x01(\tR\bpolicyId\"9\n" +
 	"\x1bAssignServicePolicyResponse\x12\x1a\n" +
-	"\bassigned\x18\x01 \x01(\bR\bassigned\"\x81\x01\n" +
-	"\x1aRemoveServicePolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12!\n" +
-	"\fservice_uuid\x18\x02 \x01(\tR\vserviceUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x03 \x01(\tR\n" +
-	"policyUuid\"7\n" +
+	"\bassigned\x18\x01 \x01(\bR\bassigned\"u\n" +
+	"\x1aRemoveServicePolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x02 \x01(\tR\tserviceId\x12\x1b\n" +
+	"\tpolicy_id\x18\x03 \x01(\tR\bpolicyId\"7\n" +
 	"\x1bRemoveServicePolicyResponse\x12\x18\n" +
 	"\aremoved\x18\x01 \x01(\bR\aremoved2\xe5\a\n" +
 	"\x0eServiceService\x12r\n" +

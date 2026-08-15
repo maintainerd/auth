@@ -54,7 +54,7 @@ message CreateTenantRequest {
 }
 
 message CreateTenantResponse {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string default_client_id = 5;
@@ -69,7 +69,7 @@ message CreateAdminRequest {
 }
 
 message CreateAdminResponse {
-  string user_uuid = 1;
+  string user_id = 1;
   string username = 2;
   string fullname = 3;
   string email = 4;
@@ -97,7 +97,7 @@ message CreateProfileRequest {
 }
 
 message CreateProfileResponse {
-  string profile_uuid = 1;
+  string profile_id = 1;
   string first_name = 2;
   string display_name = 3;
 }
@@ -136,10 +136,10 @@ message RegisterControlServiceRequest {
 }
 
 message RegisterControlServiceResponse {
-  string service_uuid = 1;
+  string service_id = 1;
   string name = 2;
   string display_name = 3;
-  string policy_uuid = 4;
+  string policy_id = 4;
   string policy_name = 5;
   bool already_existed = 6;
   bool policy_was_attached = 7;
@@ -186,10 +186,10 @@ message EnsureControlClientRequest {
 }
 
 message EnsureControlClientResponse {
-  string client_uuid = 1;
-  string client_id = 2;
+  string client_id = 1;
+  string oauth_client_id = 2;
   string token_endpoint_auth_method = 3;
-  string service_uuid = 4;
+  string service_id = 4;
   bool already_existed = 5;
 }
 
@@ -216,8 +216,8 @@ message EnsureResourceAPIPermission {
 }
 
 message EnsureResourceAPIResponse {
-  string service_uuid = 1;
-  string api_uuid = 2;
+  string service_id = 1;
+  string api_id = 2;
   string identifier = 3;
   repeated string permission_names = 4;
   bool already_existed = 5;
@@ -226,17 +226,17 @@ message EnsureResourceAPIResponse {
 // EnsureRole creates a role carrying the given permissions and optionally grants
 // it to a user — how core gives its first administrator full access to itself.
 //
-// assign_to_user_uuid is a UUID rather than a username so it can only name a
+// assign_to_user_id is a UUID rather than a username so it can only name a
 // principal the caller already created in this same setup window.
 message EnsureRoleRequest {
   string name = 1;
   string description = 2;
   repeated string permission_names = 3;
-  string assign_to_user_uuid = 4;
+  string assign_to_user_id = 4;
 }
 
 message EnsureRoleResponse {
-  string role_uuid = 1;
+  string role_id = 1;
   string name = 2;
   repeated string permission_names = 3;
   bool assigned = 4;
@@ -260,8 +260,8 @@ message EnsureConsoleClientRequest {
 }
 
 message EnsureConsoleClientResponse {
-  string client_uuid = 1;
-  string client_id = 2;
+  string client_id = 1;
+  string oauth_client_id = 2;
   repeated string redirect_uris = 3;
   repeated string post_logout_redirect_uris = 4;
   bool already_existed = 5;

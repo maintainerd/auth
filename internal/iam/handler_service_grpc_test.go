@@ -94,16 +94,16 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 		h := NewServiceGRPCHandler(tenantResolver, svc, nil)
 
 		list, err := h.ListServices(ctx, &authv1.ListServicesRequest{
-			TenantUuid: tenantUUID.String(),
+			TenantId:   tenantUUID.String(),
 			Status:     []string{shared.StatusActive},
 			Pagination: &authv1.Pagination{Page: 2, Limit: 5, SortBy: "created_at", SortOrder: SortOrderDesc},
 		})
 		require.NoError(t, err)
 		assert.Len(t, list.Services, 1)
 		assert.Equal(t, int32(2), list.Page.Page)
-		assert.Equal(t, serviceUUID.String(), list.Services[0].ServiceUuid)
+		assert.Equal(t, serviceUUID.String(), list.Services[0].ServiceId)
 
-		got, err := h.GetService(ctx, &authv1.GetServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
+		got, err := h.GetService(ctx, &authv1.GetServiceRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "auth", got.Service.Name)
 
@@ -115,64 +115,64 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "v1", updated.Service.Version)
 
-		statusRes, err := h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), Status: shared.StatusMaintenance})
+		statusRes, err := h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), Status: shared.StatusMaintenance})
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusMaintenance, statusRes.Service.Status)
 
-		deleted, err := h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
+		deleted, err := h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "auth", deleted.Service.Name)
 
-		assigned, err := h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: policyUUID.String()})
+		assigned, err := h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: policyUUID.String()})
 		require.NoError(t, err)
 		assert.True(t, assigned.Assigned)
 
-		removed, err := h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: policyUUID.String()})
+		removed, err := h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: policyUUID.String()})
 		require.NoError(t, err)
 		assert.True(t, removed.Removed)
 	})
 
 	t.Run("validation and dependency errors", func(t *testing.T) {
 		h := NewServiceGRPCHandler(mockTenantResolver{}, &mockServiceService{}, nil)
-		_, err := h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: "bad"})
+		_, err := h.ListServices(ctx, &authv1.ListServicesRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String(), Status: []string{"bad"}})
+		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantId: tenantUUID.String(), Status: []string{"bad"}})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetService(ctx, &authv1.GetServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad"})
+		_, err = h.GetService(ctx, &authv1.GetServiceRequest{TenantId: tenantUUID.String(), ServiceId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreateService(ctx, &authv1.CreateServiceRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.CreateService(ctx, &authv1.CreateServiceRequest{TenantId: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantCreateService := validCreateServiceRequest(tenantUUID)
-		badTenantCreateService.TenantUuid = "bad"
+		badTenantCreateService.TenantId = "bad"
 		_, err = h.CreateService(ctx, badTenantCreateService)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateService(ctx, &authv1.UpdateServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), Name: "x"})
+		_, err = h.UpdateService(ctx, &authv1.UpdateServiceRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantUpdateService := validUpdateServiceRequest(tenantUUID, serviceUUID)
-		badTenantUpdateService.TenantUuid = "bad"
+		badTenantUpdateService.TenantId = "bad"
 		_, err = h.UpdateService(ctx, badTenantUpdateService)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), Status: "bad"})
+		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantUuid: "bad", ServiceUuid: serviceUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantId: "bad", ServiceId: serviceUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantUuid: "bad", ServiceUuid: serviceUUID.String()})
+		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantId: "bad", ServiceId: serviceUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad"})
+		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantId: tenantUUID.String(), ServiceId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad", PolicyUuid: policyUUID.String()})
+		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: "bad", PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: "bad"})
+		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad", PolicyUuid: policyUUID.String()})
+		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: "bad", PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: "bad"})
+		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		h = NewServiceGRPCHandler(mockTenantResolver{getByUUIDFn: func(uuid.UUID) (*tenantpkg.TenantServiceDataResult, error) {
 			return nil, apperror.NewNotFound("missing tenant")
 		}}, &mockServiceService{}, nil)
-		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.NotFound, status.Code(err))
 
 		serviceErr := errors.New("db")
@@ -190,21 +190,21 @@ func TestServiceGRPCHandler_RPCS(t *testing.T) {
 			assignPolicyFn:    func(uuid.UUID, uuid.UUID, int64) error { return serviceErr },
 			removePolicyFn:    func(uuid.UUID, uuid.UUID, int64) error { return serviceErr },
 		}, nil)
-		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListServices(ctx, &authv1.ListServicesRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.GetService(ctx, &authv1.GetServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
+		_, err = h.GetService(ctx, &authv1.GetServiceRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.CreateService(ctx, validCreateServiceRequest(tenantUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.UpdateService(ctx, validUpdateServiceRequest(tenantUUID, serviceUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetServiceStatus(ctx, &authv1.SetServiceStatusRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String()})
+		_, err = h.DeleteService(ctx, &authv1.DeleteServiceRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: policyUUID.String()})
+		_, err = h.AssignServicePolicy(ctx, &authv1.AssignServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), PolicyUuid: policyUUID.String()})
+		_, err = h.RemoveServicePolicy(ctx, &authv1.RemoveServicePolicyRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }
@@ -307,7 +307,7 @@ func TestServiceGRPCHandler_GetMyPolicyBundle(t *testing.T) {
 
 func validCreateServiceRequest(tenantUUID uuid.UUID) *authv1.CreateServiceRequest {
 	return &authv1.CreateServiceRequest{
-		TenantUuid:  tenantUUID.String(),
+		TenantId:    tenantUUID.String(),
 		Name:        "auth",
 		DisplayName: "Auth Service",
 		Description: "Authentication service",
@@ -318,8 +318,8 @@ func validCreateServiceRequest(tenantUUID uuid.UUID) *authv1.CreateServiceReques
 
 func validUpdateServiceRequest(tenantUUID uuid.UUID, serviceUUID uuid.UUID) *authv1.UpdateServiceRequest {
 	return &authv1.UpdateServiceRequest{
-		TenantUuid:  tenantUUID.String(),
-		ServiceUuid: serviceUUID.String(),
+		TenantId:    tenantUUID.String(),
+		ServiceId:   serviceUUID.String(),
 		Name:        "auth",
 		DisplayName: "Auth Service",
 		Description: "Authentication service",

@@ -22,20 +22,20 @@ const (
 )
 
 type EmailConfig struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	EmailConfigUuid string                 `protobuf:"bytes,1,opt,name=email_config_uuid,json=emailConfigUuid,proto3" json:"email_config_uuid,omitempty"`
-	Provider        string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
-	Host            string                 `protobuf:"bytes,3,opt,name=host,proto3" json:"host,omitempty"`
-	Port            int32                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
-	Username        string                 `protobuf:"bytes,5,opt,name=username,proto3" json:"username,omitempty"`
-	FromAddress     string                 `protobuf:"bytes,6,opt,name=from_address,json=fromAddress,proto3" json:"from_address,omitempty"`
-	FromName        string                 `protobuf:"bytes,7,opt,name=from_name,json=fromName,proto3" json:"from_name,omitempty"`
-	ReplyTo         string                 `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
-	Encryption      string                 `protobuf:"bytes,9,opt,name=encryption,proto3" json:"encryption,omitempty"`
-	TestMode        bool                   `protobuf:"varint,10,opt,name=test_mode,json=testMode,proto3" json:"test_mode,omitempty"`
-	Status          string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EmailConfigId string                 `protobuf:"bytes,1,opt,name=email_config_id,json=emailConfigId,proto3" json:"email_config_id,omitempty"`
+	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Host          string                 `protobuf:"bytes,3,opt,name=host,proto3" json:"host,omitempty"`
+	Port          int32                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
+	Username      string                 `protobuf:"bytes,5,opt,name=username,proto3" json:"username,omitempty"`
+	FromAddress   string                 `protobuf:"bytes,6,opt,name=from_address,json=fromAddress,proto3" json:"from_address,omitempty"`
+	FromName      string                 `protobuf:"bytes,7,opt,name=from_name,json=fromName,proto3" json:"from_name,omitempty"`
+	ReplyTo       string                 `protobuf:"bytes,8,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
+	Encryption    string                 `protobuf:"bytes,9,opt,name=encryption,proto3" json:"encryption,omitempty"`
+	TestMode      bool                   `protobuf:"varint,10,opt,name=test_mode,json=testMode,proto3" json:"test_mode,omitempty"`
+	Status        string                 `protobuf:"bytes,11,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EmailConfig) Reset() {
@@ -68,9 +68,9 @@ func (*EmailConfig) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *EmailConfig) GetEmailConfigUuid() string {
+func (x *EmailConfig) GetEmailConfigId() string {
 	if x != nil {
-		return x.EmailConfigUuid
+		return x.EmailConfigId
 	}
 	return ""
 }
@@ -147,7 +147,7 @@ func (x *EmailConfig) GetStatus() string {
 
 type GetEmailConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -182,9 +182,9 @@ func (*GetEmailConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetEmailConfigRequest) GetTenantUuid() string {
+func (x *GetEmailConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -235,7 +235,7 @@ func (x *GetEmailConfigResponse) GetConfig() *EmailConfig {
 
 type UpdateEmailConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
 	Host          string                 `protobuf:"bytes,3,opt,name=host,proto3" json:"host,omitempty"`
 	Port          int32                  `protobuf:"varint,4,opt,name=port,proto3" json:"port,omitempty"`
@@ -280,9 +280,9 @@ func (*UpdateEmailConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UpdateEmailConfigRequest) GetTenantUuid() string {
+func (x *UpdateEmailConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -403,7 +403,7 @@ func (x *UpdateEmailConfigResponse) GetConfig() *EmailConfig {
 
 type SMSConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SmsConfigUuid string                 `protobuf:"bytes,1,opt,name=sms_config_uuid,json=smsConfigUuid,proto3" json:"sms_config_uuid,omitempty"`
+	SmsConfigId   string                 `protobuf:"bytes,1,opt,name=sms_config_id,json=smsConfigId,proto3" json:"sms_config_id,omitempty"`
 	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
 	AccountSid    string                 `protobuf:"bytes,3,opt,name=account_sid,json=accountSid,proto3" json:"account_sid,omitempty"`
 	FromNumber    string                 `protobuf:"bytes,4,opt,name=from_number,json=fromNumber,proto3" json:"from_number,omitempty"`
@@ -444,9 +444,9 @@ func (*SMSConfig) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SMSConfig) GetSmsConfigUuid() string {
+func (x *SMSConfig) GetSmsConfigId() string {
 	if x != nil {
-		return x.SmsConfigUuid
+		return x.SmsConfigId
 	}
 	return ""
 }
@@ -495,7 +495,7 @@ func (x *SMSConfig) GetStatus() string {
 
 type GetSMSConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -530,9 +530,9 @@ func (*GetSMSConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *GetSMSConfigRequest) GetTenantUuid() string {
+func (x *GetSMSConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -583,7 +583,7 @@ func (x *GetSMSConfigResponse) GetConfig() *SMSConfig {
 
 type UpdateSMSConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
 	AccountSid    string                 `protobuf:"bytes,3,opt,name=account_sid,json=accountSid,proto3" json:"account_sid,omitempty"`
 	AuthToken     string                 `protobuf:"bytes,4,opt,name=auth_token,json=authToken,proto3" json:"auth_token,omitempty"`
@@ -624,9 +624,9 @@ func (*UpdateSMSConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_notifier_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *UpdateSMSConfigRequest) GetTenantUuid() string {
+func (x *UpdateSMSConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -721,9 +721,9 @@ var File_maintainerd_auth_v1_notifier_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"\n" +
-	"\"maintainerd/auth/v1/notifier.proto\x12\x13maintainerd.auth.v1\"\xc9\x02\n" +
-	"\vEmailConfig\x12*\n" +
-	"\x11email_config_uuid\x18\x01 \x01(\tR\x0femailConfigUuid\x12\x1a\n" +
+	"\"maintainerd/auth/v1/notifier.proto\x12\x13maintainerd.auth.v1\"\xc5\x02\n" +
+	"\vEmailConfig\x12&\n" +
+	"\x0femail_config_id\x18\x01 \x01(\tR\remailConfigId\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x12\n" +
 	"\x04host\x18\x03 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x04 \x01(\x05R\x04port\x12\x1a\n" +
@@ -736,15 +736,13 @@ const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"encryption\x12\x1b\n" +
 	"\ttest_mode\x18\n" +
 	" \x01(\bR\btestMode\x12\x16\n" +
-	"\x06status\x18\v \x01(\tR\x06status\"8\n" +
-	"\x15GetEmailConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"R\n" +
+	"\x06status\x18\v \x01(\tR\x06status\"4\n" +
+	"\x15GetEmailConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"R\n" +
 	"\x16GetEmailConfigResponse\x128\n" +
-	"\x06config\x18\x01 \x01(\v2 .maintainerd.auth.v1.EmailConfigR\x06config\"\xe2\x02\n" +
-	"\x18UpdateEmailConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1a\n" +
+	"\x06config\x18\x01 \x01(\v2 .maintainerd.auth.v1.EmailConfigR\x06config\"\xde\x02\n" +
+	"\x18UpdateEmailConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x12\n" +
 	"\x04host\x18\x03 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x04 \x01(\x05R\x04port\x12\x1a\n" +
@@ -761,9 +759,9 @@ const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"\n" +
 	"_test_mode\"U\n" +
 	"\x19UpdateEmailConfigResponse\x128\n" +
-	"\x06config\x18\x01 \x01(\v2 .maintainerd.auth.v1.EmailConfigR\x06config\"\xe3\x01\n" +
-	"\tSMSConfig\x12&\n" +
-	"\x0fsms_config_uuid\x18\x01 \x01(\tR\rsmsConfigUuid\x12\x1a\n" +
+	"\x06config\x18\x01 \x01(\v2 .maintainerd.auth.v1.EmailConfigR\x06config\"\xdf\x01\n" +
+	"\tSMSConfig\x12\"\n" +
+	"\rsms_config_id\x18\x01 \x01(\tR\vsmsConfigId\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x1f\n" +
 	"\vaccount_sid\x18\x03 \x01(\tR\n" +
 	"accountSid\x12\x1f\n" +
@@ -771,15 +769,13 @@ const file_maintainerd_auth_v1_notifier_proto_rawDesc = "" +
 	"fromNumber\x12\x1b\n" +
 	"\tsender_id\x18\x05 \x01(\tR\bsenderId\x12\x1b\n" +
 	"\ttest_mode\x18\x06 \x01(\bR\btestMode\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\"6\n" +
-	"\x13GetSMSConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"N\n" +
+	"\x06status\x18\a \x01(\tR\x06status\"2\n" +
+	"\x13GetSMSConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"N\n" +
 	"\x14GetSMSConfigResponse\x126\n" +
-	"\x06config\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.SMSConfigR\x06config\"\x83\x02\n" +
-	"\x16UpdateSMSConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1a\n" +
+	"\x06config\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.SMSConfigR\x06config\"\xff\x01\n" +
+	"\x16UpdateSMSConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x1f\n" +
 	"\vaccount_sid\x18\x03 \x01(\tR\n" +
 	"accountSid\x12\x1d\n" +

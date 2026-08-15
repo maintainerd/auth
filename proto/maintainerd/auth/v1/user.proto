@@ -30,8 +30,8 @@ service UserService {
 // RPCs the server never serves cannot be told apart from one that is simply down,
 // so the service block was removed: invites are REST control-plane only (see
 // internal/invite/routes.go). SendInviteRequest below also drifted from the
-// domain — invite.InviteService.SendInvite takes a registration_flow_uuid and a
-// callback_url and has no role_uuids parameter — so re-declaring the RPC would
+// domain — invite.InviteService.SendInvite takes a registration_flow_id and a
+// callback_url and has no role_ids parameter — so re-declaring the RPC would
 // have to correct the message first.
 
 service UserProfileService {
@@ -44,7 +44,7 @@ service UserProfileService {
 }
 
 message User {
-  string user_uuid = 1;
+  string user_id = 1;
   string username = 2;
   string fullname = 3;
   string email = 4;
@@ -60,7 +60,7 @@ message User {
 }
 
 message UserIdentity {
-  string user_identity_uuid = 1;
+  string user_identity_id = 1;
   string provider = 2;
   string sub = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -68,7 +68,7 @@ message UserIdentity {
 }
 
 message UserRole {
-  string role_uuid = 1;
+  string role_id = 1;
   string name = 2;
   string description = 3;
   bool is_default = 4;
@@ -79,7 +79,7 @@ message UserRole {
 }
 
 message UserProfile {
-  string profile_uuid = 1;
+  string profile_id = 1;
   string first_name = 2;
   string middle_name = 3;
   string last_name = 4;
@@ -103,7 +103,7 @@ message UserProfile {
 }
 
 message ListUsersRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string username = 2;
   string email = 3;
   string phone = 4;
@@ -117,8 +117,8 @@ message ListUsersResponse {
 }
 
 message GetUserRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
 }
 
 message GetUserResponse {
@@ -128,14 +128,14 @@ message GetUserResponse {
 message CreateUserRequest {
   reserved 3;
   reserved "fullname"; // removed: display name lives in Profile
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string username = 2;
   string email = 4;
   string phone = 5;
   string password = 6;
   string status = 7;
   google.protobuf.Struct metadata = 8;
-  string actor_user_uuid = 9;
+  string actor_user_id = 9;
 }
 
 message CreateUserResponse {
@@ -145,14 +145,14 @@ message CreateUserResponse {
 message UpdateUserRequest {
   reserved 4;
   reserved "fullname"; // removed: display name lives in Profile
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   string username = 3;
   string email = 5;
   string phone = 6;
   string status = 7;
   google.protobuf.Struct metadata = 8;
-  string actor_user_uuid = 9;
+  string actor_user_id = 9;
 }
 
 message UpdateUserResponse {
@@ -160,10 +160,10 @@ message UpdateUserResponse {
 }
 
 message SetUserStatusRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   string status = 3;
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message SetUserStatusResponse {
@@ -171,8 +171,8 @@ message SetUserStatusResponse {
 }
 
 message VerifyUserEmailRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
 }
 
 message VerifyUserEmailResponse {
@@ -180,8 +180,8 @@ message VerifyUserEmailResponse {
 }
 
 message VerifyUserPhoneRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
 }
 
 message VerifyUserPhoneResponse {
@@ -189,8 +189,8 @@ message VerifyUserPhoneResponse {
 }
 
 message CompleteUserAccountRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
 }
 
 message CompleteUserAccountResponse {
@@ -198,9 +198,9 @@ message CompleteUserAccountResponse {
 }
 
 message DeleteUserRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string actor_user_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string actor_user_id = 3;
 }
 
 message DeleteUserResponse {
@@ -208,8 +208,8 @@ message DeleteUserResponse {
 }
 
 message ForceUserPasswordChangeRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   bool force = 3;
 }
 
@@ -218,8 +218,8 @@ message ForceUserPasswordChangeResponse {
 }
 
 message ListUserRolesRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   Pagination pagination = 3;
 }
 
@@ -229,8 +229,8 @@ message ListUserRolesResponse {
 }
 
 message ListUserIdentitiesRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   Pagination pagination = 3;
 }
 
@@ -240,9 +240,9 @@ message ListUserIdentitiesResponse {
 }
 
 message AssignUserRolesRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  repeated string role_uuids = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  repeated string role_ids = 3;
 }
 
 message AssignUserRolesResponse {
@@ -250,9 +250,9 @@ message AssignUserRolesResponse {
 }
 
 message RemoveUserRoleRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string role_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string role_id = 3;
 }
 
 message RemoveUserRoleResponse {
@@ -260,10 +260,10 @@ message RemoveUserRoleResponse {
 }
 
 message SendInviteRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string email = 2;
-  repeated string role_uuids = 3;
-  string actor_user_uuid = 4;
+  repeated string role_ids = 3;
+  string actor_user_id = 4;
 }
 
 message SendInviteResponse {
@@ -271,8 +271,8 @@ message SendInviteResponse {
 }
 
 message ListUserProfilesRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   string first_name = 3;
   string last_name = 4;
   string email = 5;
@@ -289,9 +289,9 @@ message ListUserProfilesResponse {
 }
 
 message GetUserProfileRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string profile_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string profile_id = 3;
 }
 
 message GetUserProfileResponse {
@@ -299,8 +299,8 @@ message GetUserProfileResponse {
 }
 
 message CreateUserProfileRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   string first_name = 3;
   string middle_name = 4;
   string last_name = 5;
@@ -325,9 +325,9 @@ message CreateUserProfileResponse {
 }
 
 message UpdateUserProfileRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string profile_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string profile_id = 3;
   string first_name = 4;
   string middle_name = 5;
   string last_name = 6;
@@ -352,9 +352,9 @@ message UpdateUserProfileResponse {
 }
 
 message SetDefaultUserProfileRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string profile_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string profile_id = 3;
 }
 
 message SetDefaultUserProfileResponse {
@@ -362,9 +362,9 @@ message SetDefaultUserProfileResponse {
 }
 
 message DeleteUserProfileRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
-  string profile_uuid = 3;
+  string tenant_id = 1;
+  string user_id = 2;
+  string profile_id = 3;
 }
 
 message DeleteUserProfileResponse {

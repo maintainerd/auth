@@ -18,16 +18,16 @@ func NewPermissionGRPCHandler(tenantService TenantResolver, permissionService Pe
 }
 
 func (h *PermissionGRPCHandler) ListPermissions(ctx context.Context, req *authv1.ListPermissionsRequest) (*authv1.ListPermissionsResponse, error) {
-	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantUuid())
+	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
 	dto := PermissionFilterDTO{
 		Name:                 iamOptionalString(req.GetName()),
 		Description:          iamOptionalString(req.GetDescription()),
-		APIUUID:              iamOptionalString(req.GetApiUuid()),
-		RoleUUID:             iamOptionalString(req.GetRoleUuid()),
-		ClientUUID:           iamOptionalString(req.GetClientUuid()),
+		APIUUID:              iamOptionalString(req.GetApiId()),
+		RoleUUID:             iamOptionalString(req.GetRoleId()),
+		ClientUUID:           iamOptionalString(req.GetClientId()),
 		Status:               iamOptionalString(req.GetStatus()),
 		IsSystem:             req.IsSystem,
 		PaginationRequestDTO: iamPaginationDTO(req.GetPagination()),
@@ -60,7 +60,7 @@ func (h *PermissionGRPCHandler) ListPermissions(ctx context.Context, req *authv1
 }
 
 func (h *PermissionGRPCHandler) GetPermission(ctx context.Context, req *authv1.GetPermissionRequest) (*authv1.GetPermissionResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPermissionUuid(), "Permission UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +72,13 @@ func (h *PermissionGRPCHandler) GetPermission(ctx context.Context, req *authv1.G
 }
 
 func (h *PermissionGRPCHandler) CreatePermission(ctx context.Context, req *authv1.CreatePermissionRequest) (*authv1.CreatePermissionResponse, error) {
-	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantUuid())
+	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
 	// The tenant boundary is enforced BEFORE the ledger claim so a caller that may
 	// not act on this tenant cannot consume — or occupy — a key it may not spend.
-	dto := PermissionCreateRequestDTO{Name: req.GetName(), Description: req.GetDescription(), Status: req.GetStatus(), APIUUID: req.GetApiUuid()}
+	dto := PermissionCreateRequestDTO{Name: req.GetName(), Description: req.GetDescription(), Status: req.GetStatus(), APIUUID: req.GetApiId()}
 	if err := dto.Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
@@ -90,7 +90,7 @@ func (h *PermissionGRPCHandler) CreatePermission(ctx context.Context, req *authv
 }
 
 func (h *PermissionGRPCHandler) UpdatePermission(ctx context.Context, req *authv1.UpdatePermissionRequest) (*authv1.UpdatePermissionResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPermissionUuid(), "Permission UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (h *PermissionGRPCHandler) UpdatePermission(ctx context.Context, req *authv
 }
 
 func (h *PermissionGRPCHandler) SetPermissionStatus(ctx context.Context, req *authv1.SetPermissionStatusRequest) (*authv1.SetPermissionStatusResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPermissionUuid(), "Permission UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (h *PermissionGRPCHandler) SetPermissionStatus(ctx context.Context, req *au
 }
 
 func (h *PermissionGRPCHandler) DeletePermission(ctx context.Context, req *authv1.DeletePermissionRequest) (*authv1.DeletePermissionResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetPermissionUuid(), "Permission UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}

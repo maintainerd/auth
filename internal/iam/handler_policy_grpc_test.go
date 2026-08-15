@@ -64,13 +64,13 @@ func TestPolicyGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewPolicyGRPCHandler(tenantResolver, svc)
 
-		list, err := h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantUuid: tenantUUID.String(), ServiceUuid: serviceUUID.String(), Status: []string{shared.StatusActive}, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		list, err := h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantId: tenantUUID.String(), ServiceId: serviceUUID.String(), Status: []string{shared.StatusActive}, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		require.NoError(t, err)
 		assert.Equal(t, "user:read", list.Policies[0].Name)
-		got, err := h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String()})
+		got, err := h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "v1", got.Policy.Document.AsMap()["version"])
-		services, err := h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		services, err := h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		require.NoError(t, err)
 		assert.Equal(t, "auth", services.Services[0].Name)
 		created, err := h.CreatePolicy(ctx, validCreatePolicyRequest(tenantUUID, document))
@@ -78,56 +78,56 @@ func TestPolicyGRPCHandler_RPCS(t *testing.T) {
 		assert.Equal(t, "user:read", created.Policy.Name)
 		updated, err := h.UpdatePolicy(ctx, validUpdatePolicyRequest(tenantUUID, policyUUID, document))
 		require.NoError(t, err)
-		assert.Equal(t, policyUUID.String(), updated.Policy.PolicyUuid)
-		statusRes, err := h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Status: shared.StatusInactive})
+		assert.Equal(t, policyUUID.String(), updated.Policy.PolicyId)
+		statusRes, err := h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Status: shared.StatusInactive})
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, statusRes.Policy.Status)
-		deleted, err := h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String()})
+		deleted, err := h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String()})
 		require.NoError(t, err)
-		assert.Equal(t, policyUUID.String(), deleted.Policy.PolicyUuid)
+		assert.Equal(t, policyUUID.String(), deleted.Policy.PolicyId)
 	})
 
 	t.Run("validation and service errors", func(t *testing.T) {
 		h := NewPolicyGRPCHandler(mockTenantResolver{}, &mockPolicyService{})
-		_, err := h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantUuid: "bad"})
+		_, err := h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantUuid: tenantUUID.String(), ServiceUuid: "bad"})
+		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantId: tenantUUID.String(), ServiceId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantUuid: tenantUUID.String(), Status: []string{"bad"}})
+		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantId: tenantUUID.String(), Status: []string{"bad"}})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: "bad"})
+		_, err = h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantId: tenantUUID.String(), PolicyId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantUuid: tenantUUID.String(), PolicyUuid: "bad"})
+		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantId: tenantUUID.String(), PolicyId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Name: string(make([]byte, 151))})
+		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Name: string(make([]byte, 151))})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreatePolicy(ctx, &authv1.CreatePolicyRequest{TenantUuid: tenantUUID.String(), Name: "BAD", Document: document})
+		_, err = h.CreatePolicy(ctx, &authv1.CreatePolicyRequest{TenantId: tenantUUID.String(), Name: "BAD", Document: document})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreatePolicy(ctx, &authv1.CreatePolicyRequest{TenantUuid: tenantUUID.String(), Name: "user:read"})
+		_, err = h.CreatePolicy(ctx, &authv1.CreatePolicyRequest{TenantId: tenantUUID.String(), Name: "user:read"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantCreate := validCreatePolicyRequest(tenantUUID, document)
-		badTenantCreate.TenantUuid = "bad"
+		badTenantCreate.TenantId = "bad"
 		_, err = h.CreatePolicy(ctx, badTenantCreate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdatePolicy(ctx, &authv1.UpdatePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Name: "BAD", Document: document})
+		_, err = h.UpdatePolicy(ctx, &authv1.UpdatePolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Name: "BAD", Document: document})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdatePolicy(ctx, &authv1.UpdatePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: "bad", Name: "user:read", Document: document})
+		_, err = h.UpdatePolicy(ctx, &authv1.UpdatePolicyRequest{TenantId: tenantUUID.String(), PolicyId: "bad", Name: "user:read", Document: document})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantUpdate := validUpdatePolicyRequest(tenantUUID, policyUUID, document)
-		badTenantUpdate.TenantUuid = "bad"
+		badTenantUpdate.TenantId = "bad"
 		_, err = h.UpdatePolicy(ctx, badTenantUpdate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		nilDocumentUpdate := validUpdatePolicyRequest(tenantUUID, policyUUID, document)
 		nilDocumentUpdate.Document = nil
 		_, err = h.UpdatePolicy(ctx, nilDocumentUpdate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Status: "bad"})
+		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantUuid: "bad", PolicyUuid: policyUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantId: "bad", PolicyId: policyUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantUuid: "bad", PolicyUuid: policyUUID.String()})
+		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantId: "bad", PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: "bad"})
+		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantId: tenantUUID.String(), PolicyId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		serviceErr := errors.New("db")
@@ -146,19 +146,19 @@ func TestPolicyGRPCHandler_RPCS(t *testing.T) {
 			setStatusByUUIDFn: func(uuid.UUID, int64, string) (*PolicyServiceDataResult, error) { return nil, serviceErr },
 			deleteByUUIDFn:    func(uuid.UUID, int64) (*PolicyServiceDataResult, error) { return nil, serviceErr },
 		})
-		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListPolicies(ctx, &authv1.ListPoliciesRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String()})
+		_, err = h.GetPolicy(ctx, &authv1.GetPolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String()})
+		_, err = h.ListPolicyServices(ctx, &authv1.ListPolicyServicesRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.CreatePolicy(ctx, validCreatePolicyRequest(tenantUUID, document))
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.UpdatePolicy(ctx, validUpdatePolicyRequest(tenantUUID, policyUUID, document))
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetPolicyStatus(ctx, &authv1.SetPolicyStatusRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String()})
+		_, err = h.DeletePolicy(ctx, &authv1.DeletePolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 }
@@ -177,10 +177,10 @@ func validPolicyDocumentStruct(t *testing.T) *structpb.Struct {
 
 func validCreatePolicyRequest(tenantUUID uuid.UUID, document *structpb.Struct) *authv1.CreatePolicyRequest {
 	description := "Read users"
-	return &authv1.CreatePolicyRequest{TenantUuid: tenantUUID.String(), Name: "user:read", Description: &description, Document: document, Version: "v1", Status: shared.StatusActive}
+	return &authv1.CreatePolicyRequest{TenantId: tenantUUID.String(), Name: "user:read", Description: &description, Document: document, Version: "v1", Status: shared.StatusActive}
 }
 
 func validUpdatePolicyRequest(tenantUUID uuid.UUID, policyUUID uuid.UUID, document *structpb.Struct) *authv1.UpdatePolicyRequest {
 	description := "Read users"
-	return &authv1.UpdatePolicyRequest{TenantUuid: tenantUUID.String(), PolicyUuid: policyUUID.String(), Name: "user:read", Description: &description, Document: document, Version: "v1", Status: shared.StatusActive}
+	return &authv1.UpdatePolicyRequest{TenantId: tenantUUID.String(), PolicyId: policyUUID.String(), Name: "user:read", Description: &description, Document: document, Version: "v1", Status: shared.StatusActive}
 }
