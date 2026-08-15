@@ -255,12 +255,12 @@ type ClientAPIResponseDTO struct {
 
 // Add APIs to auth client request dto
 type AddClientAPIsRequestDTO struct {
-	APIUUIDs []uuid.UUID `json:"api_uuids"`
+	APIUUIDs []uuid.UUID `json:"api_ids"`
 }
 
 // Add permissions to auth client API request dto
 type AddClientAPIPermissionsRequestDTO struct {
-	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
+	PermissionUUIDs []uuid.UUID `json:"permission_ids"`
 }
 
 type APIResponseDTO struct {

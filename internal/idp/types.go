@@ -395,7 +395,7 @@ type RegistrationFlowFilterDTO struct {
 
 // Assign roles to registration flow request dto
 type RegistrationFlowAssignRolesRequestDTO struct {
-	RoleUUIDs []string `json:"role_uuids"`
+	RoleUUIDs []string `json:"role_ids"`
 }
 
 type LoginResponseDTO struct {

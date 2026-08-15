@@ -124,7 +124,7 @@ func (h *DataErasureHandler) RequestAdmin(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	changes := map[string]any{"action": "erasure_request_created", "target_user_uuid": userUUID.String(), "reason": body.Reason}
+	changes := map[string]any{"action": "erasure_request_created", "target_user_id": userUUID.String(), "reason": body.Reason}
 	h.logErasureAudit(r, tenantID, actorUserID, "erasure.request_create", changes, "success")
 
 	resp.Success(w, toErasureDTO(result), "Data erasure request created successfully")

@@ -119,7 +119,7 @@ func (h *InviteHandler) Resend(w http.ResponseWriter, r *http.Request) {
 	if u := middleware.AuthFromRequest(r).User; u != nil {
 		actorUserID = &u.UserID
 	}
-	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"invite_uuid": inviteUUID.String()}})
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"invite_id": inviteUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserID, "invite.resend", "invite", result.InviteUUID.String(), &result.InviteUUID, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Invite resent successfully")

@@ -150,7 +150,7 @@ func (h *UserTrustedDeviceHandler) DeleteMyDevice(w http.ResponseWriter, r *http
 		tenantIDDD = auth.Tenant.TenantID
 	}
 	actorUserIDDD := &auth.User.UserID
-	changesJSONDD, _ := json.Marshal(map[string]any{"before": map[string]any{"device_uuid": deviceUUID}})
+	changesJSONDD, _ := json.Marshal(map[string]any{"before": map[string]any{"device_id": deviceUUID}})
 	h.logAudit(r, tenantIDDD, actorUserIDDD, "device.delete", "trusted_device", deviceUUID, nil, string(changesJSONDD), "success")
 
 	resp.Success(w, nil, "Device removed successfully")
@@ -267,7 +267,7 @@ func (h *UserTrustedDeviceHandler) DeleteUserDevice(w http.ResponseWriter, r *ht
 	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
 		actorUserID = &authUser.UserID
 	}
-	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"device_uuid": deviceUUID}})
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"device_id": deviceUUID}})
 	h.logAudit(r, tenant.TenantID, actorUserID, "device.admin_revoke", "trusted_device", deviceUUID, nil, string(changesJSON), "success")
 
 	resp.Success(w, nil, "Device revoked successfully")

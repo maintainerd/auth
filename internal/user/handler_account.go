@@ -567,7 +567,7 @@ func (h *AccountHandler) RevokeSession(w http.ResponseWriter, r *http.Request) {
 		tenantIDRS = t.TenantID
 	}
 	actorUserIDRS := &user.UserID
-	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_uuid": sessionUUID.String()}})
+	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_id": sessionUUID.String()}})
 	sessionUUIDRef := sessionUUID
 	h.logAudit(r, tenantIDRS, actorUserIDRS, "account.revoke_session", "session", sessionUUID.String(), &sessionUUIDRef, string(changesJSONRS), "success")
 

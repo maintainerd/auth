@@ -439,7 +439,7 @@ func (h *ServiceHandler) AssignPolicy(w http.ResponseWriter, r *http.Request) {
 	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
 		actorUserID = &authCtx.User.UserID
 	}
-	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_uuid": serviceUUID.String(), "policy_uuid": policyUUID.String()}})
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_id": serviceUUID.String(), "policy_id": policyUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserID, "service.assign_policy", "service", serviceUUID.String(), &serviceUUID, string(changesJSON), "success")
 	resp.Success(w, nil, "Policy assigned to service successfully")
 }
@@ -484,7 +484,7 @@ func (h *ServiceHandler) RemovePolicy(w http.ResponseWriter, r *http.Request) {
 	if authCtx := middleware.AuthFromRequest(r); authCtx.User != nil {
 		actorUserID = &authCtx.User.UserID
 	}
-	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_uuid": serviceUUID.String(), "policy_uuid": policyUUID.String()}})
+	changesJSON, _ := json.Marshal(map[string]any{"update": map[string]any{"service_id": serviceUUID.String(), "policy_id": policyUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserID, "service.remove_policy", "service", serviceUUID.String(), &serviceUUID, string(changesJSON), "success")
 	resp.Success(w, nil, "Policy removed from service successfully")
 }

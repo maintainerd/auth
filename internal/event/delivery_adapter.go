@@ -85,7 +85,7 @@ func OutboxPayload(ctx context.Context, outbox *Outbox, resolver PublicIDResolve
 		"event_version":  outbox.EventVersion,
 		"tenant_id":      tenantUUID.String(),
 		"actor_user_id":  actorUserID,
-		"subject_uuid":   outbox.SubjectUUID,
+		"subject_id":     outbox.SubjectUUID,
 		"subject_type":   outbox.SubjectType,
 		"changed_fields": unmarshalStringSliceRaw(outbox.ChangedFields),
 		"payload":        json.RawMessage(payload),
