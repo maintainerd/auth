@@ -39,6 +39,7 @@ RUN npm run build
 # builds never run this stage under QEMU emulation. The `embedassets` build tag
 # turns on the go:embed of the two dist trees copied in below.
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS backend
+ENV GOTOOLCHAIN=auto
 
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
