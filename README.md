@@ -29,7 +29,7 @@ It ships as **one all-in-one image**: the Go backend plus the admin console and 
 - **Multi-factor authentication** — TOTP, WebAuthn/passkeys, SMS OTP, backup codes, and step-up auth
 - **Federation** — broker sign-in over **OIDC, OAuth 2.0, and SAML 2.0**: Google, Microsoft, GitHub, GitLab, LinkedIn, Facebook, X (Twitter), Auth0, Cognito, any standards-compliant IdP, and maintainerd-to-maintainerd. Includes JIT provisioning, identity linking, and home-realm discovery
 - **Fine-grained access control** — RBAC with granular permissions, plus IAM services, APIs, policies, service-token policy bundles, and service-to-service authorization
-- **Multi-tenant** — full tenant isolation, per-tenant configuration, API keys, and invite flows
+- **Multi-tenant** — full tenant isolation, per-tenant configuration, and invite flows
 - **Session management** — refresh-token rotation, family revocation, reuse detection, and concurrent-session limits
 - **Webhook delivery** — auth-event notifications signed with HMAC-SHA256, with replay protection
 - **Audit logging** — structured auth events with retention, per-tenant isolation, and PII redaction

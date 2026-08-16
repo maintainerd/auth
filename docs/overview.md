@@ -144,7 +144,7 @@ TENANT  (one record per running instance)
 
 The **tenant** is the root entity — there is exactly one tenant record per running instance. It does not represent a user or an application. It represents the organization that owns the deployment.
 
-Everything in the system lives under the tenant. The tenant record holds the instance identity (`identifier`, `name`, `display_name`, `status`) and owns all application-level configuration directly: users, roles, permissions, identity providers, clients, API keys, registration flows, invites, branding/templates, and security settings.
+Everything in the system lives under the tenant. The tenant record holds the instance identity (`identifier`, `name`, `display_name`, `status`) and owns all application-level configuration directly: users, roles, permissions, identity providers, clients, registration flows, invites, branding/templates, and security settings.
 
 The tenant also owns instance-wide concerns: IP restrictions, email and SMS delivery, branding for the admin console, rate limits, audit configuration, webhooks, and maintenance mode.
 
@@ -330,7 +330,7 @@ Per-tenant SMS message templates for one-time passwords and phone verification m
 
 Settings at the tenant level cover concerns shared across the entire instance. They are split into focused tables by concern and lifecycle so that different teams can own different records without contention.
 
-**`tenant_settings`** — Core operational flags: global rate limits, audit/compliance settings (log retention, GDPR mode, PII masking, data deletion strategy), maintenance mode (with per-IP bypass list), and feature toggles (API keys, invite system, webhooks).
+**`tenant_settings`** — Core operational flags: global rate limits, audit/compliance settings (log retention, GDPR mode, PII masking, data deletion strategy), maintenance mode (with per-IP bypass list), and feature toggles (invite system, webhooks).
 
 **`email_config`** — Transactional email delivery: SMTP relay configuration, sender identity (from address, from name, reply-to), TLS mode, and test mode.
 
