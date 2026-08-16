@@ -65,23 +65,6 @@ layers (handlers, repositories), and thin middleware are excluded to reduce nois
 - [x] `SetStatusByUUID`
 - [x] `DeleteByUUID`
 
-### service/api_key.go
-
-- [x] `Get`
-- [x] `GetByUUID`
-- [x] `GetConfigByUUID`
-- [x] `Create`
-- [x] `Update`
-- [x] `SetStatusByUUID`
-- [x] `Delete`
-- [x] `ValidateAPIKey`
-- [x] `GetAPIKeyAPIs`
-- [x] `AddAPIKeyAPIs`
-- [x] `RemoveAPIKeyAPI`
-- [x] `GetAPIKeyAPIPermissions`
-- [x] `AddAPIKeyAPIPermissions`
-- [x] `RemoveAPIKeyAPIPermission`
-
 ### service/client.go
 
 - [x] `Get`

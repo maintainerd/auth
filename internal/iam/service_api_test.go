@@ -801,8 +801,7 @@ func TestToAPIServiceDataResult_Nil(t *testing.T) {
 
 // The ownership chain is service → api → permission, and every level is
 // SOFT-deleted, so the ON DELETE CASCADE on the FKs never fires. Without an explicit
-// cascade the children survive their parent and stay attached to roles, clients and
-// API keys — and (before the resolver fix) kept being written into access tokens.
+// cascade the children survive their parent and stay attached to roles and clients — and (before the resolver fix) kept being written into access tokens.
 func TestAPIService_DeleteByUUID_CascadesToPermissions(t *testing.T) {
 	tenantID := int64(1)
 	apiUUID := uuid.New()

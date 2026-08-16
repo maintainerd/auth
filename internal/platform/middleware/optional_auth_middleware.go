@@ -11,9 +11,8 @@ import (
 
 // bearerOrCookieToken extracts a bearer token from the Authorization header or,
 // failing that, from the access_token / __Host-access_token cookie. It returns
-// an empty string when no token is present. API keys are intentionally not
-// handled here — this is the cookie/bearer session path used by the hosted
-// identity surface.
+// an empty string when no token is present. This is the cookie/bearer session
+// path used by the hosted identity surface.
 	//lint:ignore U1000 pre-existing; retained for future use
 func bearerOrCookieToken(r *http.Request) string {
 	token, _ := bearerOrCookieTokenWithScheme(r)

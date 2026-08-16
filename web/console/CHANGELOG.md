@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial release of the Maintainerd Auth admin console
-- Tenant, user, role, permission, policy, service, API, client, and API-key management
+- Tenant, user, role, permission, policy, service, API, and client management
 - Registration-flow, invitation, identity-provider, and webhook/event management
 - Security configuration surfaces: MFA, password policies, sessions, tokens, account lockout, registration, threat detection, IP restrictions, and rate limits
 - Branding, email/SMS template, and messaging (email/SMS delivery) management

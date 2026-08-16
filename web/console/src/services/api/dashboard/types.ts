@@ -18,7 +18,6 @@ export interface DashboardSummary {
   clients: ResourceCount
   identity_providers: ResourceCount
   roles: ResourceCount
-  api_keys: ResourceCount
   recent_logins_24h: number
   failed_logins_24h: number
 }

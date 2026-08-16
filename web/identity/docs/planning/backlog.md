@@ -175,7 +175,7 @@ Every `services/api/<resource>/index.ts` repeats the same query-param builder an
 
 ### P2-3 · Break up oversized components · `L` · *Maintainability*
 `ClientAddOrUpdateForm.tsx` (1084 lines), `LoginTemplateForm.tsx` (791),
-`UserProfileForm.tsx` (591), `ApiKeyAddOrUpdateForm.tsx` (533), and others exceed
+`UserProfileForm.tsx` (591) and others exceed
 sane limits and are untestable as units.
 - Split into sub-forms/sections + hooks; target < ~250 lines per component.
 - **Done when:** no page/component file > ~300 lines (or each exception is justified).

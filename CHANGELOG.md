@@ -260,7 +260,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker images: multi-arch (amd64/arm64), non-root, HEALTHCHECK
 - OpenTelemetry tracing and Prometheus metrics
 - gRPC API alongside REST
-- API key management with API-scoped permissions
 
 ### Security
 - argon2id password hashing with per-user salt
@@ -339,7 +338,6 @@ Initial production release.
 ### Tenancy & RBAC
 - Multi-tenant isolation, tenant members, services, settings
 - Roles, permissions, policies with middleware enforcement
-- API keys with scoping and invite system
 
 ### Security
 - Bcrypt password hashing (cost ≥ 12), constant-time comparison

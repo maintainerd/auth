@@ -510,7 +510,6 @@ See [IAM authorization](../features/iam-authorization.md).
 **`client/`** — OAuth clients: redirect URIs, permissions, API bindings, CORS origins, and secret
 encryption. Owns `Client` and its association models. Representative: `service_client.go`,
 `redirect_match.go`, `handler_client_grpc.go`. See [clients](../features/clients.md).
-*(There is no API-key subsystem — it was removed.)*
 
 **`idp/`** — Identity providers and registration flows. Owns `IdentityProvider`,
 `RegistrationFlow`, `RegistrationFlowRole`. Representative: `service_identity_provider.go`,

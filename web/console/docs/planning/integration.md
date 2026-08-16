@@ -153,7 +153,6 @@ product before building, but they should be on the radar.
 |---|---|
 | `/auth/login`, `/auth/register`, … | `/login`, `/register`, … (no `/auth` prefix on internal router) |
 | `/identity-providers` (kebab) | `/identity_providers` (snake) |
-| `/api-keys` (kebab) | `/api_keys` (snake) |
 | `/tenants/{tenant_uuid}` only | `/tenant` **and** `/tenants` both exist |
 | *(omits)* setup, signup_flows, templates, branding, security-settings, notifier, webhooks, events | all registered in `router.go` |
 
@@ -193,7 +192,7 @@ by appending a literal `s`. This is brittle and obscures which routes are hit.
 
 **Aligned today (console config ↔ backend routes):**
 `/services`, `/apis`, `/permissions`, `/policies`, `/roles`, `/users`, `/clients`,
-`/api_keys`, `/identity_providers`, `/signup_flows`, `/email_templates`,
+`/identity_providers`, `/signup_flows`, `/email_templates`,
 `/sms_templates`, `/login_templates`, `/ip-restriction-rules`, `/tenant` + `/tenants`,
 auth `/login` `/register` `/logout` `/forgot-password` `/reset-password` `/profile`,
 setup `create_tenant` `create_admin` `create_profile`.

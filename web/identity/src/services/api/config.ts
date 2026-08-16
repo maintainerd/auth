@@ -117,7 +117,6 @@ export const API_ENDPOINTS = {
   POLICY: '/policies',
   IDENTITY_PROVIDER: '/identity_providers',
   CLIENT: '/clients',
-  API_KEY: '/api_keys',
   ROLE: '/roles',
   USER: '/users',
 

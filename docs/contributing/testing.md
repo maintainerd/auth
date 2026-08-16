@@ -132,7 +132,7 @@ data (isolated; no order dependence).
 - List endpoints: pagination (page/limit), sorting, filtering, default page size, and the empty-result case
 - Idempotency: safe re-DELETE / re-PUT behaves per contract
 - Correct headers: security headers present; `Cache-Control: no-store` + `Pragma: no-cache` on token/sensitive responses; `Location` on create where applicable
-- Sensitive values returned only when contractually allowed (client/api-key secret shown once at creation, never on read)
+- Sensitive values returned only when contractually allowed (client secret shown once at creation, never on read)
 
 **Error / failure cases (cover all of them)**
 - 400 — missing required field, malformed JSON, invalid value/format, wrong type

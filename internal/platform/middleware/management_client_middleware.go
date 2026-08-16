@@ -22,7 +22,7 @@ type ManagementClientResolver interface {
 // subject happens to hold the required permissions.
 //
 // It enforces only when a JWT is actually presented. Token-less requests (setup,
-// public tenant reads, health probes) and API-key requests pass through so their
+// public tenant reads, health probes) pass through so their
 // own auth rules apply, and invalid tokens pass through so the per-route JWT
 // middleware returns the canonical 401. A valid JWT whose client_id is not a
 // management client is rejected with 403.
@@ -31,8 +31,8 @@ func RequireManagementClient(resolver ManagementClientResolver) func(http.Handle
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, scheme := bearerOrCookieTokenWithScheme(r)
 
-			// No JWT, or an API key: defer to the per-route auth rules.
-			if token == "" || strings.HasPrefix(token, "ak_") {
+			// No token present: defer to the per-route auth rules.
+			if token == "" {
 				next.ServeHTTP(w, r)
 				return
 			}

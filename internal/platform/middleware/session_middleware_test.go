@@ -30,7 +30,7 @@ func TestSessionValidationMiddleware_NoHeader(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// No JWT claims at all: this is the API-key / setup / health-probe path,
+	// No JWT claims at all: this is the setup / health-probe path,
 	// which carries its own auth rules and is not what the sid rule is about.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()

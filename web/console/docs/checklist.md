@@ -634,7 +634,7 @@ The backend's `security.yml` runs **CodeQL · Semgrep · Snyk · Gitleaks** on e
 - [ ] 🔴 **Strict CSP for production builds** delivered by the host (Nginx). No `unsafe-inline`, no `unsafe-eval`. Style-nonces or hashes for any inline `<style>` injected by Tailwind.
 - [ ] 🔴 **Subresource Integrity (SRI)** hashes for any external scripts (today there are none — keep it that way; if any are added, SRI is mandatory).
 - [ ] 🔴 **No tokens in URLs** (no `?token=` query strings) — enforced by lint rule + service review.
-- [ ] 🟡 **Secret-handling UX** for OAuth client secrets and API keys:
+- [ ] 🟡 **Secret-handling UX** for OAuth client secrets:
   - Display the secret **once at creation**, never on subsequent reads.
   - Offer "copy" + "I have stored this" confirmation.
   - List views show a masked indicator (`••••••••XYZ`).
@@ -707,7 +707,7 @@ If you want a tight, opinionated rollout, do the items below in order. Each unlo
 
 7. **`.github/workflows/security.yml`** with CodeQL, Semgrep, Snyk, Gitleaks (§18).
 8. **`.github/workflows/scorecard.yml`** copied from backend (§18).
-9. **Strict CSP + secret-handling UX** for OAuth clients and API keys (§20).
+9. **Strict CSP + secret-handling UX** for OAuth clients (§20).
 
 ### Sprint 4 — UX & architecture polish
 

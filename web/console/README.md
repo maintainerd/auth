@@ -48,7 +48,6 @@ It can be used in three ways:
 - **Users & profiles** — full lifecycle: create, edit, status changes, role assignment, profile management
 - **RBAC** — roles, permissions, and policies with assignment UIs
 - **OAuth2 / OIDC clients** — confidential and public clients, redirect-URI management, token TTLs
-- **API keys** — issue, scope, and rotate machine credentials
 - **Federation** — identity provider and social provider configuration
 - **Security center** — password policies, session management, threat detection, IP restrictions, security headers
 - **Branding** — login, email, and SMS template editors per tenant

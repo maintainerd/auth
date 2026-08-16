@@ -2390,8 +2390,7 @@ func (s *clientService) AddClientAPIPermissions(ctx context.Context, tenantID in
 			if permission.TenantID != tenantID {
 				return apperror.NewNotFoundWithReason("permission not found or access denied: " + permissionUUID.String())
 			}
-			// The permission must belong to the API being attached (mirrors the
-			// api-key reference path).
+			// The permission must belong to the API being attached.
 			if permission.APIID != ClientAPI.APIID {
 				return apperror.NewValidation("permission does not belong to the specified API: " + permissionUUID.String())
 			}

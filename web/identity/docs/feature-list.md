@@ -26,26 +26,25 @@ Legend:
 4. [Users](#4-users)
 5. [Roles & Permissions (RBAC)](#5-roles--permissions-rbac)
 6. [OAuth2 / OIDC Client Management](#6-oauth2--oidc-client-management)
-7. [API Keys](#7-api-keys)
-8. [Identity Providers (Federation)](#8-identity-providers-federation)
-9. [Services & APIs](#9-services--apis)
-10. [Policies](#10-policies)
-11. [Signup Flows](#11-signup-flows)
-12. [Multi-Factor Authentication](#12-multi-factor-authentication)
-13. [Session Management](#13-session-management)
-14. [Password & Credential Policy](#14-password--credential-policy)
-15. [Threat Detection & Anomaly](#15-threat-detection--anomaly)
-16. [IP Restrictions](#16-ip-restrictions)
-17. [Security Settings (Headers, CORS, CSRF, Cookies)](#17-security-settings-headers-cors-csrf-cookies)
-18. [JWT, Tokens & Cryptographic Keys](#18-jwt-tokens--cryptographic-keys)
-19. [Branding (Login, Email, SMS Templates)](#19-branding-login-email-sms-templates)
-20. [Notifications & Email/SMS Delivery](#20-notifications--emailsms-delivery)
-21. [Audit Log & Auth Events](#21-audit-log--auth-events)
-22. [Webhooks](#22-webhooks)
-23. [Analytics & Dashboards](#23-analytics--dashboards)
-24. [General Settings](#24-general-settings)
-25. [SCIM (Provisioning)](#25-scim-provisioning)
-26. [Console Quality (Tooling, Tests, A11y, i18n)](#26-console-quality-tooling-tests-a11y-i18n)
+7. [Identity Providers (Federation)](#7-identity-providers-federation)
+8. [Services & APIs](#8-services--apis)
+9. [Policies](#9-policies)
+10. [Signup Flows](#10-signup-flows)
+11. [Multi-Factor Authentication](#11-multi-factor-authentication)
+12. [Session Management](#12-session-management)
+13. [Password & Credential Policy](#13-password--credential-policy)
+14. [Threat Detection & Anomaly](#14-threat-detection--anomaly)
+15. [IP Restrictions](#15-ip-restrictions)
+16. [Security Settings (Headers, CORS, CSRF, Cookies)](#16-security-settings-headers-cors-csrf-cookies)
+17. [JWT, Tokens & Cryptographic Keys](#17-jwt-tokens--cryptographic-keys)
+18. [Branding (Login, Email, SMS Templates)](#18-branding-login-email-sms-templates)
+19. [Notifications & Email/SMS Delivery](#19-notifications--emailsms-delivery)
+20. [Audit Log & Auth Events](#20-audit-log--auth-events)
+21. [Webhooks](#21-webhooks)
+22. [Analytics & Dashboards](#22-analytics--dashboards)
+23. [General Settings](#23-general-settings)
+24. [SCIM (Provisioning)](#24-scim-provisioning)
+25. [Console Quality (Tooling, Tests, A11y, i18n)](#25-console-quality-tooling-tests-a11y-i18n)
 
 ---
 
@@ -148,20 +147,7 @@ Legend:
 - [ ] 🟢 Test-this-client utility (open `/oauth/authorize` in new tab with chosen scopes)
 - [ ] 🟢 OIDC discovery + JWKS viewer (read-only `.well-known/*` browser)
 
-## 7. API Keys
-
-- [x] API key list page (`pages/api-keys`)
-- [x] API key details page
-- [x] Create / edit API key form
-- [x] API key status update
-- [x] API key config viewer (`fetchApiKeyConfig`)
-- [ ] 🔴 **Show full key only once at creation**, masked thereafter
-- [ ] 🟡 Per-key scope editor (which APIs / permissions)
-- [ ] 🟡 Per-key expiry date picker + auto-rotation reminder
-- [ ] 🟡 Last-used timestamp column in the list
-- [ ] 🟢 Revoke + regenerate flow with audit reason
-
-## 8. Identity Providers (Federation)
+## 7. Identity Providers (Federation)
 
 - [x] Identity provider list / details / form (`pages/identity-providers`)
 - [x] Social provider list / details / form (`pages/social-providers`)
@@ -174,7 +160,7 @@ Legend:
 - [ ] 🟢 Identity-link / unlink management per user
 - [ ] 🟢 Provider connection-test button with diagnostic output
 
-## 9. Services & APIs
+## 8. Services & APIs
 
 - [x] Service list / details / form (`pages/services`)
 - [x] API list / details / form (`pages/apis`)
@@ -185,7 +171,7 @@ Legend:
 - [ ] 🟢 Service-to-service "trust" matrix view (which services can call which APIs)
 - [ ] 🟢 API spec attachment (upload OpenAPI YAML for documentation)
 
-## 10. Policies
+## 9. Policies
 
 - [x] Policy list / details / form (`pages/policies`)
 - [x] Policy status update
@@ -195,7 +181,7 @@ Legend:
 - [ ] 🟢 Policy diff view across versions
 - [ ] 🟢 Policy import / export (JSON)
 
-## 11. Signup Flows
+## 10. Signup Flows
 
 - [x] Signup-flow list / details / form (`pages/signup-flows`)
 - [x] Role assignment on signup
@@ -204,7 +190,7 @@ Legend:
 - [ ] 🟢 A/B test multiple flows per tenant
 - [ ] 🟢 Localization of flow copy (i18n)
 
-## 12. Multi-Factor Authentication
+## 11. Multi-Factor Authentication
 
 > The backend currently has email OTP utilities only; nothing else is implemented yet. The console has no MFA management UI today.
 
@@ -219,7 +205,7 @@ Legend:
 - [ ] 🟢 Push-notification 2FA configuration
 - [ ] ⚪ Risk-based / adaptive MFA rule editor
 
-## 13. Session Management
+## 12. Session Management
 
 - [x] Session-management settings page (`pages/security/session-management`) — global session config (TTLs, concurrent-session limit) backed by `useSessionSettings`
 - [ ] 🟡 Active-sessions list **per user** (read from backend `user_token`)
@@ -232,7 +218,7 @@ Legend:
 - [ ] 🟢 Trusted-device list per user
 - [ ] 🟢 Geo / IP anomaly visualization on session creation
 
-## 14. Password & Credential Policy
+## 13. Password & Credential Policy
 
 - [x] Password-policies page (`pages/security/password-policies`) backed by `usePasswordPolicies`
 - [ ] 🟡 Live preview of policy regex against test passwords
@@ -242,7 +228,7 @@ Legend:
 - [ ] 🟢 Credential-rotation reminder configuration
 - [ ] 🟢 Force-password-change-on-next-login bulk action
 
-## 15. Threat Detection & Anomaly
+## 14. Threat Detection & Anomaly
 
 - [x] Threat-detection settings page (`pages/security/threat-detection`) backed by `useThreatDetectionSettings`
 - [ ] 🟡 Live threat dashboard (recent failed logins, lockouts, suspicious IPs)
@@ -251,7 +237,7 @@ Legend:
 - [ ] 🟢 Geo-velocity ("impossible travel") detection toggle
 - [ ] 🟢 Risk-score visualization per login attempt
 
-## 16. IP Restrictions
+## 15. IP Restrictions
 
 - [x] IP-restrictions page (`pages/security/ip-restrictions`)
 - [x] IP-restriction rules CRUD (`useIpRestrictionRules`)
@@ -261,7 +247,7 @@ Legend:
 - [ ] 🟢 IP geolocation hint inline with each rule
 - [ ] 🟢 Test-rule simulator (paste an IP, see effective rule)
 
-## 17. Security Settings (Headers, CORS, CSRF, Cookies)
+## 16. Security Settings (Headers, CORS, CSRF, Cookies)
 
 - [x] Security-settings page (`pages/security/settings`) backed by `useSecuritySettings`
 - [ ] 🟡 CORS allow-list editor with credential-mode awareness
@@ -270,7 +256,7 @@ Legend:
 - [ ] 🟢 HSTS preload toggle with eligibility check
 - [ ] 🟢 Rate-limit configuration UI per route family
 
-## 18. JWT, Tokens & Cryptographic Keys
+## 17. JWT, Tokens & Cryptographic Keys
 
 > The backend exposes JWKS and key-rotation tooling but the console does not surface it.
 
@@ -283,7 +269,7 @@ Legend:
 - [ ] 🟢 Audience-restricted access-token viewer (`aud` per resource server)
 - [ ] 🟢 Encrypted ID-token (JWE) toggle and key-management
 
-## 19. Branding (Login, Email, SMS Templates)
+## 18. Branding (Login, Email, SMS Templates)
 
 - [x] Login template list / details / form (`pages/branding/login`)
 - [x] Email template list / details / form (`pages/branding/email-templates`)
@@ -295,7 +281,7 @@ Legend:
 - [ ] 🟢 Localized templates per locale (i18n)
 - [ ] 🟢 Versioning + rollback for templates
 
-## 20. Notifications & Email/SMS Delivery
+## 19. Notifications & Email/SMS Delivery
 
 - [x] Notifications inbox page (`pages/notifications`)
 - [ ] 🟡 Provider configuration UI (SMTP / SES / SendGrid / Postmark / Mailgun / Resend)
@@ -304,10 +290,10 @@ Legend:
 - [ ] 🟢 Sandbox-mode toggle for development
 - [ ] 🟢 DMARC/SPF/DKIM verification helper for the sender domain
 
-## 21. Audit Log & Auth Events
+## 20. Audit Log & Auth Events
 
 - [x] Log-monitoring page (`pages/log-monitoring`)
-- [ ] 🟡 Filter by actor (user / admin / API key) and event type
+- [ ] 🟡 Filter by actor (user / admin) and event type
 - [ ] 🟡 Per-tenant scoped audit view
 - [ ] 🟡 Export to CSV / JSON
 - [ ] 🟡 Tamper-evident chain indicator (when backend ships HMAC chaining)
@@ -315,7 +301,7 @@ Legend:
 - [ ] 🟢 Saved filters / alerts (notify when rule matches)
 - [ ] 🟢 SIEM-export configuration UI (S3 / Kinesis / Kafka destination)
 
-## 22. Webhooks
+## 21. Webhooks
 
 - [~] Route mounted at `/:tenantId/webhooks` but currently renders the dashboard placeholder
 - [ ] 🟡 Webhook list / create / edit
@@ -325,7 +311,7 @@ Legend:
 - [ ] 🟢 Manual replay action per delivery
 - [ ] 🟢 Dead-letter-queue inspector
 
-## 23. Analytics & Dashboards
+## 22. Analytics & Dashboards
 
 - [x] Analytics page (`pages/analytics`) — recharts-based
 - [x] Dashboard landing page (`pages/dashboard`)
@@ -336,14 +322,14 @@ Legend:
 - [ ] 🟢 Per-tenant breakdown
 - [ ] 🟢 Exportable reports
 
-## 24. General Settings
+## 23. General Settings
 
 - [x] General settings page (`pages/settings`)
 - [ ] 🟡 Tenant-level profile (display name, contact email, support URL)
 - [ ] 🟡 Default locale + timezone
 - [ ] 🟢 Theme selector (light / dark / system) — see Console Quality below
 
-## 25. SCIM (Provisioning)
+## 24. SCIM (Provisioning)
 
 > Not implemented in the backend yet; included here so the gap is tracked.
 
@@ -351,7 +337,7 @@ Legend:
 - [ ] 🟢 Inbound SCIM activity log
 - [ ] 🟢 Outbound SCIM destination configuration
 
-## 26. Console Quality (Tooling, Tests, A11y, i18n)
+## 25. Console Quality (Tooling, Tests, A11y, i18n)
 
 - [x] TypeScript strict mode (via `tsc -b`)
 - [x] ESLint with React-Hooks plugin
@@ -380,13 +366,13 @@ Legend:
 
 If you address these items first, the console becomes substantially more useful and substantially safer:
 
-1. **Show secrets only once** for OAuth clients and API keys, then mask them (§6, §7).
-2. **Generic CRUD factory** to collapse the ~330-line per-resource service files into one factory (§26).
-3. **Tests** — Vitest unit coverage for hooks + Playwright happy-path E2E (§26).
-4. **Real pages for `events` / `webhooks` / `branding` root** instead of the dashboard placeholder (§22, §19, §26).
-5. **Per-user sessions list with revoke** (§13).
+1. **Show secrets only once** for OAuth clients, then mask them (§6).
+2. **Generic CRUD factory** to collapse the ~330-line per-resource service files into one factory (§25).
+3. **Tests** — Vitest unit coverage for hooks + Playwright happy-path E2E (§25).
+4. **Real pages for `events` / `webhooks` / `branding` root** instead of the dashboard placeholder (§21, §18, §25).
+5. **Per-user sessions list with revoke** (§12).
 6. **Consent-grant management** for OAuth clients (§6).
-7. **JWKS viewer + key rotation** (§18).
-8. **Tenant-scoped Query cache keys** (§26).
+7. **JWKS viewer + key rotation** (§17).
+8. **Tenant-scoped Query cache keys** (§25).
 
 Everything else is incremental enhancement on top of those foundations.

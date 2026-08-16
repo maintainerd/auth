@@ -55,9 +55,9 @@ func TestRequireManagementClient(t *testing.T) {
 		assert.Equal(t, http.StatusOK, serve(func(*http.Request) {}))
 	})
 
-	t.Run("API key passes through", func(t *testing.T) {
+	t.Run("non-JWT token passes through", func(t *testing.T) {
 		assert.Equal(t, http.StatusOK, serve(func(r *http.Request) {
-			r.Header.Set("Authorization", "Bearer ak_secret")
+			r.Header.Set("Authorization", "Bearer not-a-jwt-token")
 		}))
 	})
 
