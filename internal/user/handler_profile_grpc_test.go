@@ -42,15 +42,15 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
 		res, err := h.ListUserProfiles(ctx, &authv1.ListUserProfilesRequest{
-			TenantUuid: tenantUUID.String(),
-			UserUuid:   userUUID.String(),
+			TenantId:   tenantUUID.String(),
+			UserId:     userUUID.String(),
 			Pagination: &authv1.Pagination{Page: 2, Limit: 5, SortBy: "first_name", SortOrder: "asc"},
 		})
 
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(res.Profiles) != 1 || res.Profiles[0].ProfileUuid != profileUUID.String() {
+		if len(res.Profiles) != 1 || res.Profiles[0].ProfileId != profileUUID.String() {
 			t.Fatalf("unexpected profiles response: %+v", res.Profiles)
 		}
 	})
@@ -71,8 +71,8 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if res.Profile.ProfileUuid != profileUUID.String() {
-			t.Fatalf("expected profile UUID %s, got %s", profileUUID, res.Profile.ProfileUuid)
+		if res.Profile.ProfileId != profileUUID.String() {
+			t.Fatalf("expected profile UUID %s, got %s", profileUUID, res.Profile.ProfileId)
 		}
 	})
 
@@ -98,8 +98,8 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
 		_, err := h.CreateUserProfile(ctx, &authv1.CreateUserProfileRequest{
-			TenantUuid: tenantUUID.String(),
-			UserUuid:   userUUID.String(),
+			TenantId:   tenantUUID.String(),
+			UserId:     userUUID.String(),
 			FirstName:  "Jane",
 			Birthdate:  "1990-01-25",
 			Gender:     "female",
@@ -126,10 +126,10 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
 		_, err := h.UpdateUserProfile(ctx, &authv1.UpdateUserProfileRequest{
-			TenantUuid:  tenantUUID.String(),
-			UserUuid:    userUUID.String(),
-			ProfileUuid: profileUUID.String(),
-			FirstName:   "Jane",
+			TenantId:  tenantUUID.String(),
+			UserId:    userUUID.String(),
+			ProfileId: profileUUID.String(),
+			FirstName: "Jane",
 		})
 
 		if err != nil {
@@ -148,7 +148,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
-		_, err := h.SetDefaultUserProfile(ctx, &authv1.SetDefaultUserProfileRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ProfileUuid: profileUUID.String()})
+		_, err := h.SetDefaultUserProfile(ctx, &authv1.SetDefaultUserProfileRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), ProfileId: profileUUID.String()})
 
 		if err != nil {
 			t.Fatal(err)
@@ -166,7 +166,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
-		_, err := h.DeleteUserProfile(ctx, &authv1.DeleteUserProfileRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ProfileUuid: profileUUID.String()})
+		_, err := h.DeleteUserProfile(ctx, &authv1.DeleteUserProfileRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), ProfileId: profileUUID.String()})
 
 		if err != nil {
 			t.Fatal(err)
@@ -176,7 +176,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 	t.Run("invalid uuid returns invalid argument", func(t *testing.T) {
 		h := NewUserProfileGRPCHandler(resolver, &mockProfileService{})
 
-		_, err := h.GetUserProfile(ctx, &authv1.GetUserProfileRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", ProfileUuid: profileUUID.String()})
+		_, err := h.GetUserProfile(ctx, &authv1.GetUserProfileRequest{TenantId: tenantUUID.String(), UserId: "bad", ProfileId: profileUUID.String()})
 
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Fatalf("expected InvalidArgument, got %v", code)
@@ -186,7 +186,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 	t.Run("invalid profile body returns invalid argument", func(t *testing.T) {
 		h := NewUserProfileGRPCHandler(resolver, &mockProfileService{})
 
-		_, err := h.CreateUserProfile(ctx, &authv1.CreateUserProfileRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), FirstName: "", Birthdate: "25-01-1990"})
+		_, err := h.CreateUserProfile(ctx, &authv1.CreateUserProfileRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), FirstName: "", Birthdate: "25-01-1990"})
 
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Fatalf("expected InvalidArgument, got %v", code)
@@ -201,7 +201,7 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewUserProfileGRPCHandler(resolver, svc)
 
-		_, err := h.ListUserProfiles(ctx, &authv1.ListUserProfilesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.ListUserProfiles(ctx, &authv1.ListUserProfilesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 
 		if code := status.Code(err); code != codes.Internal {
 			t.Fatalf("expected Internal, got %v", code)
@@ -211,8 +211,8 @@ func TestUserProfileGRPCHandler_RPCS(t *testing.T) {
 
 func profileIDRequest(tenantUUID, userUUID, profileUUID uuid.UUID) *authv1.GetUserProfileRequest {
 	return &authv1.GetUserProfileRequest{
-		TenantUuid:  tenantUUID.String(),
-		UserUuid:    userUUID.String(),
-		ProfileUuid: profileUUID.String(),
+		TenantId:  tenantUUID.String(),
+		UserId:    userUUID.String(),
+		ProfileId: profileUUID.String(),
 	}
 }

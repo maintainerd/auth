@@ -192,7 +192,7 @@ func (h *TenantGRPCHandler) ListTenants(ctx context.Context, req *authv1.ListTen
 }
 
 func (h *TenantGRPCHandler) GetTenant(ctx context.Context, req *authv1.GetTenantRequest) (*authv1.GetTenantResponse, error) {
-	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
+	tenantUUID, err := parseGRPCUUID(req.GetTenantId(), "Tenant UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (h *TenantGRPCHandler) CreateTenant(ctx context.Context, req *authv1.Tenant
 }
 
 func (h *TenantGRPCHandler) UpdateTenant(ctx context.Context, req *authv1.TenantServiceUpdateTenantRequest) (*authv1.TenantServiceUpdateTenantResponse, error) {
-	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
+	tenantUUID, err := parseGRPCUUID(req.GetTenantId(), "Tenant UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (h *TenantGRPCHandler) UpdateTenant(ctx context.Context, req *authv1.Tenant
 }
 
 func (h *TenantGRPCHandler) SetTenantStatus(ctx context.Context, req *authv1.SetTenantStatusRequest) (*authv1.SetTenantStatusResponse, error) {
-	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
+	tenantUUID, err := parseGRPCUUID(req.GetTenantId(), "Tenant UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (h *TenantGRPCHandler) SetTenantStatus(ctx context.Context, req *authv1.Set
 }
 
 func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.DeleteTenantRequest) (*authv1.DeleteTenantResponse, error) {
-	tenantUUID, err := parseGRPCUUID(req.GetTenantUuid(), "Tenant UUID")
+	tenantUUID, err := parseGRPCUUID(req.GetTenantId(), "Tenant UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (h *TenantGRPCHandler) DeleteTenant(ctx context.Context, req *authv1.Delete
 }
 
 func (h *TenantGRPCHandler) ListTenantMembers(ctx context.Context, req *authv1.ListTenantMembersRequest) (*authv1.ListTenantMembersResponse, error) {
-	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -340,11 +340,11 @@ func (h *TenantGRPCHandler) ListTenantMembers(ctx context.Context, req *authv1.L
 }
 
 func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.AddTenantMemberRequest) (*authv1.AddTenantMemberResponse, error) {
-	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := parseGRPCUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := parseGRPCUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -364,11 +364,11 @@ func (h *TenantGRPCHandler) AddTenantMember(ctx context.Context, req *authv1.Add
 }
 
 func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *authv1.UpdateTenantMemberRoleRequest) (*authv1.UpdateTenantMemberRoleResponse, error) {
-	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	memberUUID, err := parseGRPCUUID(req.GetTenantMemberUuid(), "Tenant member UUID")
+	memberUUID, err := parseGRPCUUID(req.GetTenantMemberId(), "Tenant member UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -388,11 +388,11 @@ func (h *TenantGRPCHandler) UpdateTenantMemberRole(ctx context.Context, req *aut
 }
 
 func (h *TenantGRPCHandler) RemoveTenantMember(ctx context.Context, req *authv1.RemoveTenantMemberRequest) (*authv1.RemoveTenantMemberResponse, error) {
-	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveManagedTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	memberUUID, err := parseGRPCUUID(req.GetTenantMemberUuid(), "Tenant member UUID")
+	memberUUID, err := parseGRPCUUID(req.GetTenantMemberId(), "Tenant member UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func tenantProto(tenant *TenantServiceDataResult) *authv1.Tenant {
 		return nil
 	}
 	return &authv1.Tenant{
-		TenantUuid:  tenant.TenantUUID.String(),
+		TenantId:    tenant.TenantUUID.String(),
 		Name:        tenant.Name,
 		DisplayName: tenant.DisplayName,
 		Description: tenant.Description,
@@ -482,11 +482,11 @@ func tenantMemberProto(member *TenantMemberServiceDataResult) *authv1.TenantMemb
 		return nil
 	}
 	return &authv1.TenantMember{
-		TenantMemberUuid: member.TenantMemberUUID.String(),
-		Role:             member.Role,
-		User:             tenantMemberUserProto(member.User),
-		CreatedAt:        timestamppb.New(member.CreatedAt),
-		UpdatedAt:        timestamppb.New(member.UpdatedAt),
+		TenantMemberId: member.TenantMemberUUID.String(),
+		Role:           member.Role,
+		User:           tenantMemberUserProto(member.User),
+		CreatedAt:      timestamppb.New(member.CreatedAt),
+		UpdatedAt:      timestamppb.New(member.UpdatedAt),
 	}
 }
 
@@ -495,7 +495,7 @@ func tenantMemberUserProto(user *MemberUser) *authv1.TenantMemberUser {
 		return nil
 	}
 	return &authv1.TenantMemberUser{
-		UserUuid:        user.UserUUID.String(),
+		UserId:          user.UserUUID.String(),
 		Username:        user.Username,
 		Fullname:        user.Fullname,
 		Email:           user.Email,

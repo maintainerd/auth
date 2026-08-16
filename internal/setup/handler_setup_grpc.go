@@ -53,7 +53,7 @@ func (h *SetupGRPCHandler) createTenant(ctx context.Context, req *authv1.CreateT
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.CreateTenantResponse{
-		TenantUuid:        resp.Tenant.TenantUUID.String(),
+		TenantId:          resp.Tenant.TenantUUID.String(),
 		Name:              resp.Tenant.Name,
 		DisplayName:       resp.Tenant.DisplayName,
 		DefaultClientId:   resp.DefaultClientID,
@@ -76,7 +76,7 @@ func (h *SetupGRPCHandler) createAdmin(ctx context.Context, req *authv1.CreateAd
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.CreateAdminResponse{
-		UserUuid: resp.User.UserUUID.String(),
+		UserId:   resp.User.UserUUID.String(),
 		Username: resp.User.Username,
 		Fullname: resp.User.Fullname,
 		Email:    resp.User.Email,
@@ -120,7 +120,7 @@ func (h *SetupGRPCHandler) createProfile(ctx context.Context, req *authv1.Create
 		displayName = *resp.Profile.DisplayName
 	}
 	return &authv1.CreateProfileResponse{
-		ProfileUuid: resp.Profile.ProfileUUID,
+		ProfileId:   resp.Profile.ProfileUUID,
 		FirstName:   resp.Profile.FirstName,
 		DisplayName: displayName,
 	}, nil
@@ -139,10 +139,10 @@ func (h *SetupGRPCHandler) RegisterControlService(ctx context.Context, req *auth
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.RegisterControlServiceResponse{
-		ServiceUuid:       resp.ServiceUUID,
+		ServiceId:         resp.ServiceUUID,
 		Name:              resp.Name,
 		DisplayName:       resp.DisplayName,
-		PolicyUuid:        resp.PolicyUUID,
+		PolicyId:          resp.PolicyUUID,
 		PolicyName:        resp.PolicyName,
 		AlreadyExisted:    resp.AlreadyExisted,
 		PolicyWasAttached: resp.PolicyWasAttached,
@@ -205,10 +205,10 @@ func (h *SetupGRPCHandler) EnsureControlClient(ctx context.Context, req *authv1.
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.EnsureControlClientResponse{
-		ClientUuid:              resp.ClientUUID,
-		ClientId:                resp.ClientID,
+		ClientId:                resp.ClientUUID,
+		OauthClientId:           resp.ClientID,
 		TokenEndpointAuthMethod: resp.TokenEndpointAuthMethod,
-		ServiceUuid:             resp.ServiceUUID,
+		ServiceId:               resp.ServiceUUID,
 		AlreadyExisted:          resp.AlreadyExisted,
 	}, nil
 }
@@ -233,8 +233,8 @@ func (h *SetupGRPCHandler) EnsureResourceAPI(ctx context.Context, req *authv1.En
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.EnsureResourceAPIResponse{
-		ServiceUuid:     resp.ServiceUUID,
-		ApiUuid:         resp.APIUUID,
+		ServiceId:       resp.ServiceUUID,
+		ApiId:           resp.APIUUID,
 		Identifier:      resp.Identifier,
 		PermissionNames: resp.PermissionNames,
 		AlreadyExisted:  resp.AlreadyExisted,
@@ -246,13 +246,13 @@ func (h *SetupGRPCHandler) EnsureRole(ctx context.Context, req *authv1.EnsureRol
 		Name:             req.GetName(),
 		Description:      req.GetDescription(),
 		PermissionNames:  req.GetPermissionNames(),
-		AssignToUserUUID: req.GetAssignToUserUuid(),
+		AssignToUserUUID: req.GetAssignToUserId(),
 	})
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.EnsureRoleResponse{
-		RoleUuid:        resp.RoleUUID,
+		RoleId:          resp.RoleUUID,
 		Name:            resp.Name,
 		PermissionNames: resp.PermissionNames,
 		Assigned:        resp.Assigned,
@@ -272,8 +272,8 @@ func (h *SetupGRPCHandler) EnsureConsoleClient(ctx context.Context, req *authv1.
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.EnsureConsoleClientResponse{
-		ClientUuid:             resp.ClientUUID,
-		ClientId:               resp.ClientID,
+		ClientId:               resp.ClientUUID,
+		OauthClientId:          resp.ClientID,
 		RedirectUris:           resp.RedirectURIs,
 		PostLogoutRedirectUris: resp.PostLogoutRedirectURIs,
 		AlreadyExisted:         resp.AlreadyExisted,

@@ -24,19 +24,19 @@ const (
 )
 
 type IdentityProvider struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	IdentityProviderUuid string                 `protobuf:"bytes,1,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Provider             string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
-	ProviderType         string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	Identifier           string                 `protobuf:"bytes,6,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Config               *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
-	Status               string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault            bool                   `protobuf:"varint,9,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem             bool                   `protobuf:"varint,10,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	IdentityProviderId string                 `protobuf:"bytes,1,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName        string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Provider           string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	ProviderType       string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	Identifier         string                 `protobuf:"bytes,6,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Config             *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
+	Status             string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
+	IsDefault          bool                   `protobuf:"varint,9,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	IsSystem           bool                   `protobuf:"varint,10,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Promoted columns. The upstream client secret is intentionally absent here and
 	// is never emitted in any response.
 	Issuer               string   `protobuf:"bytes,13,opt,name=issuer,proto3" json:"issuer,omitempty"`
@@ -79,9 +79,9 @@ func (*IdentityProvider) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *IdentityProvider) GetIdentityProviderUuid() string {
+func (x *IdentityProvider) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -206,18 +206,18 @@ func (x *IdentityProvider) GetAllowedAudiences() []string {
 }
 
 type RegistrationFlow struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,1,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description          string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Identifier           string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Config               *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	Status               string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	ClientUuid           string                 `protobuf:"bytes,7,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlowId string                 `protobuf:"bytes,1,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Identifier         string                 `protobuf:"bytes,4,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Config             *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
+	Status             string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	ClientId           string                 `protobuf:"bytes,7,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RegistrationFlow) Reset() {
@@ -250,9 +250,9 @@ func (*RegistrationFlow) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RegistrationFlow) GetRegistrationFlowUuid() string {
+func (x *RegistrationFlow) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -292,9 +292,9 @@ func (x *RegistrationFlow) GetStatus() string {
 	return ""
 }
 
-func (x *RegistrationFlow) GetClientUuid() string {
+func (x *RegistrationFlow) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -314,18 +314,18 @@ func (x *RegistrationFlow) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type RegistrationFlowRole struct {
-	state                    protoimpl.MessageState `protogen:"open.v1"`
-	RegistrationFlowRoleUuid string                 `protobuf:"bytes,1,opt,name=registration_flow_role_uuid,json=registrationFlowRoleUuid,proto3" json:"registration_flow_role_uuid,omitempty"`
-	RoleUuid                 string                 `protobuf:"bytes,2,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	RoleName                 string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
-	RoleDescription          string                 `protobuf:"bytes,4,opt,name=role_description,json=roleDescription,proto3" json:"role_description,omitempty"`
-	RoleIsDefault            bool                   `protobuf:"varint,5,opt,name=role_is_default,json=roleIsDefault,proto3" json:"role_is_default,omitempty"`
-	RoleIsSystem             bool                   `protobuf:"varint,6,opt,name=role_is_system,json=roleIsSystem,proto3" json:"role_is_system,omitempty"`
-	RoleStatus               string                 `protobuf:"bytes,7,opt,name=role_status,json=roleStatus,proto3" json:"role_status,omitempty"`
-	CreatedAt                *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt                *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	RegistrationFlowRoleId string                 `protobuf:"bytes,1,opt,name=registration_flow_role_id,json=registrationFlowRoleId,proto3" json:"registration_flow_role_id,omitempty"`
+	RoleId                 string                 `protobuf:"bytes,2,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	RoleName               string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	RoleDescription        string                 `protobuf:"bytes,4,opt,name=role_description,json=roleDescription,proto3" json:"role_description,omitempty"`
+	RoleIsDefault          bool                   `protobuf:"varint,5,opt,name=role_is_default,json=roleIsDefault,proto3" json:"role_is_default,omitempty"`
+	RoleIsSystem           bool                   `protobuf:"varint,6,opt,name=role_is_system,json=roleIsSystem,proto3" json:"role_is_system,omitempty"`
+	RoleStatus             string                 `protobuf:"bytes,7,opt,name=role_status,json=roleStatus,proto3" json:"role_status,omitempty"`
+	CreatedAt              *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RegistrationFlowRole) Reset() {
@@ -358,16 +358,16 @@ func (*RegistrationFlowRole) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RegistrationFlowRole) GetRegistrationFlowRoleUuid() string {
+func (x *RegistrationFlowRole) GetRegistrationFlowRoleId() string {
 	if x != nil {
-		return x.RegistrationFlowRoleUuid
+		return x.RegistrationFlowRoleId
 	}
 	return ""
 }
 
-func (x *RegistrationFlowRole) GetRoleUuid() string {
+func (x *RegistrationFlowRole) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -423,7 +423,7 @@ func (x *RegistrationFlowRole) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListIdentityProvidersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Provider      []string               `protobuf:"bytes,4,rep,name=provider,proto3" json:"provider,omitempty"`
@@ -467,9 +467,9 @@ func (*ListIdentityProvidersRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ListIdentityProvidersRequest) GetTenantUuid() string {
+func (x *ListIdentityProvidersRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -590,11 +590,11 @@ func (x *ListIdentityProvidersResponse) GetPage() *PageMetadata {
 }
 
 type GetIdentityProviderRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,2,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IdentityProviderId string                 `protobuf:"bytes,2,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetIdentityProviderRequest) Reset() {
@@ -627,16 +627,16 @@ func (*GetIdentityProviderRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetIdentityProviderRequest) GetTenantUuid() string {
+func (x *GetIdentityProviderRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetIdentityProviderRequest) GetIdentityProviderUuid() string {
+func (x *GetIdentityProviderRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -687,14 +687,14 @@ func (x *GetIdentityProviderResponse) GetIdentityProvider() *IdentityProvider {
 
 type CreateIdentityProviderRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId             string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Provider             string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
 	ProviderType         string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
 	Config               *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
 	Status               string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid        string                 `protobuf:"bytes,8,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId          string                 `protobuf:"bytes,8,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	Issuer               string                 `protobuf:"bytes,9,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	ProviderClientId     string                 `protobuf:"bytes,10,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
 	AllowJitProvisioning bool                   `protobuf:"varint,11,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
@@ -735,9 +735,9 @@ func (*CreateIdentityProviderRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CreateIdentityProviderRequest) GetTenantUuid() string {
+func (x *CreateIdentityProviderRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -784,9 +784,9 @@ func (x *CreateIdentityProviderRequest) GetStatus() string {
 	return ""
 }
 
-func (x *CreateIdentityProviderRequest) GetActorUserUuid() string {
+func (x *CreateIdentityProviderRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -879,15 +879,15 @@ func (x *CreateIdentityProviderResponse) GetIdentityProvider() *IdentityProvider
 
 type UpdateIdentityProviderRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,2,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
+	TenantId             string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IdentityProviderId   string                 `protobuf:"bytes,2,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
 	Name                 string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName          string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Provider             string                 `protobuf:"bytes,5,opt,name=provider,proto3" json:"provider,omitempty"`
 	ProviderType         string                 `protobuf:"bytes,6,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
 	Config               *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
 	Status               string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid        string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId          string                 `protobuf:"bytes,9,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	Issuer               string                 `protobuf:"bytes,10,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	ProviderClientId     string                 `protobuf:"bytes,11,opt,name=provider_client_id,json=providerClientId,proto3" json:"provider_client_id,omitempty"`
 	AllowJitProvisioning bool                   `protobuf:"varint,12,opt,name=allow_jit_provisioning,json=allowJitProvisioning,proto3" json:"allow_jit_provisioning,omitempty"`
@@ -928,16 +928,16 @@ func (*UpdateIdentityProviderRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *UpdateIdentityProviderRequest) GetTenantUuid() string {
+func (x *UpdateIdentityProviderRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateIdentityProviderRequest) GetIdentityProviderUuid() string {
+func (x *UpdateIdentityProviderRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -984,9 +984,9 @@ func (x *UpdateIdentityProviderRequest) GetStatus() string {
 	return ""
 }
 
-func (x *UpdateIdentityProviderRequest) GetActorUserUuid() string {
+func (x *UpdateIdentityProviderRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1078,13 +1078,13 @@ func (x *UpdateIdentityProviderResponse) GetIdentityProvider() *IdentityProvider
 }
 
 type SetIdentityProviderStatusRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,2,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	Status               string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid        string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IdentityProviderId string                 `protobuf:"bytes,2,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	Status             string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ActorUserId        string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SetIdentityProviderStatusRequest) Reset() {
@@ -1117,16 +1117,16 @@ func (*SetIdentityProviderStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *SetIdentityProviderStatusRequest) GetTenantUuid() string {
+func (x *SetIdentityProviderStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetIdentityProviderStatusRequest) GetIdentityProviderUuid() string {
+func (x *SetIdentityProviderStatusRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -1138,9 +1138,9 @@ func (x *SetIdentityProviderStatusRequest) GetStatus() string {
 	return ""
 }
 
-func (x *SetIdentityProviderStatusRequest) GetActorUserUuid() string {
+func (x *SetIdentityProviderStatusRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1190,12 +1190,12 @@ func (x *SetIdentityProviderStatusResponse) GetIdentityProvider() *IdentityProvi
 }
 
 type DeleteIdentityProviderRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,2,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	ActorUserUuid        string                 `protobuf:"bytes,3,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	IdentityProviderId string                 `protobuf:"bytes,2,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	ActorUserId        string                 `protobuf:"bytes,3,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DeleteIdentityProviderRequest) Reset() {
@@ -1228,23 +1228,23 @@ func (*DeleteIdentityProviderRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *DeleteIdentityProviderRequest) GetTenantUuid() string {
+func (x *DeleteIdentityProviderRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteIdentityProviderRequest) GetIdentityProviderUuid() string {
+func (x *DeleteIdentityProviderRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
 
-func (x *DeleteIdentityProviderRequest) GetActorUserUuid() string {
+func (x *DeleteIdentityProviderRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1295,11 +1295,11 @@ func (x *DeleteIdentityProviderResponse) GetIdentityProvider() *IdentityProvider
 
 type ListRegistrationFlowsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Identifier    string                 `protobuf:"bytes,3,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	Status        []string               `protobuf:"bytes,4,rep,name=status,proto3" json:"status,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,5,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ClientId      string                 `protobuf:"bytes,5,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,6,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1335,9 +1335,9 @@ func (*ListRegistrationFlowsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *ListRegistrationFlowsRequest) GetTenantUuid() string {
+func (x *ListRegistrationFlowsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1363,9 +1363,9 @@ func (x *ListRegistrationFlowsRequest) GetStatus() []string {
 	return nil
 }
 
-func (x *ListRegistrationFlowsRequest) GetClientUuid() string {
+func (x *ListRegistrationFlowsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1430,11 +1430,11 @@ func (x *ListRegistrationFlowsResponse) GetPage() *PageMetadata {
 }
 
 type GetRegistrationFlowRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetRegistrationFlowRequest) Reset() {
@@ -1467,16 +1467,16 @@ func (*GetRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *GetRegistrationFlowRequest) GetTenantUuid() string {
+func (x *GetRegistrationFlowRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetRegistrationFlowRequest) GetRegistrationFlowUuid() string {
+func (x *GetRegistrationFlowRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -1527,12 +1527,12 @@ func (x *GetRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow {
 
 type CreateRegistrationFlowRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,6,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ClientId      string                 `protobuf:"bytes,6,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1567,9 +1567,9 @@ func (*CreateRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *CreateRegistrationFlowRequest) GetTenantUuid() string {
+func (x *CreateRegistrationFlowRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1602,9 +1602,9 @@ func (x *CreateRegistrationFlowRequest) GetStatus() string {
 	return ""
 }
 
-func (x *CreateRegistrationFlowRequest) GetClientUuid() string {
+func (x *CreateRegistrationFlowRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1654,15 +1654,15 @@ func (x *CreateRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow
 }
 
 type UpdateRegistrationFlowRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description          string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	Config               *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
-	Status               string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	Name               string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Config             *structpb.Struct       `protobuf:"bytes,5,opt,name=config,proto3" json:"config,omitempty"`
+	Status             string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *UpdateRegistrationFlowRequest) Reset() {
@@ -1695,16 +1695,16 @@ func (*UpdateRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *UpdateRegistrationFlowRequest) GetTenantUuid() string {
+func (x *UpdateRegistrationFlowRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateRegistrationFlowRequest) GetRegistrationFlowUuid() string {
+func (x *UpdateRegistrationFlowRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -1782,12 +1782,12 @@ func (x *UpdateRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow
 }
 
 type SetRegistrationFlowStatusRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	Status               string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	Status             string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *SetRegistrationFlowStatusRequest) Reset() {
@@ -1820,16 +1820,16 @@ func (*SetRegistrationFlowStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *SetRegistrationFlowStatusRequest) GetTenantUuid() string {
+func (x *SetRegistrationFlowStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetRegistrationFlowStatusRequest) GetRegistrationFlowUuid() string {
+func (x *SetRegistrationFlowStatusRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -1886,11 +1886,11 @@ func (x *SetRegistrationFlowStatusResponse) GetRegistrationFlow() *RegistrationF
 }
 
 type DeleteRegistrationFlowRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DeleteRegistrationFlowRequest) Reset() {
@@ -1923,16 +1923,16 @@ func (*DeleteRegistrationFlowRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *DeleteRegistrationFlowRequest) GetTenantUuid() string {
+func (x *DeleteRegistrationFlowRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteRegistrationFlowRequest) GetRegistrationFlowUuid() string {
+func (x *DeleteRegistrationFlowRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -1982,12 +1982,12 @@ func (x *DeleteRegistrationFlowResponse) GetRegistrationFlow() *RegistrationFlow
 }
 
 type AssignRegistrationFlowRolesRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	RoleUuids            []string               `protobuf:"bytes,3,rep,name=role_uuids,json=roleUuids,proto3" json:"role_uuids,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	RoleIds            []string               `protobuf:"bytes,3,rep,name=role_ids,json=roleIds,proto3" json:"role_ids,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *AssignRegistrationFlowRolesRequest) Reset() {
@@ -2020,23 +2020,23 @@ func (*AssignRegistrationFlowRolesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *AssignRegistrationFlowRolesRequest) GetTenantUuid() string {
+func (x *AssignRegistrationFlowRolesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AssignRegistrationFlowRolesRequest) GetRegistrationFlowUuid() string {
+func (x *AssignRegistrationFlowRolesRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
 
-func (x *AssignRegistrationFlowRolesRequest) GetRoleUuids() []string {
+func (x *AssignRegistrationFlowRolesRequest) GetRoleIds() []string {
 	if x != nil {
-		return x.RoleUuids
+		return x.RoleIds
 	}
 	return nil
 }
@@ -2086,12 +2086,12 @@ func (x *AssignRegistrationFlowRolesResponse) GetRoles() []*RegistrationFlowRole
 }
 
 type ListRegistrationFlowRolesRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	Pagination           *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	Pagination         *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ListRegistrationFlowRolesRequest) Reset() {
@@ -2124,16 +2124,16 @@ func (*ListRegistrationFlowRolesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *ListRegistrationFlowRolesRequest) GetTenantUuid() string {
+func (x *ListRegistrationFlowRolesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListRegistrationFlowRolesRequest) GetRegistrationFlowUuid() string {
+func (x *ListRegistrationFlowRolesRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
@@ -2198,12 +2198,12 @@ func (x *ListRegistrationFlowRolesResponse) GetPage() *PageMetadata {
 }
 
 type RemoveRegistrationFlowRoleRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RegistrationFlowUuid string                 `protobuf:"bytes,2,opt,name=registration_flow_uuid,json=registrationFlowUuid,proto3" json:"registration_flow_uuid,omitempty"`
-	RoleUuid             string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RegistrationFlowId string                 `protobuf:"bytes,2,opt,name=registration_flow_id,json=registrationFlowId,proto3" json:"registration_flow_id,omitempty"`
+	RoleId             string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *RemoveRegistrationFlowRoleRequest) Reset() {
@@ -2236,23 +2236,23 @@ func (*RemoveRegistrationFlowRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_identity_provider_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *RemoveRegistrationFlowRoleRequest) GetTenantUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveRegistrationFlowRoleRequest) GetRegistrationFlowUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetRegistrationFlowId() string {
 	if x != nil {
-		return x.RegistrationFlowUuid
+		return x.RegistrationFlowId
 	}
 	return ""
 }
 
-func (x *RemoveRegistrationFlowRoleRequest) GetRoleUuid() string {
+func (x *RemoveRegistrationFlowRoleRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -2305,9 +2305,9 @@ var File_maintainerd_auth_v1_identity_provider_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
-	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xdf\x05\n" +
-	"\x10IdentityProvider\x124\n" +
-	"\x16identity_provider_uuid\x18\x01 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
+	"+maintainerd/auth/v1/identity_provider.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xdb\x05\n" +
+	"\x10IdentityProvider\x120\n" +
+	"\x14identity_provider_id\x18\x01 \x01(\tR\x12identityProviderId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bprovider\x18\x04 \x01(\tR\bprovider\x12#\n" +
@@ -2330,25 +2330,24 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16allow_jit_provisioning\x18\x0f \x01(\bR\x14allowJitProvisioning\x12#\n" +
 	"\remail_domains\x18\x10 \x03(\tR\femailDomains\x124\n" +
 	"\x16allow_token_federation\x18\x11 \x01(\bR\x14allowTokenFederation\x12+\n" +
-	"\x11allowed_audiences\x18\x12 \x03(\tR\x10allowedAudiences\"\xfe\x02\n" +
-	"\x10RegistrationFlow\x124\n" +
-	"\x16registration_flow_uuid\x18\x01 \x01(\tR\x14registrationFlowUuid\x12\x12\n" +
+	"\x11allowed_audiences\x18\x12 \x03(\tR\x10allowedAudiences\"\xf6\x02\n" +
+	"\x10RegistrationFlow\x120\n" +
+	"\x14registration_flow_id\x18\x01 \x01(\tR\x12registrationFlowId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x04 \x01(\tR\n" +
 	"identifier\x12/\n" +
 	"\x06config\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1f\n" +
-	"\vclient_uuid\x18\a \x01(\tR\n" +
-	"clientUuid\x129\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1b\n" +
+	"\tclient_id\x18\a \x01(\tR\bclientId\x129\n" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x9f\x03\n" +
-	"\x14RegistrationFlowRole\x12=\n" +
-	"\x1bregistration_flow_role_uuid\x18\x01 \x01(\tR\x18registrationFlowRoleUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x02 \x01(\tR\broleUuid\x12\x1b\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x97\x03\n" +
+	"\x14RegistrationFlowRole\x129\n" +
+	"\x19registration_flow_role_id\x18\x01 \x01(\tR\x16registrationFlowRoleId\x12\x17\n" +
+	"\arole_id\x18\x02 \x01(\tR\x06roleId\x12\x1b\n" +
 	"\trole_name\x18\x03 \x01(\tR\broleName\x12)\n" +
 	"\x10role_description\x18\x04 \x01(\tR\x0froleDescription\x12&\n" +
 	"\x0frole_is_default\x18\x05 \x01(\bR\rroleIsDefault\x12$\n" +
@@ -2358,10 +2357,9 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x93\x03\n" +
-	"\x1cListIdentityProvidersRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8f\x03\n" +
+	"\x1cListIdentityProvidersRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bprovider\x18\x04 \x03(\tR\bprovider\x12#\n" +
@@ -2382,23 +2380,21 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"_is_system\"\xac\x01\n" +
 	"\x1dListIdentityProvidersResponse\x12T\n" +
 	"\x12identity_providers\x18\x01 \x03(\v2%.maintainerd.auth.v1.IdentityProviderR\x11identityProviders\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"s\n" +
-	"\x1aGetIdentityProviderRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\"q\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"k\n" +
+	"\x1aGetIdentityProviderRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14identity_provider_id\x18\x02 \x01(\tR\x12identityProviderId\"q\n" +
 	"\x1bGetIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xad\x04\n" +
-	"\x1dCreateIdentityProviderRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xa5\x04\n" +
+	"\x1dCreateIdentityProviderRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bprovider\x18\x04 \x01(\tR\bprovider\x12#\n" +
 	"\rprovider_type\x18\x05 \x01(\tR\fproviderType\x12/\n" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\b \x01(\tR\ractorUserUuid\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\"\n" +
+	"\ractor_user_id\x18\b \x01(\tR\vactorUserId\x12\x16\n" +
 	"\x06issuer\x18\t \x01(\tR\x06issuer\x12,\n" +
 	"\x12provider_client_id\x18\n" +
 	" \x01(\tR\x10providerClientId\x124\n" +
@@ -2407,18 +2403,17 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16allow_token_federation\x18\r \x01(\bR\x14allowTokenFederation\x12+\n" +
 	"\x11allowed_audiences\x18\x0e \x03(\tR\x10allowedAudiences\"t\n" +
 	"\x1eCreateIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xe3\x04\n" +
-	"\x1dUpdateIdentityProviderRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xd7\x04\n" +
+	"\x1dUpdateIdentityProviderRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14identity_provider_id\x18\x02 \x01(\tR\x12identityProviderId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bprovider\x18\x05 \x01(\tR\bprovider\x12#\n" +
 	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\x12/\n" +
 	"\x06config\x18\a \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x16\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\"\n" +
+	"\ractor_user_id\x18\t \x01(\tR\vactorUserId\x12\x16\n" +
 	"\x06issuer\x18\n" +
 	" \x01(\tR\x06issuer\x12,\n" +
 	"\x12provider_client_id\x18\v \x01(\tR\x10providerClientId\x124\n" +
@@ -2427,101 +2422,87 @@ const file_maintainerd_auth_v1_identity_provider_proto_rawDesc = "" +
 	"\x16allow_token_federation\x18\x0e \x01(\bR\x14allowTokenFederation\x12+\n" +
 	"\x11allowed_audiences\x18\x0f \x03(\tR\x10allowedAudiences\"t\n" +
 	"\x1eUpdateIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xb9\x01\n" +
-	" SetIdentityProviderStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"w\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xad\x01\n" +
+	" SetIdentityProviderStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14identity_provider_id\x18\x02 \x01(\tR\x12identityProviderId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"w\n" +
 	"!SetIdentityProviderStatusResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\x9e\x01\n" +
-	"\x1dDeleteIdentityProviderRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16identity_provider_uuid\x18\x02 \x01(\tR\x14identityProviderUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\"t\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\x92\x01\n" +
+	"\x1dDeleteIdentityProviderRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14identity_provider_id\x18\x02 \x01(\tR\x12identityProviderId\x12\"\n" +
+	"\ractor_user_id\x18\x03 \x01(\tR\vactorUserId\"t\n" +
 	"\x1eDeleteIdentityProviderResponse\x12R\n" +
-	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xed\x01\n" +
-	"\x1cListRegistrationFlowsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x11identity_provider\x18\x01 \x01(\v2%.maintainerd.auth.v1.IdentityProviderR\x10identityProvider\"\xe5\x01\n" +
+	"\x1cListRegistrationFlowsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x03 \x01(\tR\n" +
 	"identifier\x12\x16\n" +
-	"\x06status\x18\x04 \x03(\tR\x06status\x12\x1f\n" +
-	"\vclient_uuid\x18\x05 \x01(\tR\n" +
-	"clientUuid\x12?\n" +
+	"\x06status\x18\x04 \x03(\tR\x06status\x12\x1b\n" +
+	"\tclient_id\x18\x05 \x01(\tR\bclientId\x12?\n" +
 	"\n" +
 	"pagination\x18\x06 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"pagination\"\xac\x01\n" +
 	"\x1dListRegistrationFlowsResponse\x12T\n" +
 	"\x12registration_flows\x18\x01 \x03(\v2%.maintainerd.auth.v1.RegistrationFlowR\x11registrationFlows\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"s\n" +
-	"\x1aGetRegistrationFlowRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\"q\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"k\n" +
+	"\x1aGetRegistrationFlowRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\"q\n" +
 	"\x1bGetRegistrationFlowResponse\x12R\n" +
-	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xe0\x01\n" +
-	"\x1dCreateRegistrationFlowRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xd8\x01\n" +
+	"\x1dCreateRegistrationFlowRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12/\n" +
 	"\x06config\x18\x04 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1f\n" +
-	"\vclient_uuid\x18\x06 \x01(\tR\n" +
-	"clientUuid\"t\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1b\n" +
+	"\tclient_id\x18\x06 \x01(\tR\bclientId\"t\n" +
 	"\x1eCreateRegistrationFlowResponse\x12R\n" +
-	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xf5\x01\n" +
-	"\x1dUpdateRegistrationFlowRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x12\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\xed\x01\n" +
+	"\x1dUpdateRegistrationFlowRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12/\n" +
 	"\x06config\x18\x05 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\"t\n" +
 	"\x1eUpdateRegistrationFlowResponse\x12R\n" +
-	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x91\x01\n" +
-	" SetRegistrationFlowStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x16\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x89\x01\n" +
+	" SetRegistrationFlowStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"w\n" +
 	"!SetRegistrationFlowStatusResponse\x12R\n" +
-	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"v\n" +
-	"\x1dDeleteRegistrationFlowRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\"t\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"n\n" +
+	"\x1dDeleteRegistrationFlowRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\"t\n" +
 	"\x1eDeleteRegistrationFlowResponse\x12R\n" +
-	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x9a\x01\n" +
-	"\"AssignRegistrationFlowRolesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x1d\n" +
-	"\n" +
-	"role_uuids\x18\x03 \x03(\tR\troleUuids\"f\n" +
+	"\x11registration_flow\x18\x01 \x01(\v2%.maintainerd.auth.v1.RegistrationFlowR\x10registrationFlow\"\x8e\x01\n" +
+	"\"AssignRegistrationFlowRolesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\x12\x19\n" +
+	"\brole_ids\x18\x03 \x03(\tR\aroleIds\"f\n" +
 	"#AssignRegistrationFlowRolesResponse\x12?\n" +
-	"\x05roles\x18\x01 \x03(\v2).maintainerd.auth.v1.RegistrationFlowRoleR\x05roles\"\xba\x01\n" +
-	" ListRegistrationFlowRolesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12?\n" +
+	"\x05roles\x18\x01 \x03(\v2).maintainerd.auth.v1.RegistrationFlowRoleR\x05roles\"\xb2\x01\n" +
+	" ListRegistrationFlowRolesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"pagination\"\x9b\x01\n" +
 	"!ListRegistrationFlowRolesResponse\x12?\n" +
 	"\x05roles\x18\x01 \x03(\v2).maintainerd.auth.v1.RegistrationFlowRoleR\x05roles\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x97\x01\n" +
-	"!RemoveRegistrationFlowRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x124\n" +
-	"\x16registration_flow_uuid\x18\x02 \x01(\tR\x14registrationFlowUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\">\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x8b\x01\n" +
+	"!RemoveRegistrationFlowRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x120\n" +
+	"\x14registration_flow_id\x18\x02 \x01(\tR\x12registrationFlowId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\">\n" +
 	"\"RemoveRegistrationFlowRoleResponse\x12\x18\n" +
 	"\aremoved\x18\x01 \x01(\bR\aremovedBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 

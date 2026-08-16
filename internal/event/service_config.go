@@ -90,9 +90,9 @@ type TenantEventTypeConfigService interface {
 }
 
 type TenantEventTypeConfigResult struct {
-	TenantEventTypeUUID string `json:"tenant_event_type_uuid"`
-	TenantUUID          string `json:"tenant_uuid"`
-	EventTypeUUID       string `json:"event_type_uuid"`
+	TenantEventTypeUUID string `json:"tenant_event_type_id"`
+	TenantUUID          string `json:"tenant_id"`
+	EventTypeUUID       string `json:"event_type_id"`
 	EventTypeKey        string `json:"event_type_key"`
 	Enabled             bool   `json:"enabled"`
 	TenantID            int64  `json:"-"`

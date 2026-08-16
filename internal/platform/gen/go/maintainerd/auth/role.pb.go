@@ -24,7 +24,7 @@ const (
 
 type Role struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleUuid      string                 `protobuf:"bytes,1,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	RoleId        string                 `protobuf:"bytes,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Permissions   []*Permission          `protobuf:"bytes,4,rep,name=permissions,proto3" json:"permissions,omitempty"`
@@ -67,9 +67,9 @@ func (*Role) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Role) GetRoleUuid() string {
+func (x *Role) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -132,7 +132,7 @@ func (x *Role) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListRolesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	IsDefault     *bool                  `protobuf:"varint,4,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
@@ -173,9 +173,9 @@ func (*ListRolesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListRolesRequest) GetTenantUuid() string {
+func (x *ListRolesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -276,8 +276,8 @@ func (x *ListRolesResponse) GetPage() *PageMetadata {
 
 type GetRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,2,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,2,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -312,16 +312,16 @@ func (*GetRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetRoleRequest) GetTenantUuid() string {
+func (x *GetRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetRoleRequest) GetRoleUuid() string {
+func (x *GetRoleRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -372,8 +372,8 @@ func (x *GetRoleResponse) GetRole() *Role {
 
 type CreateRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
@@ -411,16 +411,16 @@ func (*CreateRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateRoleRequest) GetTenantUuid() string {
+func (x *CreateRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *CreateRoleRequest) GetActorUserUuid() string {
+func (x *CreateRoleRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -492,9 +492,9 @@ func (x *CreateRoleResponse) GetRole() *Role {
 
 type UpdateRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
@@ -532,23 +532,23 @@ func (*UpdateRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateRoleRequest) GetTenantUuid() string {
+func (x *UpdateRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateRoleRequest) GetActorUserUuid() string {
+func (x *UpdateRoleRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
 
-func (x *UpdateRoleRequest) GetRoleUuid() string {
+func (x *UpdateRoleRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -620,9 +620,9 @@ func (x *UpdateRoleResponse) GetRole() *Role {
 
 type SetRoleStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -658,23 +658,23 @@ func (*SetRoleStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SetRoleStatusRequest) GetTenantUuid() string {
+func (x *SetRoleStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetRoleStatusRequest) GetActorUserUuid() string {
+func (x *SetRoleStatusRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
 
-func (x *SetRoleStatusRequest) GetRoleUuid() string {
+func (x *SetRoleStatusRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -732,9 +732,9 @@ func (x *SetRoleStatusResponse) GetRole() *Role {
 
 type DeleteRoleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -769,23 +769,23 @@ func (*DeleteRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeleteRoleRequest) GetTenantUuid() string {
+func (x *DeleteRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteRoleRequest) GetActorUserUuid() string {
+func (x *DeleteRoleRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
 
-func (x *DeleteRoleRequest) GetRoleUuid() string {
+func (x *DeleteRoleRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -836,8 +836,8 @@ func (x *DeleteRoleResponse) GetRole() *Role {
 
 type ListRolePermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	RoleUuid      string                 `protobuf:"bytes,2,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,2,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,4,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -874,16 +874,16 @@ func (*ListRolePermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *ListRolePermissionsRequest) GetTenantUuid() string {
+func (x *ListRolePermissionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListRolePermissionsRequest) GetRoleUuid() string {
+func (x *ListRolePermissionsRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -955,13 +955,13 @@ func (x *ListRolePermissionsResponse) GetPage() *PageMetadata {
 }
 
 type AddRolePermissionsRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid   string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	RoleUuid        string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	PermissionUuids []string               `protobuf:"bytes,4,rep,name=permission_uuids,json=permissionUuids,proto3" json:"permission_uuids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	PermissionIds []string               `protobuf:"bytes,4,rep,name=permission_ids,json=permissionIds,proto3" json:"permission_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddRolePermissionsRequest) Reset() {
@@ -994,30 +994,30 @@ func (*AddRolePermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *AddRolePermissionsRequest) GetTenantUuid() string {
+func (x *AddRolePermissionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AddRolePermissionsRequest) GetActorUserUuid() string {
+func (x *AddRolePermissionsRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
 
-func (x *AddRolePermissionsRequest) GetRoleUuid() string {
+func (x *AddRolePermissionsRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
 
-func (x *AddRolePermissionsRequest) GetPermissionUuids() []string {
+func (x *AddRolePermissionsRequest) GetPermissionIds() []string {
 	if x != nil {
-		return x.PermissionUuids
+		return x.PermissionIds
 	}
 	return nil
 }
@@ -1067,13 +1067,13 @@ func (x *AddRolePermissionsResponse) GetRole() *Role {
 }
 
 type RemoveRolePermissionRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid  string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	RoleUuid       string                 `protobuf:"bytes,3,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,4,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	RoleId        string                 `protobuf:"bytes,3,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,4,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RemoveRolePermissionRequest) Reset() {
@@ -1106,30 +1106,30 @@ func (*RemoveRolePermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_role_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *RemoveRolePermissionRequest) GetTenantUuid() string {
+func (x *RemoveRolePermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveRolePermissionRequest) GetActorUserUuid() string {
+func (x *RemoveRolePermissionRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
 
-func (x *RemoveRolePermissionRequest) GetRoleUuid() string {
+func (x *RemoveRolePermissionRequest) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
 
-func (x *RemoveRolePermissionRequest) GetPermissionUuid() string {
+func (x *RemoveRolePermissionRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -1182,9 +1182,9 @@ var File_maintainerd_auth_v1_role_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_role_proto_rawDesc = "" +
 	"\n" +
-	"\x1emaintainerd/auth/v1/role.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$maintainerd/auth/v1/permission.proto\x1a maintainerd/auth/v1/tenant.proto\"\xe6\x02\n" +
-	"\x04Role\x12\x1b\n" +
-	"\trole_uuid\x18\x01 \x01(\tR\broleUuid\x12\x12\n" +
+	"\x1emaintainerd/auth/v1/role.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$maintainerd/auth/v1/permission.proto\x1a maintainerd/auth/v1/tenant.proto\"\xe2\x02\n" +
+	"\x04Role\x12\x17\n" +
+	"\arole_id\x18\x01 \x01(\tR\x06roleId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12A\n" +
 	"\vpermissions\x18\x04 \x03(\v2\x1f.maintainerd.auth.v1.PermissionR\vpermissions\x12\x1d\n" +
@@ -1195,10 +1195,9 @@ const file_maintainerd_auth_v1_role_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa5\x02\n" +
-	"\x10ListRolesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa1\x02\n" +
+	"\x10ListRolesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\"\n" +
 	"\n" +
@@ -1213,72 +1212,64 @@ const file_maintainerd_auth_v1_role_proto_rawDesc = "" +
 	"_is_system\"{\n" +
 	"\x11ListRolesResponse\x12/\n" +
 	"\x05roles\x18\x01 \x03(\v2\x19.maintainerd.auth.v1.RoleR\x05roles\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"N\n" +
-	"\x0eGetRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x02 \x01(\tR\broleUuid\"@\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"F\n" +
+	"\x0eGetRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
+	"\arole_id\x18\x02 \x01(\tR\x06roleId\"@\n" +
 	"\x0fGetRoleResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xaa\x01\n" +
-	"\x11CreateRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xa2\x01\n" +
+	"\x11CreateRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\"C\n" +
 	"\x12CreateRoleResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xc7\x01\n" +
-	"\x11UpdateRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xbb\x01\n" +
+	"\x11UpdateRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\"C\n" +
 	"\x12UpdateRoleResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\x94\x01\n" +
-	"\x14SetRoleStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\x12\x16\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\x88\x01\n" +
+	"\x14SetRoleStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\"F\n" +
 	"\x15SetRoleStatusResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"y\n" +
-	"\x11DeleteRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\"C\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"m\n" +
+	"\x11DeleteRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\"C\n" +
 	"\x12DeleteRoleResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xb3\x01\n" +
-	"\x1aListRolePermissionsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x02 \x01(\tR\broleUuid\x12\x16\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xab\x01\n" +
+	"\x1aListRolePermissionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
+	"\arole_id\x18\x02 \x01(\tR\x06roleId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12?\n" +
 	"\n" +
 	"pagination\x18\x04 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"pagination\"\x97\x01\n" +
 	"\x1bListRolePermissionsResponse\x12A\n" +
 	"\vpermissions\x18\x01 \x03(\v2\x1f.maintainerd.auth.v1.PermissionR\vpermissions\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\xac\x01\n" +
-	"\x19AddRolePermissionsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\x12)\n" +
-	"\x10permission_uuids\x18\x04 \x03(\tR\x0fpermissionUuids\"K\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x9c\x01\n" +
+	"\x19AddRolePermissionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\x12%\n" +
+	"\x0epermission_ids\x18\x04 \x03(\tR\rpermissionIds\"K\n" +
 	"\x1aAddRolePermissionsResponse\x12-\n" +
-	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\xac\x01\n" +
-	"\x1bRemoveRolePermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\x12\x1b\n" +
-	"\trole_uuid\x18\x03 \x01(\tR\broleUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x04 \x01(\tR\x0epermissionUuid\"M\n" +
+	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role\"\x9c\x01\n" +
+	"\x1bRemoveRolePermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\x12\x17\n" +
+	"\arole_id\x18\x03 \x01(\tR\x06roleId\x12#\n" +
+	"\rpermission_id\x18\x04 \x01(\tR\fpermissionId\"M\n" +
 	"\x1cRemoveRolePermissionResponse\x12-\n" +
 	"\x04role\x18\x01 \x01(\v2\x19.maintainerd.auth.v1.RoleR\x04role2\xb2\a\n" +
 	"\vRoleService\x12Z\n" +

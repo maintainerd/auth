@@ -19,7 +19,7 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 	tenantUUID := uuid.New()
 	roleUUID := uuid.New()
 	actorUUID := uuid.New()
-	// The actor comes from the VERIFIED token now, not req.ActorUserUuid, so the
+	// The actor comes from the VERIFIED token now, not req.ActorUserId, so the
 	// caller context has to carry a user principal.
 	ctx := grpcUserCallerCtx(77, actorUUID)
 	permissionUUID := uuid.New()
@@ -69,70 +69,70 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 		}
 		h := NewRoleGRPCHandler(tenantResolver, svc)
 
-		list, err := h.ListRoles(ctx, &authv1.ListRolesRequest{TenantUuid: tenantUUID.String(), Status: shared.StatusActive, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		list, err := h.ListRoles(ctx, &authv1.ListRolesRequest{TenantId: tenantUUID.String(), Status: shared.StatusActive, Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		require.NoError(t, err)
 		assert.Equal(t, "admin", list.Roles[0].Name)
-		got, err := h.GetRole(ctx, &authv1.GetRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		got, err := h.GetRole(ctx, &authv1.GetRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		require.NoError(t, err)
 		assert.Equal(t, "read:users", got.Role.Permissions[0].Name)
 		created, err := h.CreateRole(ctx, validCreateRoleRequest(tenantUUID))
 		require.NoError(t, err)
-		assert.Equal(t, roleUUID.String(), created.Role.RoleUuid)
+		assert.Equal(t, roleUUID.String(), created.Role.RoleId)
 		updated, err := h.UpdateRole(ctx, validUpdateRoleRequest(tenantUUID, roleUUID))
 		require.NoError(t, err)
 		assert.Equal(t, "admin", updated.Role.Name)
-		statusRes, err := h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Status: shared.StatusInactive})
+		statusRes, err := h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Status: shared.StatusInactive})
 		require.NoError(t, err)
 		assert.Equal(t, shared.StatusInactive, statusRes.Role.Status)
-		deleted, err := h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		deleted, err := h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		require.NoError(t, err)
-		assert.Equal(t, roleUUID.String(), deleted.Role.RoleUuid)
-		perms, err := h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		assert.Equal(t, roleUUID.String(), deleted.Role.RoleId)
+		perms, err := h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		require.NoError(t, err)
-		assert.Equal(t, permissionUUID.String(), perms.Permissions[0].PermissionUuid)
-		added, err := h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuids: []string{permissionUUID.String()}})
+		assert.Equal(t, permissionUUID.String(), perms.Permissions[0].PermissionId)
+		added, err := h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionIds: []string{permissionUUID.String()}})
 		require.NoError(t, err)
-		assert.Equal(t, roleUUID.String(), added.Role.RoleUuid)
-		removed, err := h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuid: permissionUUID.String()})
+		assert.Equal(t, roleUUID.String(), added.Role.RoleId)
+		removed, err := h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionId: permissionUUID.String()})
 		require.NoError(t, err)
-		assert.Equal(t, roleUUID.String(), removed.Role.RoleUuid)
+		assert.Equal(t, roleUUID.String(), removed.Role.RoleId)
 	})
 
 	t.Run("validation and service errors", func(t *testing.T) {
 		h := NewRoleGRPCHandler(mockTenantResolver{}, &mockRoleService{})
-		_, err := h.ListRoles(ctx, &authv1.ListRolesRequest{TenantUuid: "bad"})
+		_, err := h.ListRoles(ctx, &authv1.ListRolesRequest{TenantId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListRoles(ctx, &authv1.ListRolesRequest{TenantUuid: tenantUUID.String(), Status: "bad"})
+		_, err = h.ListRoles(ctx, &authv1.ListRolesRequest{TenantId: tenantUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.GetRole(ctx, &authv1.GetRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: "bad"})
+		_, err = h.GetRole(ctx, &authv1.GetRoleRequest{TenantId: tenantUUID.String(), RoleId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 		badTenantCreate := validCreateRoleRequest(tenantUUID)
-		badTenantCreate.TenantUuid = "bad"
+		badTenantCreate.TenantId = "bad"
 		_, err = h.CreateRole(ctx, badTenantCreate)
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.CreateRole(ctx, &authv1.CreateRoleRequest{TenantUuid: tenantUUID.String(), Name: "x"})
+		_, err = h.CreateRole(ctx, &authv1.CreateRoleRequest{TenantId: tenantUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.UpdateRole(ctx, &authv1.UpdateRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Name: "x"})
+		_, err = h.UpdateRole(ctx, &authv1.UpdateRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Name: "x"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Status: "bad"})
+		_, err = h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Status: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantUuid: "bad", RoleUuid: roleUUID.String()})
+		_, err = h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantId: "bad", RoleId: roleUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantUuid: "bad", RoleUuid: roleUUID.String()})
+		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantId: "bad", RoleId: roleUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: "bad"})
+		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Pagination: &authv1.Pagination{SortOrder: "sideways"}})
+		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Pagination: &authv1.Pagination{SortOrder: "sideways"}})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantUuid: "bad", RoleUuid: roleUUID.String(), PermissionUuids: []string{permissionUUID.String()}})
+		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantId: "bad", RoleId: roleUUID.String(), PermissionIds: []string{permissionUUID.String()}})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuids: []string{"bad"}})
+		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionIds: []string{"bad"}})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantUuid: "bad", RoleUuid: roleUUID.String(), PermissionUuid: permissionUUID.String()})
+		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantId: "bad", RoleId: roleUUID.String(), PermissionId: permissionUUID.String()})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuid: "bad"})
+		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionId: "bad"})
 		assert.Equal(t, codes.InvalidArgument, status.Code(err))
 
 		serviceErr := errors.New("db")
@@ -153,27 +153,27 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 			addRolePermsFn:    func(uuid.UUID, int64, []uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
 			removeRolePermsFn: func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
 		})
-		_, err = h.ListRoles(ctx, &authv1.ListRolesRequest{TenantUuid: tenantUUID.String()})
+		_, err = h.ListRoles(ctx, &authv1.ListRolesRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.GetRole(ctx, &authv1.GetRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		_, err = h.GetRole(ctx, &authv1.GetRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		_, err = h.ListRolePermissions(ctx, &authv1.ListRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.CreateRole(ctx, validCreateRoleRequest(tenantUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
 		_, err = h.UpdateRole(ctx, validUpdateRoleRequest(tenantUUID, roleUUID))
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Status: shared.StatusActive})
+		_, err = h.SetRoleStatus(ctx, &authv1.SetRoleStatusRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Status: shared.StatusActive})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		_, err = h.DeleteRole(ctx, &authv1.DeleteRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuids: []string{permissionUUID.String()}})
+		_, err = h.AddRolePermissions(ctx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionIds: []string{permissionUUID.String()}})
 		assert.Equal(t, codes.Internal, status.Code(err))
-		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), PermissionUuid: permissionUUID.String()})
+		_, err = h.RemoveRolePermission(ctx, &authv1.RemoveRolePermissionRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), PermissionId: permissionUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
 	})
 
-	// The "invalid actor UUID" cases above are gone: ActorUserUuid is no longer
+	// The "invalid actor UUID" cases above are gone: ActorUserId is no longer
 	// read. What replaces them is the inverse — a body-supplied actor must NOT be
 	// able to stand in for a missing user principal. The service is left nil so any
 	// RPC that got as far as calling it would panic rather than pass.
@@ -185,30 +185,30 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 		for name, call := range map[string]func() error{
 			"CreateRole": func() error {
 				req := validCreateRoleRequest(tenantUUID)
-				req.ActorUserUuid = innocent
+				req.ActorUserId = innocent
 				_, err := h.CreateRole(serviceCtx, req)
 				return err
 			},
 			"UpdateRole": func() error {
 				req := validUpdateRoleRequest(tenantUUID, roleUUID)
-				req.ActorUserUuid = innocent
+				req.ActorUserId = innocent
 				_, err := h.UpdateRole(serviceCtx, req)
 				return err
 			},
 			"SetRoleStatus": func() error {
-				_, err := h.SetRoleStatus(serviceCtx, &authv1.SetRoleStatusRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: innocent, RoleUuid: roleUUID.String(), Status: shared.StatusActive})
+				_, err := h.SetRoleStatus(serviceCtx, &authv1.SetRoleStatusRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), Status: shared.StatusActive})
 				return err
 			},
 			"DeleteRole": func() error {
-				_, err := h.DeleteRole(serviceCtx, &authv1.DeleteRoleRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: innocent, RoleUuid: roleUUID.String()})
+				_, err := h.DeleteRole(serviceCtx, &authv1.DeleteRoleRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String()})
 				return err
 			},
 			"AddRolePermissions": func() error {
-				_, err := h.AddRolePermissions(serviceCtx, &authv1.AddRolePermissionsRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: innocent, RoleUuid: roleUUID.String(), PermissionUuids: []string{permissionUUID.String()}})
+				_, err := h.AddRolePermissions(serviceCtx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), PermissionIds: []string{permissionUUID.String()}})
 				return err
 			},
 			"RemoveRolePermission": func() error {
-				_, err := h.RemoveRolePermission(serviceCtx, &authv1.RemoveRolePermissionRequest{TenantUuid: tenantUUID.String(), ActorUserUuid: innocent, RoleUuid: roleUUID.String(), PermissionUuid: permissionUUID.String()})
+				_, err := h.RemoveRolePermission(serviceCtx, &authv1.RemoveRolePermissionRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), PermissionId: permissionUUID.String()})
 				return err
 			},
 		} {
@@ -224,17 +224,17 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 			getByUUIDFn: func(uuid.UUID, int64) (*RoleServiceDataResult, error) { return &role, nil },
 		})
 
-		got, err := h.GetRole(grpcCallerCtx(77), &authv1.GetRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String()})
+		got, err := h.GetRole(grpcCallerCtx(77), &authv1.GetRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String()})
 
 		require.NoError(t, err)
-		assert.Equal(t, roleUUID.String(), got.Role.RoleUuid)
+		assert.Equal(t, roleUUID.String(), got.Role.RoleId)
 	})
 }
 
 func validCreateRoleRequest(tenantUUID uuid.UUID) *authv1.CreateRoleRequest {
-	return &authv1.CreateRoleRequest{TenantUuid: tenantUUID.String(), Name: "admin", Description: "Admin role", Status: shared.StatusActive}
+	return &authv1.CreateRoleRequest{TenantId: tenantUUID.String(), Name: "admin", Description: "Admin role", Status: shared.StatusActive}
 }
 
 func validUpdateRoleRequest(tenantUUID uuid.UUID, roleUUID uuid.UUID) *authv1.UpdateRoleRequest {
-	return &authv1.UpdateRoleRequest{TenantUuid: tenantUUID.String(), RoleUuid: roleUUID.String(), Name: "admin", Description: "Admin role", Status: shared.StatusActive}
+	return &authv1.UpdateRoleRequest{TenantId: tenantUUID.String(), RoleId: roleUUID.String(), Name: "admin", Description: "Admin role", Status: shared.StatusActive}
 }

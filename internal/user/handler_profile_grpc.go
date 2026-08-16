@@ -22,10 +22,10 @@ func NewUserProfileGRPCHandler(tenantResolver TenantResolver, profileService Pro
 }
 
 func (h *UserProfileGRPCHandler) ListUserProfiles(ctx context.Context, req *authv1.ListUserProfilesRequest) (*authv1.ListUserProfilesResponse, error) {
-	if _, err := h.resolveTenant(ctx, req.GetTenantUuid()); err != nil {
+	if _, err := h.resolveTenant(ctx, req.GetTenantId()); err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (h *UserProfileGRPCHandler) ListUserProfiles(ctx context.Context, req *auth
 }
 
 func (h *UserProfileGRPCHandler) GetUserProfile(ctx context.Context, req *authv1.GetUserProfileRequest) (*authv1.GetUserProfileResponse, error) {
-	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantUuid(), req.GetUserUuid(), req.GetProfileUuid())
+	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantId(), req.GetUserId(), req.GetProfileId())
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +68,10 @@ func (h *UserProfileGRPCHandler) GetUserProfile(ctx context.Context, req *authv1
 // database level stops a retry from creating a second, non-default profile for
 // the same person. The ledger is what makes this RPC safe to retry at all.
 func (h *UserProfileGRPCHandler) CreateUserProfile(ctx context.Context, req *authv1.CreateUserProfileRequest) (*authv1.CreateUserProfileResponse, error) {
-	if _, err := h.resolveTenant(ctx, req.GetTenantUuid()); err != nil {
+	if _, err := h.resolveTenant(ctx, req.GetTenantId()); err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +88,7 @@ func (h *UserProfileGRPCHandler) CreateUserProfile(ctx context.Context, req *aut
 }
 
 func (h *UserProfileGRPCHandler) UpdateUserProfile(ctx context.Context, req *authv1.UpdateUserProfileRequest) (*authv1.UpdateUserProfileResponse, error) {
-	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantUuid(), req.GetUserUuid(), req.GetProfileUuid())
+	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantId(), req.GetUserId(), req.GetProfileId())
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (h *UserProfileGRPCHandler) UpdateUserProfile(ctx context.Context, req *aut
 }
 
 func (h *UserProfileGRPCHandler) SetDefaultUserProfile(ctx context.Context, req *authv1.SetDefaultUserProfileRequest) (*authv1.SetDefaultUserProfileResponse, error) {
-	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantUuid(), req.GetUserUuid(), req.GetProfileUuid())
+	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantId(), req.GetUserId(), req.GetProfileId())
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (h *UserProfileGRPCHandler) SetDefaultUserProfile(ctx context.Context, req 
 }
 
 func (h *UserProfileGRPCHandler) DeleteUserProfile(ctx context.Context, req *authv1.DeleteUserProfileRequest) (*authv1.DeleteUserProfileResponse, error) {
-	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantUuid(), req.GetUserUuid(), req.GetProfileUuid())
+	userUUID, profileUUID, err := h.profileRequestIDs(ctx, req.GetTenantId(), req.GetUserId(), req.GetProfileId())
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func toUserProfileProto(result *ProfileServiceDataResult) *authv1.UserProfile {
 		return nil
 	}
 	profile := &authv1.UserProfile{
-		ProfileUuid: result.ProfileUUID.String(),
+		ProfileId:   result.ProfileUUID.String(),
 		FirstName:   result.FirstName,
 		MiddleName:  stringValue(result.MiddleName),
 		LastName:    stringValue(result.LastName),

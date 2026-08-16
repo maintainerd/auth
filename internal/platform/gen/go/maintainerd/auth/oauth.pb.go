@@ -77,7 +77,7 @@ type IntrospectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Active        bool                   `protobuf:"varint,1,opt,name=active,proto3" json:"active,omitempty"`
 	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	ClientId      string                 `protobuf:"bytes,3,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	OauthClientId string                 `protobuf:"bytes,3,opt,name=oauth_client_id,json=oauthClientId,proto3" json:"oauth_client_id,omitempty"`
 	Username      string                 `protobuf:"bytes,4,opt,name=username,proto3" json:"username,omitempty"`
 	TokenType     string                 `protobuf:"bytes,5,opt,name=token_type,json=tokenType,proto3" json:"token_type,omitempty"`
 	Exp           int64                  `protobuf:"varint,6,opt,name=exp,proto3" json:"exp,omitempty"`
@@ -134,9 +134,9 @@ func (x *IntrospectResponse) GetScope() string {
 	return ""
 }
 
-func (x *IntrospectResponse) GetClientId() string {
+func (x *IntrospectResponse) GetOauthClientId() string {
 	if x != nil {
-		return x.ClientId
+		return x.OauthClientId
 	}
 	return ""
 }
@@ -204,11 +204,11 @@ const file_maintainerd_auth_v1_oauth_proto_rawDesc = "" +
 	"\x1fmaintainerd/auth/v1/oauth.proto\x12\x13maintainerd.auth.v1\"Q\n" +
 	"\x11IntrospectRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12&\n" +
-	"\x0ftoken_type_hint\x18\x02 \x01(\tR\rtokenTypeHint\"\x86\x02\n" +
+	"\x0ftoken_type_hint\x18\x02 \x01(\tR\rtokenTypeHint\"\x91\x02\n" +
 	"\x12IntrospectResponse\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12\x14\n" +
-	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x1b\n" +
-	"\tclient_id\x18\x03 \x01(\tR\bclientId\x12\x1a\n" +
+	"\x05scope\x18\x02 \x01(\tR\x05scope\x12&\n" +
+	"\x0foauth_client_id\x18\x03 \x01(\tR\roauthClientId\x12\x1a\n" +
 	"\busername\x18\x04 \x01(\tR\busername\x12\x1d\n" +
 	"\n" +
 	"token_type\x18\x05 \x01(\tR\ttokenType\x12\x10\n" +

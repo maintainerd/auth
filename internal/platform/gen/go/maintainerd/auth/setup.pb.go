@@ -296,7 +296,7 @@ func (x *CreateTenantRequest) GetMetadata() *TenantMetadata {
 
 type CreateTenantResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName       string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	DefaultClientId   string                 `protobuf:"bytes,5,opt,name=default_client_id,json=defaultClientId,proto3" json:"default_client_id,omitempty"`
@@ -335,9 +335,9 @@ func (*CreateTenantResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreateTenantResponse) GetTenantUuid() string {
+func (x *CreateTenantResponse) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -440,7 +440,7 @@ func (x *CreateAdminRequest) GetEmail() string {
 
 type CreateAdminResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserUuid      string                 `protobuf:"bytes,1,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Fullname      string                 `protobuf:"bytes,3,opt,name=fullname,proto3" json:"fullname,omitempty"`
 	Email         string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
@@ -479,9 +479,9 @@ func (*CreateAdminResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *CreateAdminResponse) GetUserUuid() string {
+func (x *CreateAdminResponse) GetUserId() string {
 	if x != nil {
-		return x.UserUuid
+		return x.UserId
 	}
 	return ""
 }
@@ -688,7 +688,7 @@ func (x *CreateProfileRequest) GetMetadata() *structpb.Struct {
 
 type CreateProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProfileUuid   string                 `protobuf:"bytes,1,opt,name=profile_uuid,json=profileUuid,proto3" json:"profile_uuid,omitempty"`
+	ProfileId     string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
 	FirstName     string                 `protobuf:"bytes,2,opt,name=first_name,json=firstName,proto3" json:"first_name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -725,9 +725,9 @@ func (*CreateProfileResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *CreateProfileResponse) GetProfileUuid() string {
+func (x *CreateProfileResponse) GetProfileId() string {
 	if x != nil {
-		return x.ProfileUuid
+		return x.ProfileId
 	}
 	return ""
 }
@@ -854,10 +854,10 @@ func (x *RegisterControlServiceRequest) GetPolicyName() string {
 
 type RegisterControlServiceResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	ServiceUuid       string                 `protobuf:"bytes,1,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId         string                 `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName       string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	PolicyUuid        string                 `protobuf:"bytes,4,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	PolicyId          string                 `protobuf:"bytes,4,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	PolicyName        string                 `protobuf:"bytes,5,opt,name=policy_name,json=policyName,proto3" json:"policy_name,omitempty"`
 	AlreadyExisted    bool                   `protobuf:"varint,6,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
 	PolicyWasAttached bool                   `protobuf:"varint,7,opt,name=policy_was_attached,json=policyWasAttached,proto3" json:"policy_was_attached,omitempty"`
@@ -895,9 +895,9 @@ func (*RegisterControlServiceResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *RegisterControlServiceResponse) GetServiceUuid() string {
+func (x *RegisterControlServiceResponse) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -916,9 +916,9 @@ func (x *RegisterControlServiceResponse) GetDisplayName() string {
 	return ""
 }
 
-func (x *RegisterControlServiceResponse) GetPolicyUuid() string {
+func (x *RegisterControlServiceResponse) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -1132,10 +1132,10 @@ func (x *EnsureControlClientRequest) GetAudience() string {
 
 type EnsureControlClientResponse struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
-	ClientUuid              string                 `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ClientId                string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientId                string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	OauthClientId           string                 `protobuf:"bytes,2,opt,name=oauth_client_id,json=oauthClientId,proto3" json:"oauth_client_id,omitempty"`
 	TokenEndpointAuthMethod string                 `protobuf:"bytes,3,opt,name=token_endpoint_auth_method,json=tokenEndpointAuthMethod,proto3" json:"token_endpoint_auth_method,omitempty"`
-	ServiceUuid             string                 `protobuf:"bytes,4,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId               string                 `protobuf:"bytes,4,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	AlreadyExisted          bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
@@ -1171,16 +1171,16 @@ func (*EnsureControlClientResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *EnsureControlClientResponse) GetClientUuid() string {
+func (x *EnsureControlClientResponse) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *EnsureControlClientResponse) GetClientId() string {
+func (x *EnsureControlClientResponse) GetOauthClientId() string {
 	if x != nil {
-		return x.ClientId
+		return x.OauthClientId
 	}
 	return ""
 }
@@ -1192,9 +1192,9 @@ func (x *EnsureControlClientResponse) GetTokenEndpointAuthMethod() string {
 	return ""
 }
 
-func (x *EnsureControlClientResponse) GetServiceUuid() string {
+func (x *EnsureControlClientResponse) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -1352,8 +1352,8 @@ func (x *EnsureResourceAPIPermission) GetDescription() string {
 
 type EnsureResourceAPIResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceUuid     string                 `protobuf:"bytes,1,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
-	ApiUuid         string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	ServiceId       string                 `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	ApiId           string                 `protobuf:"bytes,2,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	Identifier      string                 `protobuf:"bytes,3,opt,name=identifier,proto3" json:"identifier,omitempty"`
 	PermissionNames []string               `protobuf:"bytes,4,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
 	AlreadyExisted  bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
@@ -1391,16 +1391,16 @@ func (*EnsureResourceAPIResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *EnsureResourceAPIResponse) GetServiceUuid() string {
+func (x *EnsureResourceAPIResponse) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
 
-func (x *EnsureResourceAPIResponse) GetApiUuid() string {
+func (x *EnsureResourceAPIResponse) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -1429,16 +1429,16 @@ func (x *EnsureResourceAPIResponse) GetAlreadyExisted() bool {
 // EnsureRole creates a role carrying the given permissions and optionally grants
 // it to a user — how core gives its first administrator full access to itself.
 //
-// assign_to_user_uuid is a UUID rather than a username so it can only name a
+// assign_to_user_id is a UUID rather than a username so it can only name a
 // principal the caller already created in this same setup window.
 type EnsureRoleRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description      string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	PermissionNames  []string               `protobuf:"bytes,3,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
-	AssignToUserUuid string                 `protobuf:"bytes,4,opt,name=assign_to_user_uuid,json=assignToUserUuid,proto3" json:"assign_to_user_uuid,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description     string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	PermissionNames []string               `protobuf:"bytes,3,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
+	AssignToUserId  string                 `protobuf:"bytes,4,opt,name=assign_to_user_id,json=assignToUserId,proto3" json:"assign_to_user_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EnsureRoleRequest) Reset() {
@@ -1492,16 +1492,16 @@ func (x *EnsureRoleRequest) GetPermissionNames() []string {
 	return nil
 }
 
-func (x *EnsureRoleRequest) GetAssignToUserUuid() string {
+func (x *EnsureRoleRequest) GetAssignToUserId() string {
 	if x != nil {
-		return x.AssignToUserUuid
+		return x.AssignToUserId
 	}
 	return ""
 }
 
 type EnsureRoleResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	RoleUuid        string                 `protobuf:"bytes,1,opt,name=role_uuid,json=roleUuid,proto3" json:"role_uuid,omitempty"`
+	RoleId          string                 `protobuf:"bytes,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
 	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	PermissionNames []string               `protobuf:"bytes,3,rep,name=permission_names,json=permissionNames,proto3" json:"permission_names,omitempty"`
 	Assigned        bool                   `protobuf:"varint,4,opt,name=assigned,proto3" json:"assigned,omitempty"`
@@ -1540,9 +1540,9 @@ func (*EnsureRoleResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *EnsureRoleResponse) GetRoleUuid() string {
+func (x *EnsureRoleResponse) GetRoleId() string {
 	if x != nil {
-		return x.RoleUuid
+		return x.RoleId
 	}
 	return ""
 }
@@ -1661,8 +1661,8 @@ func (x *EnsureConsoleClientRequest) GetPostLogoutRedirectUris() []string {
 
 type EnsureConsoleClientResponse struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
-	ClientUuid             string                 `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ClientId               string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientId               string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	OauthClientId          string                 `protobuf:"bytes,2,opt,name=oauth_client_id,json=oauthClientId,proto3" json:"oauth_client_id,omitempty"`
 	RedirectUris           []string               `protobuf:"bytes,3,rep,name=redirect_uris,json=redirectUris,proto3" json:"redirect_uris,omitempty"`
 	PostLogoutRedirectUris []string               `protobuf:"bytes,4,rep,name=post_logout_redirect_uris,json=postLogoutRedirectUris,proto3" json:"post_logout_redirect_uris,omitempty"`
 	AlreadyExisted         bool                   `protobuf:"varint,5,opt,name=already_existed,json=alreadyExisted,proto3" json:"already_existed,omitempty"`
@@ -1700,16 +1700,16 @@ func (*EnsureConsoleClientResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_setup_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *EnsureConsoleClientResponse) GetClientUuid() string {
+func (x *EnsureConsoleClientResponse) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *EnsureConsoleClientResponse) GetClientId() string {
+func (x *EnsureConsoleClientResponse) GetOauthClientId() string {
 	if x != nil {
-		return x.ClientId
+		return x.OauthClientId
 	}
 	return ""
 }
@@ -1762,10 +1762,9 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12?\n" +
-	"\bmetadata\x18\x04 \x01(\v2#.maintainerd.auth.v1.TenantMetadataR\bmetadata\"\xca\x01\n" +
-	"\x14CreateTenantResponse\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\bmetadata\x18\x04 \x01(\v2#.maintainerd.auth.v1.TenantMetadataR\bmetadata\"\xc6\x01\n" +
+	"\x14CreateTenantResponse\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12*\n" +
 	"\x11default_client_id\x18\x05 \x01(\tR\x0fdefaultClientId\x12.\n" +
@@ -1774,9 +1773,9 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bfullname\x18\x02 \x01(\tR\bfullname\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x14\n" +
-	"\x05email\x18\x04 \x01(\tR\x05email\"\x98\x01\n" +
-	"\x13CreateAdminResponse\x12\x1b\n" +
-	"\tuser_uuid\x18\x01 \x01(\tR\buserUuid\x12\x1a\n" +
+	"\x05email\x18\x04 \x01(\tR\x05email\"\x94\x01\n" +
+	"\x13CreateAdminResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
 	"\bfullname\x18\x03 \x01(\tR\bfullname\x12\x14\n" +
 	"\x05email\x18\x04 \x01(\tR\x05email\x12\x16\n" +
@@ -1802,9 +1801,10 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\blanguage\x18\x0f \x01(\tR\blanguage\x12\x1f\n" +
 	"\vprofile_url\x18\x10 \x01(\tR\n" +
 	"profileUrl\x123\n" +
-	"\bmetadata\x18\x11 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"|\n" +
-	"\x15CreateProfileResponse\x12!\n" +
-	"\fprofile_uuid\x18\x01 \x01(\tR\vprofileUuid\x12\x1d\n" +
+	"\bmetadata\x18\x11 \x01(\v2\x17.google.protobuf.StructR\bmetadata\"x\n" +
+	"\x15CreateProfileResponse\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12\x1d\n" +
 	"\n" +
 	"first_name\x18\x02 \x01(\tR\tfirstName\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xdc\x01\n" +
@@ -1815,13 +1815,13 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12'\n" +
 	"\x0fallowed_actions\x18\x05 \x03(\tR\x0eallowedActions\x12\x1f\n" +
 	"\vpolicy_name\x18\x06 \x01(\tR\n" +
-	"policyName\"\x95\x02\n" +
-	"\x1eRegisterControlServiceResponse\x12!\n" +
-	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x12\n" +
+	"policyName\"\x8d\x02\n" +
+	"\x1eRegisterControlServiceResponse\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x01 \x01(\tR\tserviceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x04 \x01(\tR\n" +
-	"policyUuid\x12\x1f\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1b\n" +
+	"\tpolicy_id\x18\x04 \x01(\tR\bpolicyId\x12\x1f\n" +
 	"\vpolicy_name\x18\x05 \x01(\tR\n" +
 	"policyName\x12'\n" +
 	"\x0falready_existed\x18\x06 \x01(\bR\x0ealreadyExisted\x12.\n" +
@@ -1835,13 +1835,13 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\fservice_name\x18\x06 \x01(\tR\vserviceName\x12\x12\n" +
 	"\x04jwks\x18\x03 \x01(\tR\x04jwks\x12\x19\n" +
 	"\bjwks_uri\x18\x04 \x01(\tR\ajwksUri\x12\x1a\n" +
-	"\baudience\x18\x05 \x01(\tR\baudience\"\xe4\x01\n" +
-	"\x1bEnsureControlClientResponse\x12\x1f\n" +
-	"\vclient_uuid\x18\x01 \x01(\tR\n" +
-	"clientUuid\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12;\n" +
-	"\x1atoken_endpoint_auth_method\x18\x03 \x01(\tR\x17tokenEndpointAuthMethod\x12!\n" +
-	"\fservice_uuid\x18\x04 \x01(\tR\vserviceUuid\x12'\n" +
+	"\baudience\x18\x05 \x01(\tR\baudience\"\xe7\x01\n" +
+	"\x1bEnsureControlClientResponse\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12&\n" +
+	"\x0foauth_client_id\x18\x02 \x01(\tR\roauthClientId\x12;\n" +
+	"\x1atoken_endpoint_auth_method\x18\x03 \x01(\tR\x17tokenEndpointAuthMethod\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x04 \x01(\tR\tserviceId\x12'\n" +
 	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\x9a\x02\n" +
 	"\x18EnsureResourceAPIRequest\x12!\n" +
 	"\fservice_name\x18\x01 \x01(\tR\vserviceName\x120\n" +
@@ -1854,22 +1854,23 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\vpermissions\x18\x06 \x03(\v20.maintainerd.auth.v1.EnsureResourceAPIPermissionR\vpermissions\"S\n" +
 	"\x1bEnsureResourceAPIPermission\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xcd\x01\n" +
-	"\x19EnsureResourceAPIResponse\x12!\n" +
-	"\fservice_uuid\x18\x01 \x01(\tR\vserviceUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\x12\x1e\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xc5\x01\n" +
+	"\x19EnsureResourceAPIResponse\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x01 \x01(\tR\tserviceId\x12\x15\n" +
+	"\x06api_id\x18\x02 \x01(\tR\x05apiId\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x03 \x01(\tR\n" +
 	"identifier\x12)\n" +
 	"\x10permission_names\x18\x04 \x03(\tR\x0fpermissionNames\x12'\n" +
-	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\xa3\x01\n" +
+	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted\"\x9f\x01\n" +
 	"\x11EnsureRoleRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12)\n" +
-	"\x10permission_names\x18\x03 \x03(\tR\x0fpermissionNames\x12-\n" +
-	"\x13assign_to_user_uuid\x18\x04 \x01(\tR\x10assignToUserUuid\"\xb5\x01\n" +
-	"\x12EnsureRoleResponse\x12\x1b\n" +
-	"\trole_uuid\x18\x01 \x01(\tR\broleUuid\x12\x12\n" +
+	"\x10permission_names\x18\x03 \x03(\tR\x0fpermissionNames\x12)\n" +
+	"\x11assign_to_user_id\x18\x04 \x01(\tR\x0eassignToUserId\"\xb1\x01\n" +
+	"\x12EnsureRoleResponse\x12\x17\n" +
+	"\arole_id\x18\x01 \x01(\tR\x06roleId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
 	"\x10permission_names\x18\x03 \x03(\tR\x0fpermissionNames\x12\x1a\n" +
 	"\bassigned\x18\x04 \x01(\bR\bassigned\x12'\n" +
@@ -1879,11 +1880,10 @@ const file_maintainerd_auth_v1_setup_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x16\n" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12#\n" +
 	"\rredirect_uris\x18\x04 \x03(\tR\fredirectUris\x129\n" +
-	"\x19post_logout_redirect_uris\x18\x05 \x03(\tR\x16postLogoutRedirectUris\"\xe4\x01\n" +
-	"\x1bEnsureConsoleClientResponse\x12\x1f\n" +
-	"\vclient_uuid\x18\x01 \x01(\tR\n" +
-	"clientUuid\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
+	"\x19post_logout_redirect_uris\x18\x05 \x03(\tR\x16postLogoutRedirectUris\"\xeb\x01\n" +
+	"\x1bEnsureConsoleClientResponse\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12&\n" +
+	"\x0foauth_client_id\x18\x02 \x01(\tR\roauthClientId\x12#\n" +
 	"\rredirect_uris\x18\x03 \x03(\tR\fredirectUris\x129\n" +
 	"\x19post_logout_redirect_uris\x18\x04 \x03(\tR\x16postLogoutRedirectUris\x12'\n" +
 	"\x0falready_existed\x18\x05 \x01(\bR\x0ealreadyExisted2\xdb\b\n" +

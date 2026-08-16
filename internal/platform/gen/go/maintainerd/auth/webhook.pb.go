@@ -23,19 +23,19 @@ const (
 )
 
 type WebhookEndpoint struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	WebhookEndpointUuid string                 `protobuf:"bytes,1,opt,name=webhook_endpoint_uuid,json=webhookEndpointUuid,proto3" json:"webhook_endpoint_uuid,omitempty"`
-	Url                 string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
-	Description         string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Events              []string               `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
-	MaxRetries          int32                  `protobuf:"varint,5,opt,name=max_retries,json=maxRetries,proto3" json:"max_retries,omitempty"`
-	TimeoutSeconds      int32                  `protobuf:"varint,6,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	Status              string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	LastTriggeredAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_triggered_at,json=lastTriggeredAt,proto3" json:"last_triggered_at,omitempty"`
-	CreatedAt           *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	WebhookEndpointId string                 `protobuf:"bytes,1,opt,name=webhook_endpoint_id,json=webhookEndpointId,proto3" json:"webhook_endpoint_id,omitempty"`
+	Url               string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Events            []string               `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
+	MaxRetries        int32                  `protobuf:"varint,5,opt,name=max_retries,json=maxRetries,proto3" json:"max_retries,omitempty"`
+	TimeoutSeconds    int32                  `protobuf:"varint,6,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	Status            string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	LastTriggeredAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_triggered_at,json=lastTriggeredAt,proto3" json:"last_triggered_at,omitempty"`
+	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *WebhookEndpoint) Reset() {
@@ -68,9 +68,9 @@ func (*WebhookEndpoint) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *WebhookEndpoint) GetWebhookEndpointUuid() string {
+func (x *WebhookEndpoint) GetWebhookEndpointId() string {
 	if x != nil {
-		return x.WebhookEndpointUuid
+		return x.WebhookEndpointId
 	}
 	return ""
 }
@@ -140,7 +140,7 @@ func (x *WebhookEndpoint) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListWebhookEndpointsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Status        []string               `protobuf:"bytes,2,rep,name=status,proto3" json:"status,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -177,9 +177,9 @@ func (*ListWebhookEndpointsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListWebhookEndpointsRequest) GetTenantUuid() string {
+func (x *ListWebhookEndpointsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -251,11 +251,11 @@ func (x *ListWebhookEndpointsResponse) GetPage() *PageMetadata {
 }
 
 type GetWebhookEndpointRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid          string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WebhookEndpointUuid string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_uuid,json=webhookEndpointUuid,proto3" json:"webhook_endpoint_uuid,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WebhookEndpointId string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_id,json=webhookEndpointId,proto3" json:"webhook_endpoint_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetWebhookEndpointRequest) Reset() {
@@ -288,16 +288,16 @@ func (*GetWebhookEndpointRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetWebhookEndpointRequest) GetTenantUuid() string {
+func (x *GetWebhookEndpointRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetWebhookEndpointRequest) GetWebhookEndpointUuid() string {
+func (x *GetWebhookEndpointRequest) GetWebhookEndpointId() string {
 	if x != nil {
-		return x.WebhookEndpointUuid
+		return x.WebhookEndpointId
 	}
 	return ""
 }
@@ -348,7 +348,7 @@ func (x *GetWebhookEndpointResponse) GetEndpoint() *WebhookEndpoint {
 
 type CreateWebhookEndpointRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Url            string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	Secret         string                 `protobuf:"bytes,3,opt,name=secret,proto3" json:"secret,omitempty"`
 	Events         []string               `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
@@ -390,9 +390,9 @@ func (*CreateWebhookEndpointRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateWebhookEndpointRequest) GetTenantUuid() string {
+func (x *CreateWebhookEndpointRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -491,18 +491,18 @@ func (x *CreateWebhookEndpointResponse) GetEndpoint() *WebhookEndpoint {
 }
 
 type UpdateWebhookEndpointRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid          string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WebhookEndpointUuid string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_uuid,json=webhookEndpointUuid,proto3" json:"webhook_endpoint_uuid,omitempty"`
-	Url                 string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
-	Secret              string                 `protobuf:"bytes,4,opt,name=secret,proto3" json:"secret,omitempty"`
-	Events              []string               `protobuf:"bytes,5,rep,name=events,proto3" json:"events,omitempty"`
-	MaxRetries          *int32                 `protobuf:"varint,6,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
-	TimeoutSeconds      *int32                 `protobuf:"varint,7,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
-	Description         string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
-	Status              string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WebhookEndpointId string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_id,json=webhookEndpointId,proto3" json:"webhook_endpoint_id,omitempty"`
+	Url               string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	Secret            string                 `protobuf:"bytes,4,opt,name=secret,proto3" json:"secret,omitempty"`
+	Events            []string               `protobuf:"bytes,5,rep,name=events,proto3" json:"events,omitempty"`
+	MaxRetries        *int32                 `protobuf:"varint,6,opt,name=max_retries,json=maxRetries,proto3,oneof" json:"max_retries,omitempty"`
+	TimeoutSeconds    *int32                 `protobuf:"varint,7,opt,name=timeout_seconds,json=timeoutSeconds,proto3,oneof" json:"timeout_seconds,omitempty"`
+	Description       string                 `protobuf:"bytes,8,opt,name=description,proto3" json:"description,omitempty"`
+	Status            string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateWebhookEndpointRequest) Reset() {
@@ -535,16 +535,16 @@ func (*UpdateWebhookEndpointRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateWebhookEndpointRequest) GetTenantUuid() string {
+func (x *UpdateWebhookEndpointRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateWebhookEndpointRequest) GetWebhookEndpointUuid() string {
+func (x *UpdateWebhookEndpointRequest) GetWebhookEndpointId() string {
 	if x != nil {
-		return x.WebhookEndpointUuid
+		return x.WebhookEndpointId
 	}
 	return ""
 }
@@ -643,12 +643,12 @@ func (x *UpdateWebhookEndpointResponse) GetEndpoint() *WebhookEndpoint {
 }
 
 type SetWebhookEndpointStatusRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid          string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WebhookEndpointUuid string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_uuid,json=webhookEndpointUuid,proto3" json:"webhook_endpoint_uuid,omitempty"`
-	Status              string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WebhookEndpointId string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_id,json=webhookEndpointId,proto3" json:"webhook_endpoint_id,omitempty"`
+	Status            string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SetWebhookEndpointStatusRequest) Reset() {
@@ -681,16 +681,16 @@ func (*SetWebhookEndpointStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SetWebhookEndpointStatusRequest) GetTenantUuid() string {
+func (x *SetWebhookEndpointStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetWebhookEndpointStatusRequest) GetWebhookEndpointUuid() string {
+func (x *SetWebhookEndpointStatusRequest) GetWebhookEndpointId() string {
 	if x != nil {
-		return x.WebhookEndpointUuid
+		return x.WebhookEndpointId
 	}
 	return ""
 }
@@ -747,11 +747,11 @@ func (x *SetWebhookEndpointStatusResponse) GetEndpoint() *WebhookEndpoint {
 }
 
 type DeleteWebhookEndpointRequest struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid          string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	WebhookEndpointUuid string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_uuid,json=webhookEndpointUuid,proto3" json:"webhook_endpoint_uuid,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	WebhookEndpointId string                 `protobuf:"bytes,2,opt,name=webhook_endpoint_id,json=webhookEndpointId,proto3" json:"webhook_endpoint_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DeleteWebhookEndpointRequest) Reset() {
@@ -784,16 +784,16 @@ func (*DeleteWebhookEndpointRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_webhook_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeleteWebhookEndpointRequest) GetTenantUuid() string {
+func (x *DeleteWebhookEndpointRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteWebhookEndpointRequest) GetWebhookEndpointUuid() string {
+func (x *DeleteWebhookEndpointRequest) GetWebhookEndpointId() string {
 	if x != nil {
-		return x.WebhookEndpointUuid
+		return x.WebhookEndpointId
 	}
 	return ""
 }
@@ -846,9 +846,9 @@ var File_maintainerd_auth_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"\n" +
-	"!maintainerd/auth/v1/webhook.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xb1\x03\n" +
-	"\x0fWebhookEndpoint\x122\n" +
-	"\x15webhook_endpoint_uuid\x18\x01 \x01(\tR\x13webhookEndpointUuid\x12\x10\n" +
+	"!maintainerd/auth/v1/webhook.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a maintainerd/auth/v1/tenant.proto\"\xad\x03\n" +
+	"\x0fWebhookEndpoint\x12.\n" +
+	"\x13webhook_endpoint_id\x18\x01 \x01(\tR\x11webhookEndpointId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06events\x18\x04 \x03(\tR\x06events\x12\x1f\n" +
@@ -861,26 +861,23 @@ const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x97\x01\n" +
-	"\x1bListWebhookEndpointsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x16\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x93\x01\n" +
+	"\x1bListWebhookEndpointsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x16\n" +
 	"\x06status\x18\x02 \x03(\tR\x06status\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"pagination\"\x99\x01\n" +
 	"\x1cListWebhookEndpointsResponse\x12B\n" +
 	"\tendpoints\x18\x01 \x03(\v2$.maintainerd.auth.v1.WebhookEndpointR\tendpoints\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"p\n" +
-	"\x19GetWebhookEndpointRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x122\n" +
-	"\x15webhook_endpoint_uuid\x18\x02 \x01(\tR\x13webhookEndpointUuid\"^\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"h\n" +
+	"\x19GetWebhookEndpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12.\n" +
+	"\x13webhook_endpoint_id\x18\x02 \x01(\tR\x11webhookEndpointId\"^\n" +
 	"\x1aGetWebhookEndpointResponse\x12@\n" +
-	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\xb3\x02\n" +
-	"\x1cCreateWebhookEndpointRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x10\n" +
+	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\xaf\x02\n" +
+	"\x1cCreateWebhookEndpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
 	"\x06secret\x18\x03 \x01(\tR\x06secret\x12\x16\n" +
 	"\x06events\x18\x04 \x03(\tR\x06events\x12$\n" +
@@ -892,11 +889,10 @@ const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"\f_max_retriesB\x12\n" +
 	"\x10_timeout_seconds\"a\n" +
 	"\x1dCreateWebhookEndpointResponse\x12@\n" +
-	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\xe7\x02\n" +
-	"\x1cUpdateWebhookEndpointRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x122\n" +
-	"\x15webhook_endpoint_uuid\x18\x02 \x01(\tR\x13webhookEndpointUuid\x12\x10\n" +
+	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\xdf\x02\n" +
+	"\x1cUpdateWebhookEndpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12.\n" +
+	"\x13webhook_endpoint_id\x18\x02 \x01(\tR\x11webhookEndpointId\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x12\x16\n" +
 	"\x06secret\x18\x04 \x01(\tR\x06secret\x12\x16\n" +
 	"\x06events\x18\x05 \x03(\tR\x06events\x12$\n" +
@@ -908,18 +904,16 @@ const file_maintainerd_auth_v1_webhook_proto_rawDesc = "" +
 	"\f_max_retriesB\x12\n" +
 	"\x10_timeout_seconds\"a\n" +
 	"\x1dUpdateWebhookEndpointResponse\x12@\n" +
-	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\x8e\x01\n" +
-	"\x1fSetWebhookEndpointStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x122\n" +
-	"\x15webhook_endpoint_uuid\x18\x02 \x01(\tR\x13webhookEndpointUuid\x12\x16\n" +
+	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"\x86\x01\n" +
+	"\x1fSetWebhookEndpointStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12.\n" +
+	"\x13webhook_endpoint_id\x18\x02 \x01(\tR\x11webhookEndpointId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"d\n" +
 	" SetWebhookEndpointStatusResponse\x12@\n" +
-	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"s\n" +
-	"\x1cDeleteWebhookEndpointRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x122\n" +
-	"\x15webhook_endpoint_uuid\x18\x02 \x01(\tR\x13webhookEndpointUuid\"a\n" +
+	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpoint\"k\n" +
+	"\x1cDeleteWebhookEndpointRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12.\n" +
+	"\x13webhook_endpoint_id\x18\x02 \x01(\tR\x11webhookEndpointId\"a\n" +
 	"\x1dDeleteWebhookEndpointResponse\x12@\n" +
 	"\bendpoint\x18\x01 \x01(\v2$.maintainerd.auth.v1.WebhookEndpointR\bendpointBZZXgithub.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth;authv1b\x06proto3"
 

@@ -36,7 +36,7 @@ export interface OAuthConnectionsBranding {
 export interface OAuthConsentChallenge {
   challenge_id: string
   client_name: string
-  client_uuid: string
+  client_id: string
   scopes: string[]
   redirect_uri: string
   expires_at: number
@@ -49,7 +49,7 @@ export interface OAuthConsentDecisionResult {
 export interface OAuthConsentGrant {
   consent_grant_id: string
   client_name: string
-  client_uuid: string
+  client_id: string
   scopes: string[]
   granted_at: string
   updated_at: string

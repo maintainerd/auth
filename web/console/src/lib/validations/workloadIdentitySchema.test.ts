@@ -11,7 +11,7 @@ import {
 } from "./workloadIdentitySchema"
 
 const validForm = {
-  client_uuid: "00000000-0000-0000-0000-0000000000cc",
+  client_id: "00000000-0000-0000-0000-0000000000cc",
   name: "github-actions",
   description: "",
   issuer_url: "https://token.actions.githubusercontent.com",
@@ -28,7 +28,7 @@ describe("workloadIdentitySchema", () => {
   })
 
   it("requires the fields the backend requires", async () => {
-    for (const field of ["client_uuid", "name", "issuer_url", "audience", "subject_pattern"]) {
+    for (const field of ["client_id", "name", "issuer_url", "audience", "subject_pattern"]) {
       await expect(
         workloadIdentitySchema.validate({ ...validForm, [field]: "" }),
       ).rejects.toThrow()

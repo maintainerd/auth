@@ -35,14 +35,14 @@ export function WebhookEvents({ webhookId }: WebhookEventsProps) {
 
   const subscribedUuids = useMemo(() => {
     const set = new Set<string>()
-    for (const s of subscriptions ?? []) set.add(s.event_type_uuid)
+    for (const s of subscriptions ?? []) set.add(s.event_type_id)
     return set
   }, [subscriptions])
 
   const isSubscribed = (uuid: string) => subscribedUuids.has(uuid)
 
   const handleToggle = (eventType: EventType, enabled: boolean) => {
-    const data = { event_type_uuid: eventType.uuid }
+    const data = { event_type_id: eventType.uuid }
     if (enabled) {
       addSubscription.mutate(
         { webhookId, data },

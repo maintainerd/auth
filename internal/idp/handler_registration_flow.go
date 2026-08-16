@@ -495,7 +495,7 @@ func (h *RegistrationFlowHandler) RemoveRole(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"role_uuid": roleUUID.String()}})
+	changesJSON, _ := json.Marshal(map[string]any{"before": map[string]any{"role_id": roleUUID.String()}})
 	h.logAudit(r, tenant.TenantID, &user.UserID, "registration_flow.remove_role", "registration_flow", registrationFlowUUID.String(), &registrationFlowUUID, string(changesJSON), "success")
 
 	resp.Success(w, toRegistrationFlowDetailResponseDTO(*registrationFlow), "Role removed successfully")

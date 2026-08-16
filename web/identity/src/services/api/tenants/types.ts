@@ -133,7 +133,7 @@ export interface TenantBootstrapClient {
  * bootstrap payload (see TenantBootstrap), not on this projection.
  */
 export interface TenantBootstrapTenant {
-  tenant_uuid: string
+  tenant_id: string
   name: string
   display_name: string
   description: string

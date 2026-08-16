@@ -25,7 +25,7 @@ const (
 
 type Client struct {
 	state             protoimpl.MessageState  `protogen:"open.v1"`
-	ClientUuid        string                  `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	ClientId          string                  `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Name              string                  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName       string                  `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	ClientType        string                  `protobuf:"bytes,4,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
@@ -73,9 +73,9 @@ func (*Client) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Client) GetClientUuid() string {
+func (x *Client) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -172,20 +172,20 @@ func (x *Client) GetAllowRegistration() bool {
 }
 
 type ClientIdentityProvider struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	IdentityProviderUuid string                 `protobuf:"bytes,1,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Provider             string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
-	ProviderType         string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
-	Identifier           string                 `protobuf:"bytes,6,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	Status               string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	IsDefault            bool                   `protobuf:"varint,8,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
-	IsSystem             bool                   `protobuf:"varint,9,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt            *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	IdentityProviderId string                 `protobuf:"bytes,1,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName        string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Provider           string                 `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"`
+	ProviderType       string                 `protobuf:"bytes,5,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
+	Identifier         string                 `protobuf:"bytes,6,opt,name=identifier,proto3" json:"identifier,omitempty"`
+	Status             string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	IsDefault          bool                   `protobuf:"varint,8,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	IsSystem           bool                   `protobuf:"varint,9,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ClientIdentityProvider) Reset() {
@@ -218,9 +218,9 @@ func (*ClientIdentityProvider) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ClientIdentityProvider) GetIdentityProviderUuid() string {
+func (x *ClientIdentityProvider) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -297,7 +297,7 @@ func (x *ClientIdentityProvider) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ClientURI struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientUriUuid string                 `protobuf:"bytes,1,opt,name=client_uri_uuid,json=clientUriUuid,proto3" json:"client_uri_uuid,omitempty"`
+	ClientUriId   string                 `protobuf:"bytes,1,opt,name=client_uri_id,json=clientUriId,proto3" json:"client_uri_id,omitempty"`
 	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
 	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -336,9 +336,9 @@ func (*ClientURI) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ClientURI) GetClientUriUuid() string {
+func (x *ClientURI) GetClientUriId() string {
 	if x != nil {
-		return x.ClientUriUuid
+		return x.ClientUriId
 	}
 	return ""
 }
@@ -373,7 +373,7 @@ func (x *ClientURI) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ClientAPI struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientApiUuid string                 `protobuf:"bytes,1,opt,name=client_api_uuid,json=clientApiUuid,proto3" json:"client_api_uuid,omitempty"`
+	ClientApiId   string                 `protobuf:"bytes,1,opt,name=client_api_id,json=clientApiId,proto3" json:"client_api_id,omitempty"`
 	Api           *ClientAPIDetail       `protobuf:"bytes,2,opt,name=api,proto3" json:"api,omitempty"`
 	Permissions   []*ClientAPIPermission `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -411,9 +411,9 @@ func (*ClientAPI) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ClientAPI) GetClientApiUuid() string {
+func (x *ClientAPI) GetClientApiId() string {
 	if x != nil {
-		return x.ClientApiUuid
+		return x.ClientApiId
 	}
 	return ""
 }
@@ -441,7 +441,7 @@ func (x *ClientAPI) GetCreatedAt() *timestamppb.Timestamp {
 
 type ClientAPIDetail struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ApiUuid       string                 `protobuf:"bytes,1,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	ApiId         string                 `protobuf:"bytes,1,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -483,9 +483,9 @@ func (*ClientAPIDetail) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ClientAPIDetail) GetApiUuid() string {
+func (x *ClientAPIDetail) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -540,16 +540,16 @@ func (x *ClientAPIDetail) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type ClientAPIPermission struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PermissionUuid string                 `protobuf:"bytes,1,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Status         string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	IsSystem       bool                   `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PermissionId  string                 `protobuf:"bytes,1,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	IsSystem      bool                   `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3" json:"is_system,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClientAPIPermission) Reset() {
@@ -582,9 +582,9 @@ func (*ClientAPIPermission) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ClientAPIPermission) GetPermissionUuid() string {
+func (x *ClientAPIPermission) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
@@ -632,18 +632,18 @@ func (x *ClientAPIPermission) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type ListClientsRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	ClientType           []string               `protobuf:"bytes,4,rep,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,5,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	Status               []string               `protobuf:"bytes,6,rep,name=status,proto3" json:"status,omitempty"`
-	IsDefault            *bool                  `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
-	IsSystem             *bool                  `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
-	Pagination           *Pagination            `protobuf:"bytes,9,opt,name=pagination,proto3" json:"pagination,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName        string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	ClientType         []string               `protobuf:"bytes,4,rep,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
+	IdentityProviderId string                 `protobuf:"bytes,5,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	Status             []string               `protobuf:"bytes,6,rep,name=status,proto3" json:"status,omitempty"`
+	IsDefault          *bool                  `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3,oneof" json:"is_default,omitempty"`
+	IsSystem           *bool                  `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
+	Pagination         *Pagination            `protobuf:"bytes,9,opt,name=pagination,proto3" json:"pagination,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ListClientsRequest) Reset() {
@@ -676,9 +676,9 @@ func (*ListClientsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ListClientsRequest) GetTenantUuid() string {
+func (x *ListClientsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -704,9 +704,9 @@ func (x *ListClientsRequest) GetClientType() []string {
 	return nil
 }
 
-func (x *ListClientsRequest) GetIdentityProviderUuid() string {
+func (x *ListClientsRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
@@ -793,8 +793,8 @@ func (x *ListClientsResponse) GetPage() *PageMetadata {
 
 type GetClientRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -829,16 +829,16 @@ func (*GetClientRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *GetClientRequest) GetTenantUuid() string {
+func (x *GetClientRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetClientRequest) GetClientUuid() string {
+func (x *GetClientRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -889,8 +889,8 @@ func (x *GetClientResponse) GetClient() *Client {
 
 type GetClientSecretRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -925,23 +925,23 @@ func (*GetClientSecretRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *GetClientSecretRequest) GetTenantUuid() string {
+func (x *GetClientSecretRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetClientSecretRequest) GetClientUuid() string {
+func (x *GetClientSecretRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
 type GetClientSecretResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	OauthClientId string                 `protobuf:"bytes,1,opt,name=oauth_client_id,json=oauthClientId,proto3" json:"oauth_client_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -977,9 +977,9 @@ func (*GetClientSecretResponse) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *GetClientSecretResponse) GetClientId() string {
+func (x *GetClientSecretResponse) GetOauthClientId() string {
 	if x != nil {
-		return x.ClientId
+		return x.OauthClientId
 	}
 	return ""
 }
@@ -993,9 +993,9 @@ func (x *GetClientSecretResponse) GetMessage() string {
 
 type RotateClientSecretRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid       string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ActorUserUuid    string                 `protobuf:"bytes,3,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId         string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId         string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ActorUserId      string                 `protobuf:"bytes,3,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	GracePeriodHours int32                  `protobuf:"varint,4,opt,name=grace_period_hours,json=gracePeriodHours,proto3" json:"grace_period_hours,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -1031,23 +1031,23 @@ func (*RotateClientSecretRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *RotateClientSecretRequest) GetTenantUuid() string {
+func (x *RotateClientSecretRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RotateClientSecretRequest) GetClientUuid() string {
+func (x *RotateClientSecretRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *RotateClientSecretRequest) GetActorUserUuid() string {
+func (x *RotateClientSecretRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1113,8 +1113,8 @@ func (x *RotateClientSecretResponse) GetPreviousSecretExpiresAt() string {
 
 type GetClientConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1149,16 +1149,16 @@ func (*GetClientConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *GetClientConfigRequest) GetTenantUuid() string {
+func (x *GetClientConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetClientConfigRequest) GetClientUuid() string {
+func (x *GetClientConfigRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1208,20 +1208,20 @@ func (x *GetClientConfigResponse) GetConfig() *structpb.Struct {
 }
 
 type CreateClientRequest struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid           string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	Name                 string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	ClientType           string                 `protobuf:"bytes,4,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
-	Domain               string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
-	Config               *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
-	Status               string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	IdentityProviderUuid string                 `protobuf:"bytes,8,opt,name=identity_provider_uuid,json=identityProviderUuid,proto3" json:"identity_provider_uuid,omitempty"`
-	ActorUserUuid        string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	BrandingId           string                 `protobuf:"bytes,10,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
-	AllowRegistration    *bool                  `protobuf:"varint,11,opt,name=allow_registration,json=allowRegistration,proto3,oneof" json:"allow_registration,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	TenantId           string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	DisplayName        string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	ClientType         string                 `protobuf:"bytes,4,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
+	Domain             string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Config             *structpb.Struct       `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
+	Status             string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	IdentityProviderId string                 `protobuf:"bytes,8,opt,name=identity_provider_id,json=identityProviderId,proto3" json:"identity_provider_id,omitempty"`
+	ActorUserId        string                 `protobuf:"bytes,9,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	BrandingId         string                 `protobuf:"bytes,10,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
+	AllowRegistration  *bool                  `protobuf:"varint,11,opt,name=allow_registration,json=allowRegistration,proto3,oneof" json:"allow_registration,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CreateClientRequest) Reset() {
@@ -1254,9 +1254,9 @@ func (*CreateClientRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *CreateClientRequest) GetTenantUuid() string {
+func (x *CreateClientRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1303,16 +1303,16 @@ func (x *CreateClientRequest) GetStatus() string {
 	return ""
 }
 
-func (x *CreateClientRequest) GetIdentityProviderUuid() string {
+func (x *CreateClientRequest) GetIdentityProviderId() string {
 	if x != nil {
-		return x.IdentityProviderUuid
+		return x.IdentityProviderId
 	}
 	return ""
 }
 
-func (x *CreateClientRequest) GetActorUserUuid() string {
+func (x *CreateClientRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1385,8 +1385,8 @@ func (x *CreateClientResponse) GetCredentials() *ClientCredentials {
 
 type ClientCredentials struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClientUuid    string                 `protobuf:"bytes,1,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	OauthClientId string                 `protobuf:"bytes,2,opt,name=oauth_client_id,json=oauthClientId,proto3" json:"oauth_client_id,omitempty"`
 	ClientSecret  string                 `protobuf:"bytes,3,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1422,16 +1422,16 @@ func (*ClientCredentials) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *ClientCredentials) GetClientUuid() string {
+func (x *ClientCredentials) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *ClientCredentials) GetClientId() string {
+func (x *ClientCredentials) GetOauthClientId() string {
 	if x != nil {
-		return x.ClientId
+		return x.OauthClientId
 	}
 	return ""
 }
@@ -1445,15 +1445,15 @@ func (x *ClientCredentials) GetClientSecret() string {
 
 type UpdateClientRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid        string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid        string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId          string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId          string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Name              string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName       string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	ClientType        string                 `protobuf:"bytes,5,opt,name=client_type,json=clientType,proto3" json:"client_type,omitempty"`
 	Domain            string                 `protobuf:"bytes,6,opt,name=domain,proto3" json:"domain,omitempty"`
 	Config            *structpb.Struct       `protobuf:"bytes,7,opt,name=config,proto3" json:"config,omitempty"`
 	Status            string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid     string                 `protobuf:"bytes,9,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId       string                 `protobuf:"bytes,9,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	BrandingId        string                 `protobuf:"bytes,10,opt,name=branding_id,json=brandingId,proto3" json:"branding_id,omitempty"`
 	AllowRegistration *bool                  `protobuf:"varint,11,opt,name=allow_registration,json=allowRegistration,proto3,oneof" json:"allow_registration,omitempty"`
 	unknownFields     protoimpl.UnknownFields
@@ -1490,16 +1490,16 @@ func (*UpdateClientRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *UpdateClientRequest) GetTenantUuid() string {
+func (x *UpdateClientRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateClientRequest) GetClientUuid() string {
+func (x *UpdateClientRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1546,9 +1546,9 @@ func (x *UpdateClientRequest) GetStatus() string {
 	return ""
 }
 
-func (x *UpdateClientRequest) GetActorUserUuid() string {
+func (x *UpdateClientRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1613,10 +1613,10 @@ func (x *UpdateClientResponse) GetClient() *Client {
 
 type SetClientStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1651,16 +1651,16 @@ func (*SetClientStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *SetClientStatusRequest) GetTenantUuid() string {
+func (x *SetClientStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetClientStatusRequest) GetClientUuid() string {
+func (x *SetClientStatusRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1672,9 +1672,9 @@ func (x *SetClientStatusRequest) GetStatus() string {
 	return ""
 }
 
-func (x *SetClientStatusRequest) GetActorUserUuid() string {
+func (x *SetClientStatusRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1725,9 +1725,9 @@ func (x *SetClientStatusResponse) GetClient() *Client {
 
 type DeleteClientRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,3,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,3,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1762,23 +1762,23 @@ func (*DeleteClientRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *DeleteClientRequest) GetTenantUuid() string {
+func (x *DeleteClientRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteClientRequest) GetClientUuid() string {
+func (x *DeleteClientRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *DeleteClientRequest) GetActorUserUuid() string {
+func (x *DeleteClientRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1829,8 +1829,8 @@ func (x *DeleteClientResponse) GetClient() *Client {
 
 type ListClientURIsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1865,16 +1865,16 @@ func (*ListClientURIsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *ListClientURIsRequest) GetTenantUuid() string {
+func (x *ListClientURIsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListClientURIsRequest) GetClientUuid() string {
+func (x *ListClientURIsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1925,11 +1925,11 @@ func (x *ListClientURIsResponse) GetUris() []*ClientURI {
 
 type CreateClientURIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	Uri           string                 `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
 	Type          string                 `protobuf:"bytes,4,opt,name=type,proto3" json:"type,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,5,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,5,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1964,16 +1964,16 @@ func (*CreateClientURIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *CreateClientURIRequest) GetTenantUuid() string {
+func (x *CreateClientURIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *CreateClientURIRequest) GetClientUuid() string {
+func (x *CreateClientURIRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -1992,9 +1992,9 @@ func (x *CreateClientURIRequest) GetType() string {
 	return ""
 }
 
-func (x *CreateClientURIRequest) GetActorUserUuid() string {
+func (x *CreateClientURIRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2045,12 +2045,12 @@ func (x *CreateClientURIResponse) GetUri() *ClientURI {
 
 type UpdateClientURIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ClientUriUuid string                 `protobuf:"bytes,3,opt,name=client_uri_uuid,json=clientUriUuid,proto3" json:"client_uri_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientUriId   string                 `protobuf:"bytes,3,opt,name=client_uri_id,json=clientUriId,proto3" json:"client_uri_id,omitempty"`
 	Uri           string                 `protobuf:"bytes,4,opt,name=uri,proto3" json:"uri,omitempty"`
 	Type          string                 `protobuf:"bytes,5,opt,name=type,proto3" json:"type,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,6,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,6,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2085,23 +2085,23 @@ func (*UpdateClientURIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *UpdateClientURIRequest) GetTenantUuid() string {
+func (x *UpdateClientURIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateClientURIRequest) GetClientUuid() string {
+func (x *UpdateClientURIRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *UpdateClientURIRequest) GetClientUriUuid() string {
+func (x *UpdateClientURIRequest) GetClientUriId() string {
 	if x != nil {
-		return x.ClientUriUuid
+		return x.ClientUriId
 	}
 	return ""
 }
@@ -2120,9 +2120,9 @@ func (x *UpdateClientURIRequest) GetType() string {
 	return ""
 }
 
-func (x *UpdateClientURIRequest) GetActorUserUuid() string {
+func (x *UpdateClientURIRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2173,10 +2173,10 @@ func (x *UpdateClientURIResponse) GetUri() *ClientURI {
 
 type DeleteClientURIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ClientUriUuid string                 `protobuf:"bytes,3,opt,name=client_uri_uuid,json=clientUriUuid,proto3" json:"client_uri_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientUriId   string                 `protobuf:"bytes,3,opt,name=client_uri_id,json=clientUriId,proto3" json:"client_uri_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2211,30 +2211,30 @@ func (*DeleteClientURIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *DeleteClientURIRequest) GetTenantUuid() string {
+func (x *DeleteClientURIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteClientURIRequest) GetClientUuid() string {
+func (x *DeleteClientURIRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *DeleteClientURIRequest) GetClientUriUuid() string {
+func (x *DeleteClientURIRequest) GetClientUriId() string {
 	if x != nil {
-		return x.ClientUriUuid
+		return x.ClientUriId
 	}
 	return ""
 }
 
-func (x *DeleteClientURIRequest) GetActorUserUuid() string {
+func (x *DeleteClientURIRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2285,8 +2285,8 @@ func (x *DeleteClientURIResponse) GetClient() *Client {
 
 type ListClientAPIsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2321,16 +2321,16 @@ func (*ListClientAPIsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *ListClientAPIsRequest) GetTenantUuid() string {
+func (x *ListClientAPIsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListClientAPIsRequest) GetClientUuid() string {
+func (x *ListClientAPIsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
@@ -2380,13 +2380,13 @@ func (x *ListClientAPIsResponse) GetApis() []*ClientAPI {
 }
 
 type AddClientAPIsRequest struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuids   []string               `protobuf:"bytes,3,rep,name=api_uuids,json=apiUuids,proto3" json:"api_uuids,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TenantId string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ApiIds   []string               `protobuf:"bytes,3,rep,name=api_ids,json=apiIds,proto3" json:"api_ids,omitempty"`
 	// Required. The mutation is refused without an actor holding an identity in the
 	// tenant, so a grant change is never anonymous.
-	ActorUserUuid string `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId   string `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2421,30 +2421,30 @@ func (*AddClientAPIsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *AddClientAPIsRequest) GetTenantUuid() string {
+func (x *AddClientAPIsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AddClientAPIsRequest) GetClientUuid() string {
+func (x *AddClientAPIsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *AddClientAPIsRequest) GetApiUuids() []string {
+func (x *AddClientAPIsRequest) GetApiIds() []string {
 	if x != nil {
-		return x.ApiUuids
+		return x.ApiIds
 	}
 	return nil
 }
 
-func (x *AddClientAPIsRequest) GetActorUserUuid() string {
+func (x *AddClientAPIsRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2495,10 +2495,10 @@ func (x *AddClientAPIsResponse) GetMessage() string {
 
 type RemoveClientAPIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,3,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2533,30 +2533,30 @@ func (*RemoveClientAPIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *RemoveClientAPIRequest) GetTenantUuid() string {
+func (x *RemoveClientAPIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIRequest) GetClientUuid() string {
+func (x *RemoveClientAPIRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIRequest) GetApiUuid() string {
+func (x *RemoveClientAPIRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIRequest) GetActorUserUuid() string {
+func (x *RemoveClientAPIRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2607,9 +2607,9 @@ func (x *RemoveClientAPIResponse) GetMessage() string {
 
 type ListClientAPIPermissionsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid    string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,3,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2644,23 +2644,23 @@ func (*ListClientAPIPermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{39}
 }
 
-func (x *ListClientAPIPermissionsRequest) GetTenantUuid() string {
+func (x *ListClientAPIPermissionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListClientAPIPermissionsRequest) GetClientUuid() string {
+func (x *ListClientAPIPermissionsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *ListClientAPIPermissionsRequest) GetApiUuid() string {
+func (x *ListClientAPIPermissionsRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -2710,14 +2710,14 @@ func (x *ListClientAPIPermissionsResponse) GetPermissions() []*ClientAPIPermissi
 }
 
 type AddClientAPIPermissionsRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid      string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid      string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuid         string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
-	PermissionUuids []string               `protobuf:"bytes,4,rep,name=permission_uuids,json=permissionUuids,proto3" json:"permission_uuids,omitempty"`
-	ActorUserUuid   string                 `protobuf:"bytes,5,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,3,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
+	PermissionIds []string               `protobuf:"bytes,4,rep,name=permission_ids,json=permissionIds,proto3" json:"permission_ids,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,5,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddClientAPIPermissionsRequest) Reset() {
@@ -2750,37 +2750,37 @@ func (*AddClientAPIPermissionsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{41}
 }
 
-func (x *AddClientAPIPermissionsRequest) GetTenantUuid() string {
+func (x *AddClientAPIPermissionsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AddClientAPIPermissionsRequest) GetClientUuid() string {
+func (x *AddClientAPIPermissionsRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *AddClientAPIPermissionsRequest) GetApiUuid() string {
+func (x *AddClientAPIPermissionsRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
 
-func (x *AddClientAPIPermissionsRequest) GetPermissionUuids() []string {
+func (x *AddClientAPIPermissionsRequest) GetPermissionIds() []string {
 	if x != nil {
-		return x.PermissionUuids
+		return x.PermissionIds
 	}
 	return nil
 }
 
-func (x *AddClientAPIPermissionsRequest) GetActorUserUuid() string {
+func (x *AddClientAPIPermissionsRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2830,14 +2830,14 @@ func (x *AddClientAPIPermissionsResponse) GetMessage() string {
 }
 
 type RemoveClientAPIPermissionRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid     string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ClientUuid     string                 `protobuf:"bytes,2,opt,name=client_uuid,json=clientUuid,proto3" json:"client_uuid,omitempty"`
-	ApiUuid        string                 `protobuf:"bytes,3,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
-	PermissionUuid string                 `protobuf:"bytes,4,opt,name=permission_uuid,json=permissionUuid,proto3" json:"permission_uuid,omitempty"`
-	ActorUserUuid  string                 `protobuf:"bytes,5,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,3,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
+	PermissionId  string                 `protobuf:"bytes,4,opt,name=permission_id,json=permissionId,proto3" json:"permission_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,5,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RemoveClientAPIPermissionRequest) Reset() {
@@ -2870,37 +2870,37 @@ func (*RemoveClientAPIPermissionRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_client_proto_rawDescGZIP(), []int{43}
 }
 
-func (x *RemoveClientAPIPermissionRequest) GetTenantUuid() string {
+func (x *RemoveClientAPIPermissionRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIPermissionRequest) GetClientUuid() string {
+func (x *RemoveClientAPIPermissionRequest) GetClientId() string {
 	if x != nil {
-		return x.ClientUuid
+		return x.ClientId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIPermissionRequest) GetApiUuid() string {
+func (x *RemoveClientAPIPermissionRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIPermissionRequest) GetPermissionUuid() string {
+func (x *RemoveClientAPIPermissionRequest) GetPermissionId() string {
 	if x != nil {
-		return x.PermissionUuid
+		return x.PermissionId
 	}
 	return ""
 }
 
-func (x *RemoveClientAPIPermissionRequest) GetActorUserUuid() string {
+func (x *RemoveClientAPIPermissionRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -2953,10 +2953,9 @@ var File_maintainerd_auth_v1_client_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/client.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xc1\x04\n" +
-	"\x06Client\x12\x1f\n" +
-	"\vclient_uuid\x18\x01 \x01(\tR\n" +
-	"clientUuid\x12\x12\n" +
+	" maintainerd/auth/v1/client.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xbd\x04\n" +
+	"\x06Client\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1f\n" +
 	"\vclient_type\x18\x04 \x01(\tR\n" +
@@ -2975,9 +2974,9 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1f\n" +
 	"\vbranding_id\x18\r \x01(\tR\n" +
 	"brandingId\x12-\n" +
-	"\x12allow_registration\x18\x0e \x01(\bR\x11allowRegistration\"\xb0\x03\n" +
-	"\x16ClientIdentityProvider\x124\n" +
-	"\x16identity_provider_uuid\x18\x01 \x01(\tR\x14identityProviderUuid\x12\x12\n" +
+	"\x12allow_registration\x18\x0e \x01(\bR\x11allowRegistration\"\xac\x03\n" +
+	"\x16ClientIdentityProvider\x120\n" +
+	"\x14identity_provider_id\x18\x01 \x01(\tR\x12identityProviderId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1a\n" +
 	"\bprovider\x18\x04 \x01(\tR\bprovider\x12#\n" +
@@ -2993,23 +2992,23 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xcf\x01\n" +
-	"\tClientURI\x12&\n" +
-	"\x0fclient_uri_uuid\x18\x01 \x01(\tR\rclientUriUuid\x12\x10\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xcb\x01\n" +
+	"\tClientURI\x12\"\n" +
+	"\rclient_uri_id\x18\x01 \x01(\tR\vclientUriId\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf2\x01\n" +
-	"\tClientAPI\x12&\n" +
-	"\x0fclient_api_uuid\x18\x01 \x01(\tR\rclientApiUuid\x126\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xee\x01\n" +
+	"\tClientAPI\x12\"\n" +
+	"\rclient_api_id\x18\x01 \x01(\tR\vclientApiId\x126\n" +
 	"\x03api\x18\x02 \x01(\v2$.maintainerd.auth.v1.ClientAPIDetailR\x03api\x12J\n" +
 	"\vpermissions\x18\x03 \x03(\v2(.maintainerd.auth.v1.ClientAPIPermissionR\vpermissions\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb0\x02\n" +
-	"\x0fClientAPIDetail\x12\x19\n" +
-	"\bapi_uuid\x18\x01 \x01(\tR\aapiUuid\x12\x12\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xac\x02\n" +
+	"\x0fClientAPIDetail\x12\x15\n" +
+	"\x06api_id\x18\x01 \x01(\tR\x05apiId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
@@ -3018,9 +3017,9 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa5\x02\n" +
-	"\x13ClientAPIPermission\x12'\n" +
-	"\x0fpermission_uuid\x18\x01 \x01(\tR\x0epermissionUuid\x12\x12\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xa1\x02\n" +
+	"\x13ClientAPIPermission\x12#\n" +
+	"\rpermission_id\x18\x01 \x01(\tR\fpermissionId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1b\n" +
@@ -3028,15 +3027,14 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\x05\x10\x06\"\xff\x02\n" +
-	"\x12ListClientsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtJ\x04\b\x05\x10\x06\"\xf7\x02\n" +
+	"\x12ListClientsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1f\n" +
 	"\vclient_type\x18\x04 \x03(\tR\n" +
-	"clientType\x124\n" +
-	"\x16identity_provider_uuid\x18\x05 \x01(\tR\x14identityProviderUuid\x12\x16\n" +
+	"clientType\x120\n" +
+	"\x14identity_provider_id\x18\x05 \x01(\tR\x12identityProviderId\x12\x16\n" +
 	"\x06status\x18\x06 \x03(\tR\x06status\x12\"\n" +
 	"\n" +
 	"is_default\x18\a \x01(\bH\x00R\tisDefault\x88\x01\x01\x12 \n" +
@@ -3049,51 +3047,42 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"_is_system\"\x83\x01\n" +
 	"\x13ListClientsResponse\x125\n" +
 	"\aclients\x18\x01 \x03(\v2\x1b.maintainerd.auth.v1.ClientR\aclients\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"T\n" +
-	"\x10GetClientRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\"H\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"L\n" +
+	"\x10GetClientRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\"H\n" +
 	"\x11GetClientResponse\x123\n" +
-	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"Z\n" +
-	"\x16GetClientSecretRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\"P\n" +
-	"\x17GetClientSecretResponse\x12\x1b\n" +
-	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xb3\x01\n" +
-	"\x19RotateClientSecretRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\x12,\n" +
+	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"R\n" +
+	"\x16GetClientSecretRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\"[\n" +
+	"\x17GetClientSecretResponse\x12&\n" +
+	"\x0foauth_client_id\x18\x01 \x01(\tR\roauthClientId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xa7\x01\n" +
+	"\x19RotateClientSecretRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\"\n" +
+	"\ractor_user_id\x18\x03 \x01(\tR\vactorUserId\x12,\n" +
 	"\x12grace_period_hours\x18\x04 \x01(\x05R\x10gracePeriodHours\"~\n" +
 	"\x1aRotateClientSecretResponse\x12#\n" +
 	"\rclient_secret\x18\x01 \x01(\tR\fclientSecret\x12;\n" +
-	"\x1aprevious_secret_expires_at\x18\x02 \x01(\tR\x17previousSecretExpiresAt\"Z\n" +
-	"\x16GetClientConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\"J\n" +
+	"\x1aprevious_secret_expires_at\x18\x02 \x01(\tR\x17previousSecretExpiresAt\"R\n" +
+	"\x16GetClientConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\"J\n" +
 	"\x17GetClientConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xb9\x03\n" +
-	"\x13CreateClientRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"\xad\x03\n" +
+	"\x13CreateClientRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1f\n" +
 	"\vclient_type\x18\x04 \x01(\tR\n" +
 	"clientType\x12\x16\n" +
 	"\x06domain\x18\x05 \x01(\tR\x06domain\x12/\n" +
 	"\x06config\x18\x06 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x124\n" +
-	"\x16identity_provider_uuid\x18\b \x01(\tR\x14identityProviderUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x1f\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x120\n" +
+	"\x14identity_provider_id\x18\b \x01(\tR\x12identityProviderId\x12\"\n" +
+	"\ractor_user_id\x18\t \x01(\tR\vactorUserId\x12\x1f\n" +
 	"\vbranding_id\x18\n" +
 	" \x01(\tR\n" +
 	"brandingId\x122\n" +
@@ -3101,137 +3090,110 @@ const file_maintainerd_auth_v1_client_proto_rawDesc = "" +
 	"\x13_allow_registration\"\x95\x01\n" +
 	"\x14CreateClientResponse\x123\n" +
 	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\x12H\n" +
-	"\vcredentials\x18\x02 \x01(\v2&.maintainerd.auth.v1.ClientCredentialsR\vcredentials\"v\n" +
-	"\x11ClientCredentials\x12\x1f\n" +
-	"\vclient_uuid\x18\x01 \x01(\tR\n" +
-	"clientUuid\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
-	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\"\xa4\x03\n" +
-	"\x13UpdateClientRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x12\n" +
+	"\vcredentials\x18\x02 \x01(\v2&.maintainerd.auth.v1.ClientCredentialsR\vcredentials\"}\n" +
+	"\x11ClientCredentials\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12&\n" +
+	"\x0foauth_client_id\x18\x02 \x01(\tR\roauthClientId\x12#\n" +
+	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\"\x98\x03\n" +
+	"\x13UpdateClientRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12\x1f\n" +
 	"\vclient_type\x18\x05 \x01(\tR\n" +
 	"clientType\x12\x16\n" +
 	"\x06domain\x18\x06 \x01(\tR\x06domain\x12/\n" +
 	"\x06config\x18\a \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x16\n" +
-	"\x06status\x18\b \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\t \x01(\tR\ractorUserUuid\x12\x1f\n" +
+	"\x06status\x18\b \x01(\tR\x06status\x12\"\n" +
+	"\ractor_user_id\x18\t \x01(\tR\vactorUserId\x12\x1f\n" +
 	"\vbranding_id\x18\n" +
 	" \x01(\tR\n" +
 	"brandingId\x122\n" +
 	"\x12allow_registration\x18\v \x01(\bH\x00R\x11allowRegistration\x88\x01\x01B\x15\n" +
 	"\x13_allow_registration\"K\n" +
 	"\x14UpdateClientResponse\x123\n" +
-	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"\x9a\x01\n" +
-	"\x16SetClientStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"N\n" +
+	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"\x8e\x01\n" +
+	"\x16SetClientStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"N\n" +
 	"\x17SetClientStatusResponse\x123\n" +
-	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"\x7f\n" +
-	"\x13DeleteClientRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\"K\n" +
+	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"s\n" +
+	"\x13DeleteClientRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\"\n" +
+	"\ractor_user_id\x18\x03 \x01(\tR\vactorUserId\"K\n" +
 	"\x14DeleteClientResponse\x123\n" +
-	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"Y\n" +
-	"\x15ListClientURIsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\"L\n" +
+	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"Q\n" +
+	"\x15ListClientURIsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\"L\n" +
 	"\x16ListClientURIsResponse\x122\n" +
-	"\x04uris\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientURIR\x04uris\"\xa8\x01\n" +
-	"\x16CreateClientURIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x10\n" +
+	"\x04uris\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientURIR\x04uris\"\x9c\x01\n" +
+	"\x16CreateClientURIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x10\n" +
 	"\x03uri\x18\x03 \x01(\tR\x03uri\x12\x12\n" +
-	"\x04type\x18\x04 \x01(\tR\x04type\x12&\n" +
-	"\x0factor_user_uuid\x18\x05 \x01(\tR\ractorUserUuid\"K\n" +
+	"\x04type\x18\x04 \x01(\tR\x04type\x12\"\n" +
+	"\ractor_user_id\x18\x05 \x01(\tR\vactorUserId\"K\n" +
 	"\x17CreateClientURIResponse\x120\n" +
-	"\x03uri\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.ClientURIR\x03uri\"\xd0\x01\n" +
-	"\x16UpdateClientURIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12&\n" +
-	"\x0fclient_uri_uuid\x18\x03 \x01(\tR\rclientUriUuid\x12\x10\n" +
+	"\x03uri\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.ClientURIR\x03uri\"\xc0\x01\n" +
+	"\x16UpdateClientURIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\"\n" +
+	"\rclient_uri_id\x18\x03 \x01(\tR\vclientUriId\x12\x10\n" +
 	"\x03uri\x18\x04 \x01(\tR\x03uri\x12\x12\n" +
-	"\x04type\x18\x05 \x01(\tR\x04type\x12&\n" +
-	"\x0factor_user_uuid\x18\x06 \x01(\tR\ractorUserUuid\"K\n" +
+	"\x04type\x18\x05 \x01(\tR\x04type\x12\"\n" +
+	"\ractor_user_id\x18\x06 \x01(\tR\vactorUserId\"K\n" +
 	"\x17UpdateClientURIResponse\x120\n" +
-	"\x03uri\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.ClientURIR\x03uri\"\xaa\x01\n" +
-	"\x16DeleteClientURIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12&\n" +
-	"\x0fclient_uri_uuid\x18\x03 \x01(\tR\rclientUriUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"N\n" +
+	"\x03uri\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.ClientURIR\x03uri\"\x9a\x01\n" +
+	"\x16DeleteClientURIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\"\n" +
+	"\rclient_uri_id\x18\x03 \x01(\tR\vclientUriId\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"N\n" +
 	"\x17DeleteClientURIResponse\x123\n" +
-	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"Y\n" +
-	"\x15ListClientAPIsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\"L\n" +
+	"\x06client\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.ClientR\x06client\"Q\n" +
+	"\x15ListClientAPIsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\"L\n" +
 	"\x16ListClientAPIsResponse\x122\n" +
-	"\x04apis\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientAPIR\x04apis\"\x9d\x01\n" +
-	"\x14AddClientAPIsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x1b\n" +
-	"\tapi_uuids\x18\x03 \x03(\tR\bapiUuids\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"1\n" +
+	"\x04apis\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.ClientAPIR\x04apis\"\x8d\x01\n" +
+	"\x14AddClientAPIsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x17\n" +
+	"\aapi_ids\x18\x03 \x03(\tR\x06apiIds\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"1\n" +
 	"\x15AddClientAPIsResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\x9d\x01\n" +
-	"\x16RemoveClientAPIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"3\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x8d\x01\n" +
+	"\x16RemoveClientAPIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x15\n" +
+	"\x06api_id\x18\x03 \x01(\tR\x05apiId\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"3\n" +
 	"\x17RemoveClientAPIResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"~\n" +
-	"\x1fListClientAPIPermissionsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\"n\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"r\n" +
+	"\x1fListClientAPIPermissionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x15\n" +
+	"\x06api_id\x18\x03 \x01(\tR\x05apiId\"n\n" +
 	" ListClientAPIPermissionsResponse\x12J\n" +
-	"\vpermissions\x18\x01 \x03(\v2(.maintainerd.auth.v1.ClientAPIPermissionR\vpermissions\"\xd0\x01\n" +
-	"\x1eAddClientAPIPermissionsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12)\n" +
-	"\x10permission_uuids\x18\x04 \x03(\tR\x0fpermissionUuids\x12&\n" +
-	"\x0factor_user_uuid\x18\x05 \x01(\tR\ractorUserUuid\";\n" +
+	"\vpermissions\x18\x01 \x03(\v2(.maintainerd.auth.v1.ClientAPIPermissionR\vpermissions\"\xbc\x01\n" +
+	"\x1eAddClientAPIPermissionsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x15\n" +
+	"\x06api_id\x18\x03 \x01(\tR\x05apiId\x12%\n" +
+	"\x0epermission_ids\x18\x04 \x03(\tR\rpermissionIds\x12\"\n" +
+	"\ractor_user_id\x18\x05 \x01(\tR\vactorUserId\";\n" +
 	"\x1fAddClientAPIPermissionsResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"\xd0\x01\n" +
-	" RemoveClientAPIPermissionRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vclient_uuid\x18\x02 \x01(\tR\n" +
-	"clientUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x03 \x01(\tR\aapiUuid\x12'\n" +
-	"\x0fpermission_uuid\x18\x04 \x01(\tR\x0epermissionUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x05 \x01(\tR\ractorUserUuid\"=\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xbc\x01\n" +
+	" RemoveClientAPIPermissionRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x15\n" +
+	"\x06api_id\x18\x03 \x01(\tR\x05apiId\x12#\n" +
+	"\rpermission_id\x18\x04 \x01(\tR\fpermissionId\x12\"\n" +
+	"\ractor_user_id\x18\x05 \x01(\tR\vactorUserId\"=\n" +
 	"!RemoveClientAPIPermissionResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage2\xd1\x10\n" +
 	"\rClientService\x12`\n" +

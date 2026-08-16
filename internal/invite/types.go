@@ -5,7 +5,7 @@ import "time"
 // SendInviteRequestDTO represents the payload to invite a user.
 type SendInviteRequestDTO struct {
 	Email                string  `json:"email"`
-	RegistrationFlowUUID *string `json:"registration_flow_uuid,omitempty"`
+	RegistrationFlowUUID *string `json:"registration_flow_id,omitempty"`
 	CallbackURL          *string `json:"callback_url,omitempty"`
 }
 

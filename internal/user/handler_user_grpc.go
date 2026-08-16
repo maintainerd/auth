@@ -29,7 +29,7 @@ func NewUserGRPCHandler(tenantResolver TenantResolver, userService UserService) 
 }
 
 func (h *UserGRPCHandler) ListUsers(ctx context.Context, req *authv1.ListUsersRequest) (*authv1.ListUsersResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +59,11 @@ func (h *UserGRPCHandler) ListUsers(ctx context.Context, req *authv1.ListUsersRe
 }
 
 func (h *UserGRPCHandler) GetUser(ctx context.Context, req *authv1.GetUserRequest) (*authv1.GetUserResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (h *UserGRPCHandler) GetUser(ctx context.Context, req *authv1.GetUserReques
 // indistinguishable from "another caller took this name" — so core cannot tell
 // its own duplicate from a race. The ledger returns the original response.
 func (h *UserGRPCHandler) CreateUser(ctx context.Context, req *authv1.CreateUserRequest) (*authv1.CreateUserResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -96,11 +96,11 @@ func (h *UserGRPCHandler) CreateUser(ctx context.Context, req *authv1.CreateUser
 }
 
 func (h *UserGRPCHandler) UpdateUser(ctx context.Context, req *authv1.UpdateUserRequest) (*authv1.UpdateUserResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +117,11 @@ func (h *UserGRPCHandler) UpdateUser(ctx context.Context, req *authv1.UpdateUser
 }
 
 func (h *UserGRPCHandler) SetUserStatus(ctx context.Context, req *authv1.SetUserStatusRequest) (*authv1.SetUserStatusResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -137,11 +137,11 @@ func (h *UserGRPCHandler) SetUserStatus(ctx context.Context, req *authv1.SetUser
 }
 
 func (h *UserGRPCHandler) VerifyUserEmail(ctx context.Context, req *authv1.VerifyUserEmailRequest) (*authv1.VerifyUserEmailResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -153,11 +153,11 @@ func (h *UserGRPCHandler) VerifyUserEmail(ctx context.Context, req *authv1.Verif
 }
 
 func (h *UserGRPCHandler) VerifyUserPhone(ctx context.Context, req *authv1.VerifyUserPhoneRequest) (*authv1.VerifyUserPhoneResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -169,11 +169,11 @@ func (h *UserGRPCHandler) VerifyUserPhone(ctx context.Context, req *authv1.Verif
 }
 
 func (h *UserGRPCHandler) CompleteUserAccount(ctx context.Context, req *authv1.CompleteUserAccountRequest) (*authv1.CompleteUserAccountResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -185,11 +185,11 @@ func (h *UserGRPCHandler) CompleteUserAccount(ctx context.Context, req *authv1.C
 }
 
 func (h *UserGRPCHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUserRequest) (*authv1.DeleteUserResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -205,11 +205,11 @@ func (h *UserGRPCHandler) DeleteUser(ctx context.Context, req *authv1.DeleteUser
 }
 
 func (h *UserGRPCHandler) ForceUserPasswordChange(ctx context.Context, req *authv1.ForceUserPasswordChangeRequest) (*authv1.ForceUserPasswordChangeResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +220,11 @@ func (h *UserGRPCHandler) ForceUserPasswordChange(ctx context.Context, req *auth
 }
 
 func (h *UserGRPCHandler) ListUserRoles(ctx context.Context, req *authv1.ListUserRolesRequest) (*authv1.ListUserRolesResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -248,11 +248,11 @@ func (h *UserGRPCHandler) ListUserRoles(ctx context.Context, req *authv1.ListUse
 }
 
 func (h *UserGRPCHandler) ListUserIdentities(ctx context.Context, req *authv1.ListUserIdentitiesRequest) (*authv1.ListUserIdentitiesResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -276,16 +276,16 @@ func (h *UserGRPCHandler) ListUserIdentities(ctx context.Context, req *authv1.Li
 }
 
 func (h *UserGRPCHandler) AssignUserRoles(ctx context.Context, req *authv1.AssignUserRolesRequest) (*authv1.AssignUserRolesResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
-	roleUUIDs := make([]uuid.UUID, len(req.GetRoleUuids()))
-	for i, r := range req.GetRoleUuids() {
+	roleUUIDs := make([]uuid.UUID, len(req.GetRoleIds()))
+	for i, r := range req.GetRoleIds() {
 		parsed, err := grpcUUID(r, "Role UUID")
 		if err != nil {
 			return nil, err
@@ -314,15 +314,15 @@ func (h *UserGRPCHandler) AssignUserRoles(ctx context.Context, req *authv1.Assig
 }
 
 func (h *UserGRPCHandler) RemoveUserRole(ctx context.Context, req *authv1.RemoveUserRoleRequest) (*authv1.RemoveUserRoleResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	userUUID, err := grpcUUID(req.GetUserUuid(), "User UUID")
+	userUUID, err := grpcUUID(req.GetUserId(), "User UUID")
 	if err != nil {
 		return nil, err
 	}
-	roleUUID, err := grpcUUID(req.GetRoleUuid(), "Role UUID")
+	roleUUID, err := grpcUUID(req.GetRoleId(), "Role UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +409,7 @@ func toUserProto(result *UserServiceDataResult) *authv1.User {
 		return nil
 	}
 	return &authv1.User{
-		UserUuid:        result.UserUUID.String(),
+		UserId:          result.UserUUID.String(),
 		Username:        result.Username,
 		Fullname:        result.Fullname,
 		Email:           result.Email,
@@ -427,7 +427,7 @@ func toUserRoleProto(result *RoleServiceDataResult) *authv1.UserRole {
 		return nil
 	}
 	return &authv1.UserRole{
-		RoleUuid:    result.RoleUUID.String(),
+		RoleId:      result.RoleUUID.String(),
 		Name:        result.Name,
 		Description: result.Description,
 		IsDefault:   result.IsDefault,
@@ -443,11 +443,11 @@ func toUserIdentityProto(result *UserIdentityServiceDataResult) *authv1.UserIden
 		return nil
 	}
 	return &authv1.UserIdentity{
-		UserIdentityUuid: result.UserIdentityUUID.String(),
-		Provider:         result.Provider,
-		Sub:              result.Sub,
-		CreatedAt:        timestamppb.New(result.CreatedAt),
-		UpdatedAt:        timestamppb.New(result.UpdatedAt),
+		UserIdentityId: result.UserIdentityUUID.String(),
+		Provider:       result.Provider,
+		Sub:            result.Sub,
+		CreatedAt:      timestamppb.New(result.CreatedAt),
+		UpdatedAt:      timestamppb.New(result.UpdatedAt),
 	}
 }
 

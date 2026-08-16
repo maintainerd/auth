@@ -15,7 +15,7 @@ type IntegrationEvent struct {
 	EventVersion  int            `json:"event_version"`
 	TenantID      int64          `json:"tenant_id"`
 	ActorUserID   *int64         `json:"actor_user_id,omitempty"`
-	SubjectUUID   *uuid.UUID     `json:"subject_uuid,omitempty"`
+	SubjectUUID   *uuid.UUID     `json:"subject_id,omitempty"`
 	SubjectType   string         `json:"subject_type,omitempty"`
 	ChangedFields []string       `json:"changed_fields"`
 	Payload       datatypes.JSON `json:"payload,omitempty"`

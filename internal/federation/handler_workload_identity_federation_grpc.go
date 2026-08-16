@@ -41,7 +41,7 @@ func NewWorkloadIdentityFederationGRPCHandler(tenantResolver TenantResolver, ser
 }
 
 func (h *WorkloadIdentityFederationGRPCHandler) ListWorkloadIdentityFederations(ctx context.Context, req *authv1.ListWorkloadIdentityFederationsRequest) (*authv1.ListWorkloadIdentityFederationsResponse, error) {
-	tenantID, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +76,11 @@ func (h *WorkloadIdentityFederationGRPCHandler) ListWorkloadIdentityFederations(
 }
 
 func (h *WorkloadIdentityFederationGRPCHandler) GetWorkloadIdentityFederation(ctx context.Context, req *authv1.GetWorkloadIdentityFederationRequest) (*authv1.GetWorkloadIdentityFederationResponse, error) {
-	tenantID, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationUuid())
+	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationId())
 	if err != nil {
 		return nil, err
 	}
@@ -92,11 +92,11 @@ func (h *WorkloadIdentityFederationGRPCHandler) GetWorkloadIdentityFederation(ct
 }
 
 func (h *WorkloadIdentityFederationGRPCHandler) CreateWorkloadIdentityFederation(ctx context.Context, req *authv1.CreateWorkloadIdentityFederationRequest) (*authv1.CreateWorkloadIdentityFederationResponse, error) {
-	tenantID, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := uuid.Parse(req.GetClientUuid())
+	clientUUID, err := uuid.Parse(req.GetClientId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "client_uuid is not a valid UUID")
 	}
@@ -124,11 +124,11 @@ func (h *WorkloadIdentityFederationGRPCHandler) CreateWorkloadIdentityFederation
 }
 
 func (h *WorkloadIdentityFederationGRPCHandler) UpdateWorkloadIdentityFederation(ctx context.Context, req *authv1.UpdateWorkloadIdentityFederationRequest) (*authv1.UpdateWorkloadIdentityFederationResponse, error) {
-	tenantID, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationUuid())
+	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationId())
 	if err != nil {
 		return nil, err
 	}
@@ -150,11 +150,11 @@ func (h *WorkloadIdentityFederationGRPCHandler) UpdateWorkloadIdentityFederation
 }
 
 func (h *WorkloadIdentityFederationGRPCHandler) DeleteWorkloadIdentityFederation(ctx context.Context, req *authv1.DeleteWorkloadIdentityFederationRequest) (*authv1.DeleteWorkloadIdentityFederationResponse, error) {
-	tenantID, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationUuid())
+	federationUUID, err := parseFederationUUID(req.GetWorkloadIdentityFederationId())
 	if err != nil {
 		return nil, err
 	}
@@ -190,18 +190,18 @@ func federationProto(in *WorkloadIdentityFederationServiceDataResult) *authv1.Wo
 		return nil
 	}
 	return &authv1.WorkloadIdentityFederation{
-		WorkloadIdentityFederationUuid: in.WorkloadIdentityFederationUUID.String(),
-		ClientUuid:                     in.ClientUUID.String(),
-		Name:                           in.Name,
-		Description:                    in.Description,
-		IssuerUrl:                      in.IssuerURL,
-		Audience:                       in.Audience,
-		SubjectClaim:                   in.SubjectClaim,
-		SubjectPattern:                 in.SubjectPattern,
-		AllowedScopes:                  in.AllowedScopes,
-		AttributeMapping:               in.AttributeMapping,
-		IsActive:                       in.IsActive,
-		CreatedAt:                      in.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:                      in.UpdatedAt.UTC().Format(time.RFC3339),
+		WorkloadIdentityFederationId: in.WorkloadIdentityFederationUUID.String(),
+		ClientId:                     in.ClientUUID.String(),
+		Name:                         in.Name,
+		Description:                  in.Description,
+		IssuerUrl:                    in.IssuerURL,
+		Audience:                     in.Audience,
+		SubjectClaim:                 in.SubjectClaim,
+		SubjectPattern:               in.SubjectPattern,
+		AllowedScopes:                in.AllowedScopes,
+		AttributeMapping:             in.AttributeMapping,
+		IsActive:                     in.IsActive,
+		CreatedAt:                    in.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:                    in.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 }

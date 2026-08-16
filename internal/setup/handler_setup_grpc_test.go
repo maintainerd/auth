@@ -81,7 +81,7 @@ func TestSetupGRPCHandler_CreateTenant(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, tenantUUID.String(), resp.TenantUuid)
+	assert.Equal(t, tenantUUID.String(), resp.TenantId)
 	assert.Equal(t, "maintainerd", resp.Name)
 	assert.Equal(t, "client", resp.DefaultClientId)
 
@@ -121,7 +121,7 @@ func TestSetupGRPCHandler_CreateAdmin(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, userUUID.String(), resp.UserUuid)
+	assert.Equal(t, userUUID.String(), resp.UserId)
 	assert.Equal(t, "active", resp.Status)
 
 	_, err = NewSetupGRPCHandler(&mockSetupService{
@@ -153,7 +153,7 @@ func TestSetupGRPCHandler_CreateProfile(t *testing.T) {
 		DisplayName: "Admin User",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, profileUUID.String(), resp.ProfileUuid)
+	assert.Equal(t, profileUUID.String(), resp.ProfileId)
 	assert.Equal(t, "Admin", resp.FirstName)
 	assert.Equal(t, "Admin User", resp.DisplayName)
 
@@ -189,7 +189,7 @@ func TestSetupGRPCHandler_RegisterControlService(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "service-1", resp.ServiceUuid)
+	assert.Equal(t, "service-1", resp.ServiceId)
 	assert.True(t, resp.AlreadyExisted)
 	assert.False(t, resp.PolicyWasAttached)
 

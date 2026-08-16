@@ -16,8 +16,8 @@ type ClientSecretResponseDTO struct {
 // ClientCreateSecretResponseDTO is returned exactly once at client creation.
 // The plaintext secret is never stored and cannot be retrieved again.
 type ClientCreateSecretResponseDTO struct {
-	ClientUUID   string `json:"client_uuid"`
-	ClientID     string `json:"client_id"`
+	ClientUUID   string `json:"client_id"`
+	ClientID     string `json:"oauth_client_id"`
 	ClientSecret string `json:"client_secret"`
 }
 
@@ -255,12 +255,12 @@ type ClientAPIResponseDTO struct {
 
 // Add APIs to auth client request dto
 type AddClientAPIsRequestDTO struct {
-	APIUUIDs []uuid.UUID `json:"api_uuids"`
+	APIUUIDs []uuid.UUID `json:"api_ids"`
 }
 
 // Add permissions to auth client API request dto
 type AddClientAPIPermissionsRequestDTO struct {
-	PermissionUUIDs []uuid.UUID `json:"permission_uuids"`
+	PermissionUUIDs []uuid.UUID `json:"permission_ids"`
 }
 
 type APIResponseDTO struct {

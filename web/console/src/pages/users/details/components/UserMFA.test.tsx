@@ -113,7 +113,7 @@ describe("UserMFA", () => {
     setData({
       data: {
         is_totp_enabled: false, is_webauthn_enabled: true, is_sms_enabled: false, backup_codes_count: 3,
-        webauthn_keys: [{ credential_uuid: "c1", name: "iPhone Touch ID", transport: "internal,hybrid", last_used_at: "2024-06-01T00:00:00Z", created_at: "2024-01-01T00:00:00Z" }],
+        webauthn_keys: [{ credential_id: "c1", name: "iPhone Touch ID", transport: "internal,hybrid", last_used_at: "2024-06-01T00:00:00Z", created_at: "2024-01-01T00:00:00Z" }],
       },
     })
     renderWithProviders(<UserMFA userId="u1" />)

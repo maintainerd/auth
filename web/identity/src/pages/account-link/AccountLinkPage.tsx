@@ -28,7 +28,7 @@ export default function AccountLinkPage() {
     mutationFn: async () => {
       await confirmAccountLink(token)
       const result = await resumeBrokerSession({
-        broker_session_uuid: brokerSession,
+        broker_session_id: brokerSession,
         account_link_token: token,
       })
       return result

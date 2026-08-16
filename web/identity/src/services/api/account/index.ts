@@ -96,7 +96,7 @@ export const setDefaultProfile = (uuid: string): Promise<UserProfile> =>
 
 // GET /account returns user.AccountResponseDTO, which the auth service already
 // models as AccountEntity — so this is an alias, not a second declaration.
-// The hand-written shape it replaces (user_uuid / username / is_email_verified /
+// The hand-written shape it replaces (user_id / username / is_email_verified /
 // is_phone_verified / status / created_at) matched no field the endpoint sends;
 // the response was cast rather than parsed, so every read silently produced
 // undefined — an unverified-looking account for a verified user.
@@ -181,7 +181,7 @@ export const verifyEmailChange = (otp: string): Promise<void> =>
 // ---------------------------------------------------------------------------
 
 // Mirrors user.SessionDataResult on the wire (internal/user/types.go). The
-// field names previously guessed at were session_uuid / last_active_at plus an
+// field names previously guessed at were session_id / last_active_at plus an
 // is_current flag: the first made every revoke call POST `undefined` (the
 // backend rejected it as an invalid UUID, so revoke silently never worked), the
 // second meant "Last active" never rendered, and the third does not exist on

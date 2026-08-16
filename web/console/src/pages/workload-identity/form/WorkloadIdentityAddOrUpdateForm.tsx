@@ -79,7 +79,7 @@ export default function WorkloadIdentityAddOrUpdateForm() {
   } = useForm<WorkloadIdentityFormData>({
     resolver: yupResolver(workloadIdentitySchema) as Resolver<WorkloadIdentityFormData>,
     defaultValues: {
-      client_uuid: "",
+      client_id: "",
       name: "",
       description: "",
       issuer_url: "",
@@ -96,7 +96,7 @@ export default function WorkloadIdentityAddOrUpdateForm() {
     hydrated.current = true
 
     reset({
-      client_uuid: federation.client_uuid,
+      client_id: federation.client_id,
       name: federation.name,
       description: federation.description ?? "",
       issuer_url: federation.issuer_url,
@@ -176,7 +176,7 @@ export default function WorkloadIdentityAddOrUpdateForm() {
         await updateMutation.mutateAsync({ federationId, data: payload })
         showSuccess("Federation updated")
       } else {
-        await createMutation.mutateAsync({ ...payload, client_uuid: formData.client_uuid })
+        await createMutation.mutateAsync({ ...payload, client_id: formData.client_id })
         showSuccess("Federation created")
       }
       navigate(backTo)
@@ -298,7 +298,7 @@ export default function WorkloadIdentityAddOrUpdateForm() {
               />
 
               <Controller
-                name="client_uuid"
+                name="client_id"
                 control={control}
                 render={({ field }) => (
                   <FormSelectField
@@ -308,7 +308,7 @@ export default function WorkloadIdentityAddOrUpdateForm() {
                     options={clientOptions}
                     value={field.value}
                     onValueChange={(value) => { markDirty(); field.onChange(value) }}
-                    error={errors.client_uuid?.message}
+                    error={errors.client_id?.message}
                     // The mapped client is what the issued token acts as, so changing
                     // it would silently repoint an existing trust at another identity.
                     disabled={isSaving || isEditing}

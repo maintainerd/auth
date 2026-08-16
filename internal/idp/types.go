@@ -37,7 +37,7 @@ type LinkIdentityRequestDTO struct {
 
 // IdentityDTO is the public view of a UserIdentity record.
 type IdentityDTO struct {
-	IdentityUUID string  `json:"identity_uuid"`
+	IdentityUUID string  `json:"identity_id"`
 	Provider     string  `json:"provider"`
 	Sub          string  `json:"sub"`
 	IsDefault    bool    `json:"is_default"`
@@ -395,7 +395,7 @@ type RegistrationFlowFilterDTO struct {
 
 // Assign roles to registration flow request dto
 type RegistrationFlowAssignRolesRequestDTO struct {
-	RoleUUIDs []string `json:"role_uuids"`
+	RoleUUIDs []string `json:"role_ids"`
 }
 
 type LoginResponseDTO struct {

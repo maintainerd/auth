@@ -81,7 +81,7 @@ export const tenantExtraReducers = (builder: ActionReducerMapBuilder<TenantState
       const data = action.payload
       const t = data.tenant
       const normalized: TenantEntity = {
-        tenant_id: t.tenant_uuid,
+        tenant_id: t.tenant_id,
         name: t.name,
         display_name: t.display_name,
         description: t.description,

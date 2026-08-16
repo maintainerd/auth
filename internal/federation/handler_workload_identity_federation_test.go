@@ -132,7 +132,7 @@ func TestWIFHandler_Create_BadJSON(t *testing.T) {
 func TestWIFHandler_Create_ValidationError(t *testing.T) {
 	h := NewWorkloadIdentityFederationHandler(&mockWIFService{})
 	// Missing required fields (name, issuer_url, audience, subject_pattern).
-	body := map[string]any{"client_uuid": testClientUUID.String()}
+	body := map[string]any{"client_id": testClientUUID.String()}
 	w := httptest.NewRecorder()
 	h.Create(w, withTenant(jsonReq(t, http.MethodPost, "/workload-identity-federations", body)))
 	assert.Equal(t, http.StatusBadRequest, w.Code)

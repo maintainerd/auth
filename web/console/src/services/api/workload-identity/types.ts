@@ -3,8 +3,8 @@
  */
 
 export interface WorkloadIdentityFederation {
-  workload_identity_federation_uuid: string
-  client_uuid: string
+  workload_identity_federation_id: string
+  client_id: string
   name: string
   description: string
   issuer_url: string
@@ -34,11 +34,11 @@ export interface WorkloadIdentityListResponse {
 }
 
 /**
- * Create request — `client_uuid`, `name`, `issuer_url`, `audience`, and
+ * Create request — `client_id`, `name`, `issuer_url`, `audience`, and
  * `subject_pattern` are required by the backend.
  */
 export interface CreateWorkloadIdentityRequest {
-  client_uuid: string
+  client_id: string
   name: string
   description?: string
   issuer_url: string
@@ -51,7 +51,7 @@ export interface CreateWorkloadIdentityRequest {
 }
 
 /**
- * Update request — `client_uuid` cannot change after creation; all other
+ * Update request — `client_id` cannot change after creation; all other
  * required fields stay required.
  */
 export interface UpdateWorkloadIdentityRequest {

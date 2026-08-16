@@ -88,7 +88,7 @@ type MFAStatusResponseDTO struct {
 
 // WebAuthnCredentialSummaryDTO is a lightweight view of a registered credential.
 type WebAuthnCredentialSummaryDTO struct {
-	CredentialUUID string  `json:"credential_uuid"`
+	CredentialUUID string  `json:"credential_id"`
 	Name           string  `json:"name"`
 	Transport      string  `json:"transport,omitempty"`
 	LastUsedAt     *string `json:"last_used_at,omitempty"`
@@ -165,7 +165,7 @@ type EmailOTPVerifyRequestDTO struct {
 // ──────────────────────────────────────────────────────────────────────────────
 
 type WebAuthnCredentialDownloadDTO struct {
-	CredentialUUID   string `json:"credential_uuid"`
+	CredentialUUID   string `json:"credential_id"`
 	Name             string `json:"name"`
 	CredentialKeyID  string `json:"credential_key_id"`
 	PublicKeyBase64  string `json:"public_key_base64"`

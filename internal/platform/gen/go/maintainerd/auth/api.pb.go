@@ -24,7 +24,7 @@ const (
 
 type API struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ApiUuid       string                 `protobuf:"bytes,1,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	ApiId         string                 `protobuf:"bytes,1,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -68,9 +68,9 @@ func (*API) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *API) GetApiUuid() string {
+func (x *API) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -140,11 +140,11 @@ func (x *API) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListAPIsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Identifier    string                 `protobuf:"bytes,5,opt,name=identifier,proto3" json:"identifier,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,6,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,6,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Status        []string               `protobuf:"bytes,7,rep,name=status,proto3" json:"status,omitempty"`
 	IsSystem      *bool                  `protobuf:"varint,8,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,9,opt,name=pagination,proto3" json:"pagination,omitempty"`
@@ -182,9 +182,9 @@ func (*ListAPIsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListAPIsRequest) GetTenantUuid() string {
+func (x *ListAPIsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -210,9 +210,9 @@ func (x *ListAPIsRequest) GetIdentifier() string {
 	return ""
 }
 
-func (x *ListAPIsRequest) GetServiceUuid() string {
+func (x *ListAPIsRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -292,8 +292,8 @@ func (x *ListAPIsResponse) GetPage() *PageMetadata {
 
 type GetAPIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,2,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -328,16 +328,16 @@ func (*GetAPIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetAPIRequest) GetTenantUuid() string {
+func (x *GetAPIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetAPIRequest) GetApiUuid() string {
+func (x *GetAPIRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -388,12 +388,12 @@ func (x *GetAPIResponse) GetApi() *API {
 
 type CreateAPIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,7,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -428,9 +428,9 @@ func (*CreateAPIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CreateAPIRequest) GetTenantUuid() string {
+func (x *CreateAPIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -463,9 +463,9 @@ func (x *CreateAPIRequest) GetStatus() string {
 	return ""
 }
 
-func (x *CreateAPIRequest) GetServiceUuid() string {
+func (x *CreateAPIRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -516,13 +516,13 @@ func (x *CreateAPIResponse) GetApi() *API {
 
 type UpdateAPIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,2,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,8,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,8,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -557,16 +557,16 @@ func (*UpdateAPIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateAPIRequest) GetTenantUuid() string {
+func (x *UpdateAPIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateAPIRequest) GetApiUuid() string {
+func (x *UpdateAPIRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -599,9 +599,9 @@ func (x *UpdateAPIRequest) GetStatus() string {
 	return ""
 }
 
-func (x *UpdateAPIRequest) GetServiceUuid() string {
+func (x *UpdateAPIRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -652,8 +652,8 @@ func (x *UpdateAPIResponse) GetApi() *API {
 
 type SetAPIStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,2,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -689,16 +689,16 @@ func (*SetAPIStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *SetAPIStatusRequest) GetTenantUuid() string {
+func (x *SetAPIStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetAPIStatusRequest) GetApiUuid() string {
+func (x *SetAPIStatusRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -756,8 +756,8 @@ func (x *SetAPIStatusResponse) GetApi() *API {
 
 type DeleteAPIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ApiUuid       string                 `protobuf:"bytes,2,opt,name=api_uuid,json=apiUuid,proto3" json:"api_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ApiId         string                 `protobuf:"bytes,2,opt,name=api_id,json=apiId,proto3" json:"api_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -792,16 +792,16 @@ func (*DeleteAPIRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_api_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeleteAPIRequest) GetTenantUuid() string {
+func (x *DeleteAPIRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteAPIRequest) GetApiUuid() string {
+func (x *DeleteAPIRequest) GetApiId() string {
 	if x != nil {
-		return x.ApiUuid
+		return x.ApiId
 	}
 	return ""
 }
@@ -854,9 +854,9 @@ var File_maintainerd_auth_v1_api_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\x1dmaintainerd/auth/v1/api.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\xfc\x02\n" +
-	"\x03API\x12\x19\n" +
-	"\bapi_uuid\x18\x01 \x01(\tR\aapiUuid\x12\x12\n" +
+	"\x1dmaintainerd/auth/v1/api.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\xf8\x02\n" +
+	"\x03API\x12\x15\n" +
+	"\x06api_id\x18\x01 \x01(\tR\x05apiId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1e\n" +
@@ -870,16 +870,16 @@ const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb5\x02\n" +
-	"\x0fListAPIsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xad\x02\n" +
+	"\x0fListAPIsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1e\n" +
 	"\n" +
 	"identifier\x18\x05 \x01(\tR\n" +
-	"identifier\x12!\n" +
-	"\fservice_uuid\x18\x06 \x01(\tR\vserviceUuid\x12\x16\n" +
+	"identifier\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x06 \x01(\tR\tserviceId\x12\x16\n" +
 	"\x06status\x18\a \x03(\tR\x06status\x12 \n" +
 	"\tis_system\x18\b \x01(\bH\x00R\bisSystem\x88\x01\x01\x12?\n" +
 	"\n" +
@@ -889,45 +889,42 @@ const file_maintainerd_auth_v1_api_proto_rawDesc = "" +
 	"_is_system\"w\n" +
 	"\x10ListAPIsResponse\x12,\n" +
 	"\x04apis\x18\x01 \x03(\v2\x18.maintainerd.auth.v1.APIR\x04apis\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"K\n" +
-	"\rGetAPIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\"<\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"C\n" +
+	"\rGetAPIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06api_id\x18\x02 \x01(\tR\x05apiId\"<\n" +
 	"\x0eGetAPIResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xc7\x01\n" +
-	"\x10CreateAPIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xbf\x01\n" +
+	"\x10CreateAPIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06status\x18\x06 \x01(\tR\x06status\x12!\n" +
-	"\fservice_uuid\x18\a \x01(\tR\vserviceUuid\"?\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\a \x01(\tR\tserviceId\"?\n" +
 	"\x11CreateAPIResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xe2\x01\n" +
-	"\x10UpdateAPIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\x12\x12\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"\xd6\x01\n" +
+	"\x10UpdateAPIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06api_id\x18\x02 \x01(\tR\x05apiId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x12!\n" +
-	"\fservice_uuid\x18\b \x01(\tR\vserviceUuid\"?\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\b \x01(\tR\tserviceId\"?\n" +
 	"\x11UpdateAPIResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"i\n" +
-	"\x13SetAPIStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\x12\x16\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"a\n" +
+	"\x13SetAPIStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06api_id\x18\x02 \x01(\tR\x05apiId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"B\n" +
 	"\x14SetAPIStatusResponse\x12*\n" +
-	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"N\n" +
-	"\x10DeleteAPIRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x19\n" +
-	"\bapi_uuid\x18\x02 \x01(\tR\aapiUuid\"?\n" +
+	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api\"F\n" +
+	"\x10DeleteAPIRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x15\n" +
+	"\x06api_id\x18\x02 \x01(\tR\x05apiId\"?\n" +
 	"\x11DeleteAPIResponse\x12*\n" +
 	"\x03api\x18\x01 \x01(\v2\x18.maintainerd.auth.v1.APIR\x03api2\xb1\x04\n" +
 	"\n" +

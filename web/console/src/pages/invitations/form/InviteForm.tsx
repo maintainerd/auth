@@ -78,7 +78,7 @@ export default function InviteForm() {
     try {
       await sendMutation.mutateAsync({
         email: data.email.trim(),
-        registration_flow_uuid: registrationFlowId !== NO_FLOW ? registrationFlowId : undefined,
+        registration_flow_id: registrationFlowId !== NO_FLOW ? registrationFlowId : undefined,
         callback_url: registrationFlowId !== NO_FLOW ? callbackUrl || undefined : undefined,
       })
       showSuccess(`Invitation sent to ${data.email.trim()}`)

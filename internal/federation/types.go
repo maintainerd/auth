@@ -9,8 +9,8 @@ import (
 // WorkloadIdentityFederationResponseDTO is the JSON representation of a
 // workload identity federation configuration.
 type WorkloadIdentityFederationResponseDTO struct {
-	WorkloadIdentityFederationUUID uuid.UUID         `json:"workload_identity_federation_uuid"`
-	ClientUUID                     string            `json:"client_uuid"`
+	WorkloadIdentityFederationUUID uuid.UUID         `json:"workload_identity_federation_id"`
+	ClientUUID                     string            `json:"client_id"`
 	Name                           string            `json:"name"`
 	Description                    string            `json:"description"`
 	IssuerURL                      string            `json:"issuer_url"`
@@ -27,7 +27,7 @@ type WorkloadIdentityFederationResponseDTO struct {
 // WorkloadIdentityFederationCreateRequestDTO is the request body for creating a
 // workload identity federation. The client is referenced by its public UUID.
 type WorkloadIdentityFederationCreateRequestDTO struct {
-	ClientUUID       string            `json:"client_uuid"`
+	ClientUUID       string            `json:"client_id"`
 	Name             string            `json:"name"`
 	Description      string            `json:"description"`
 	IssuerURL        string            `json:"issuer_url"`

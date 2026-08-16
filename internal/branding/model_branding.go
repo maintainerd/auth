@@ -9,8 +9,8 @@ import (
 )
 
 type Branding struct {
-	BrandingID        int64     `gorm:"column:branding_id;primaryKey;autoIncrement" json:"branding_id"`
-	BrandingUUID      uuid.UUID `gorm:"column:branding_uuid;type:uuid;uniqueIndex;not null" json:"branding_uuid"`
+	BrandingID        int64     `gorm:"column:branding_id;primaryKey;autoIncrement" json:"-"`
+	BrandingUUID      uuid.UUID `gorm:"column:branding_uuid;type:uuid;uniqueIndex;not null" json:"branding_id"`
 	TenantID          int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Name              string    `gorm:"column:name;type:varchar(100)" json:"name"`
 	CompanyName       string    `gorm:"column:company_name;type:varchar(255)" json:"company_name"`

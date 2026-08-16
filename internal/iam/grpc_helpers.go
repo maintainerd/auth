@@ -148,7 +148,7 @@ func resolveIAMTenantAndUUID(ctx context.Context, tenantService TenantResolver, 
 
 // iamActorUserUUID resolves the acting user from the VERIFIED token.
 //
-// Every mutating role RPC used to take the actor from req.GetActorUserUuid(), a
+// Every mutating role RPC used to take the actor from req.GetActorUserId(), a
 // request-body field. That value is both the audit attribution AND the subject of
 // ValidateTenantAccess (service_role.go), so a caller could pin a change on an
 // innocent user and borrow that user's tenant membership to clear the boundary
@@ -207,7 +207,7 @@ func serviceProto(result *ServiceServiceDataResult) *authv1.Service {
 		return nil
 	}
 	return &authv1.Service{
-		ServiceUuid: result.ServiceUUID.String(),
+		ServiceId:   result.ServiceUUID.String(),
 		Name:        result.Name,
 		DisplayName: result.DisplayName,
 		Description: result.Description,
@@ -226,7 +226,7 @@ func apiProto(result *APIServiceDataResult) *authv1.API {
 		return nil
 	}
 	return &authv1.API{
-		ApiUuid:     result.APIUUID.String(),
+		ApiId:       result.APIUUID.String(),
 		Name:        result.Name,
 		DisplayName: result.DisplayName,
 		Description: result.Description,
@@ -244,14 +244,14 @@ func permissionProto(result *PermissionServiceDataResult) *authv1.Permission {
 		return nil
 	}
 	return &authv1.Permission{
-		PermissionUuid: result.PermissionUUID.String(),
-		Name:           result.Name,
-		Description:    result.Description,
-		Api:            apiProto(result.API),
-		Status:         result.Status,
-		IsSystem:       result.IsSystem,
-		CreatedAt:      timestamppb.New(result.CreatedAt),
-		UpdatedAt:      timestamppb.New(result.UpdatedAt),
+		PermissionId: result.PermissionUUID.String(),
+		Name:         result.Name,
+		Description:  result.Description,
+		Api:          apiProto(result.API),
+		Status:       result.Status,
+		IsSystem:     result.IsSystem,
+		CreatedAt:    timestamppb.New(result.CreatedAt),
+		UpdatedAt:    timestamppb.New(result.UpdatedAt),
 	}
 }
 
@@ -260,7 +260,7 @@ func policyProto(result *PolicyServiceDataResult) *authv1.Policy {
 		return nil
 	}
 	return &authv1.Policy{
-		PolicyUuid:  result.PolicyUUID.String(),
+		PolicyId:    result.PolicyUUID.String(),
 		Name:        result.Name,
 		Description: result.Description,
 		Document:    policyDocumentProto(result.Document),
@@ -277,7 +277,7 @@ func policyServiceProto(result *PolicyServiceServiceDataResult) *authv1.Service 
 		return nil
 	}
 	return &authv1.Service{
-		ServiceUuid: result.ServiceUUID.String(),
+		ServiceId:   result.ServiceUUID.String(),
 		Name:        result.Name,
 		DisplayName: result.DisplayName,
 		Description: result.Description,
@@ -303,7 +303,7 @@ func roleProto(result *RoleServiceDataResult) *authv1.Role {
 		}
 	}
 	return &authv1.Role{
-		RoleUuid:    result.RoleUUID.String(),
+		RoleId:      result.RoleUUID.String(),
 		Name:        result.Name,
 		Description: result.Description,
 		Permissions: permissions,

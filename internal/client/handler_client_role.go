@@ -15,7 +15,7 @@ import (
 
 // ClientRoleAssignRequestDTO submits a role assignment to a client.
 type ClientRoleAssignRequestDTO struct {
-	RoleUUID string `json:"role_uuid"`
+	RoleUUID string `json:"role_id"`
 }
 
 func (r ClientRoleAssignRequestDTO) Validate() error {
@@ -30,8 +30,8 @@ func (r ClientRoleAssignRequestDTO) Validate() error {
 
 // ClientRoleResponseDTO is a single client_role entry.
 type ClientRoleResponseDTO struct {
-	ClientRoleUUID string `json:"client_role_uuid"`
-	RoleUUID       string `json:"role_uuid"`
+	ClientRoleUUID string `json:"client_role_id"`
+	RoleUUID       string `json:"role_id"`
 	// Name and Description identify the role for a human; a UUID alone forces the
 	// console into a second lookup per row.
 	Name        string `json:"name,omitempty"`
@@ -86,7 +86,7 @@ func (h *ClientHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	if authCtxAssignRole.User != nil {
 		actorUserIDAssignRole = &authCtxAssignRole.User.UserID
 	}
-	changesJSONAssignRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUID.String()}})
+	changesJSONAssignRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_id": roleUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDAssignRole, "assign_role", "client", clientUUID.String(), &clientUUID, string(changesJSONAssignRole), "success")
 
 	resp.Created(w, ClientRoleResponseDTO{
@@ -134,7 +134,7 @@ func (h *ClientHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	if authCtxRemoveRole.User != nil {
 		actorUserIDRemoveRole = &authCtxRemoveRole.User.UserID
 	}
-	changesJSONRemoveRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUID.String()}})
+	changesJSONRemoveRole, _ := json.Marshal(map[string]any{"update": map[string]any{"role_id": roleUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRemoveRole, "remove_role", "client", clientUUID.String(), &clientUUID, string(changesJSONRemoveRole), "success")
 
 	resp.Success(w, nil, "Role removed from client successfully")

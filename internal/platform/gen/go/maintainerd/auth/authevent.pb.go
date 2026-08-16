@@ -25,7 +25,7 @@ const (
 
 type AuthEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AuthEventUuid string                 `protobuf:"bytes,1,opt,name=auth_event_uuid,json=authEventUuid,proto3" json:"auth_event_uuid,omitempty"`
+	AuthEventId   string                 `protobuf:"bytes,1,opt,name=auth_event_id,json=authEventId,proto3" json:"auth_event_id,omitempty"`
 	Category      string                 `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
 	EventType     string                 `protobuf:"bytes,3,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
 	Severity      string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
@@ -71,9 +71,9 @@ func (*AuthEvent) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_authevent_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AuthEvent) GetAuthEventUuid() string {
+func (x *AuthEvent) GetAuthEventId() string {
 	if x != nil {
-		return x.AuthEventUuid
+		return x.AuthEventId
 	}
 	return ""
 }
@@ -157,7 +157,7 @@ func (x *AuthEvent) GetCreatedAt() *timestamppb.Timestamp {
 
 type ListAuthEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
 	Category      string                 `protobuf:"bytes,3,opt,name=category,proto3" json:"category,omitempty"`
 	Severity      string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
@@ -200,9 +200,9 @@ func (*ListAuthEventsRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_authevent_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListAuthEventsRequest) GetTenantUuid() string {
+func (x *ListAuthEventsRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -317,8 +317,8 @@ func (x *ListAuthEventsResponse) GetPage() *PageMetadata {
 
 type GetAuthEventRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	AuthEventUuid string                 `protobuf:"bytes,2,opt,name=auth_event_uuid,json=authEventUuid,proto3" json:"auth_event_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	AuthEventId   string                 `protobuf:"bytes,2,opt,name=auth_event_id,json=authEventId,proto3" json:"auth_event_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -353,16 +353,16 @@ func (*GetAuthEventRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_authevent_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetAuthEventRequest) GetTenantUuid() string {
+func (x *GetAuthEventRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetAuthEventRequest) GetAuthEventUuid() string {
+func (x *GetAuthEventRequest) GetAuthEventId() string {
 	if x != nil {
-		return x.AuthEventUuid
+		return x.AuthEventId
 	}
 	return ""
 }
@@ -413,7 +413,7 @@ func (x *GetAuthEventResponse) GetEvent() *AuthEvent {
 
 type CountAuthEventsByTypeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -449,9 +449,9 @@ func (*CountAuthEventsByTypeRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_authevent_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *CountAuthEventsByTypeRequest) GetTenantUuid() string {
+func (x *CountAuthEventsByTypeRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -511,9 +511,9 @@ var File_maintainerd_auth_v1_authevent_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_authevent_proto_rawDesc = "" +
 	"\n" +
-	"#maintainerd/auth/v1/authevent.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\x81\x04\n" +
-	"\tAuthEvent\x12&\n" +
-	"\x0fauth_event_uuid\x18\x01 \x01(\tR\rauthEventUuid\x12\x1a\n" +
+	"#maintainerd/auth/v1/authevent.proto\x12\x13maintainerd.auth.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a maintainerd/auth/v1/tenant.proto\"\xfd\x03\n" +
+	"\tAuthEvent\x12\"\n" +
+	"\rauth_event_id\x18\x01 \x01(\tR\vauthEventId\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x03 \x01(\tR\teventType\x12\x1a\n" +
@@ -533,10 +533,9 @@ const file_maintainerd_auth_v1_authevent_proto_rawDesc = "" +
 	"\v_user_agentB\x0e\n" +
 	"\f_descriptionB\x0f\n" +
 	"\r_error_reasonB\v\n" +
-	"\t_trace_id\"\xf7\x02\n" +
-	"\x15ListAuthEventsRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1d\n" +
+	"\t_trace_id\"\xf3\x02\n" +
+	"\x15ListAuthEventsRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x02 \x01(\tR\teventType\x12\x1a\n" +
 	"\bcategory\x18\x03 \x01(\tR\bcategory\x12\x1a\n" +
@@ -552,16 +551,14 @@ const file_maintainerd_auth_v1_authevent_proto_rawDesc = "" +
 	"\v_ip_address\"\x87\x01\n" +
 	"\x16ListAuthEventsResponse\x126\n" +
 	"\x06events\x18\x01 \x03(\v2\x1e.maintainerd.auth.v1.AuthEventR\x06events\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"^\n" +
-	"\x13GetAuthEventRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0fauth_event_uuid\x18\x02 \x01(\tR\rauthEventUuid\"L\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"V\n" +
+	"\x13GetAuthEventRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\rauth_event_id\x18\x02 \x01(\tR\vauthEventId\"L\n" +
 	"\x14GetAuthEventResponse\x124\n" +
-	"\x05event\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.AuthEventR\x05event\"^\n" +
-	"\x1cCountAuthEventsByTypeRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1d\n" +
+	"\x05event\x18\x01 \x01(\v2\x1e.maintainerd.auth.v1.AuthEventR\x05event\"Z\n" +
+	"\x1cCountAuthEventsByTypeRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x02 \x01(\tR\teventType\"5\n" +
 	"\x1dCountAuthEventsByTypeResponse\x12\x14\n" +

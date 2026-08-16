@@ -31,7 +31,7 @@ service TenantSettingService {
 }
 
 message Tenant {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -43,7 +43,7 @@ message Tenant {
 }
 
 message TenantMemberUser {
-  string user_uuid = 1;
+  string user_id = 1;
   string username = 2;
   string fullname = 3;
   string email = 4;
@@ -59,7 +59,7 @@ message TenantMemberUser {
 }
 
 message TenantMember {
-  string tenant_member_uuid = 1;
+  string tenant_member_id = 1;
   string role = 2;
   TenantMemberUser user = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -101,7 +101,7 @@ message ListTenantsResponse {
 }
 
 message GetTenantRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
 }
 
 message GetTenantResponse {
@@ -120,7 +120,7 @@ message TenantServiceCreateTenantResponse {
 }
 
 message TenantServiceUpdateTenantRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -132,7 +132,7 @@ message TenantServiceUpdateTenantResponse {
 }
 
 message SetTenantStatusRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string status = 2;
 }
 
@@ -141,8 +141,8 @@ message SetTenantStatusResponse {
 }
 
 message DeleteTenantRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
+  string tenant_id = 1;
+  string actor_user_id = 2;
 }
 
 message DeleteTenantResponse {
@@ -150,7 +150,7 @@ message DeleteTenantResponse {
 }
 
 message ListTenantMembersRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string role = 2;
   Pagination pagination = 3;
 }
@@ -161,10 +161,10 @@ message ListTenantMembersResponse {
 }
 
 message AddTenantMemberRequest {
-  string tenant_uuid = 1;
-  string user_uuid = 2;
+  string tenant_id = 1;
+  string user_id = 2;
   string role = 3;
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message AddTenantMemberResponse {
@@ -172,10 +172,10 @@ message AddTenantMemberResponse {
 }
 
 message UpdateTenantMemberRoleRequest {
-  string tenant_uuid = 1;
-  string tenant_member_uuid = 2;
+  string tenant_id = 1;
+  string tenant_member_id = 2;
   string role = 3;
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message UpdateTenantMemberRoleResponse {
@@ -183,9 +183,9 @@ message UpdateTenantMemberRoleResponse {
 }
 
 message RemoveTenantMemberRequest {
-  string tenant_uuid = 1;
-  string tenant_member_uuid = 2;
-  string actor_user_uuid = 3;
+  string tenant_id = 1;
+  string tenant_member_id = 2;
+  string actor_user_id = 3;
 }
 
 message RemoveTenantMemberResponse {
@@ -193,7 +193,7 @@ message RemoveTenantMemberResponse {
 }
 
 message GetRateLimitConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
 }
 
 message GetRateLimitConfigResponse {
@@ -201,7 +201,7 @@ message GetRateLimitConfigResponse {
 }
 
 message UpdateRateLimitConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   google.protobuf.Struct config = 2;
 }
 
@@ -210,7 +210,7 @@ message UpdateRateLimitConfigResponse {
 }
 
 message GetAuditConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
 }
 
 message GetAuditConfigResponse {
@@ -218,7 +218,7 @@ message GetAuditConfigResponse {
 }
 
 message UpdateAuditConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   google.protobuf.Struct config = 2;
 }
 
@@ -227,7 +227,7 @@ message UpdateAuditConfigResponse {
 }
 
 message GetMaintenanceConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
 }
 
 message GetMaintenanceConfigResponse {
@@ -235,7 +235,7 @@ message GetMaintenanceConfigResponse {
 }
 
 message UpdateMaintenanceConfigRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   google.protobuf.Struct config = 2;
 }
 

@@ -16,7 +16,7 @@ import (
 // Backed by migration 028_create_workload_identity_federations_table.go.
 type WorkloadIdentityFederation struct {
 	WorkloadIdentityFederationID   int64          `gorm:"column:workload_identity_federation_id;primaryKey;autoIncrement" json:"-"`
-	WorkloadIdentityFederationUUID uuid.UUID      `gorm:"column:workload_identity_federation_uuid;type:uuid;uniqueIndex;not null" json:"workload_identity_federation_uuid"`
+	WorkloadIdentityFederationUUID uuid.UUID      `gorm:"column:workload_identity_federation_uuid;type:uuid;uniqueIndex;not null" json:"workload_identity_federation_id"`
 	TenantID                       int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	ClientID                       int64          `gorm:"column:client_id;not null" json:"client_id"`
 	Name                           string         `gorm:"column:name;type:varchar(100);not null" json:"name"`

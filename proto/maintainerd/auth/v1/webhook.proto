@@ -16,7 +16,7 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // shape for the day a handler is written.
 
 message WebhookEndpoint {
-  string webhook_endpoint_uuid = 1;
+  string webhook_endpoint_id = 1;
   string url = 2;
   string description = 3;
   repeated string events = 4;
@@ -29,15 +29,15 @@ message WebhookEndpoint {
 }
 
 message ListWebhookEndpointsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   repeated string status = 2;
   Pagination pagination = 3;
 }
 message ListWebhookEndpointsResponse { repeated WebhookEndpoint endpoints = 1; PageMetadata page = 2; }
-message GetWebhookEndpointRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; }
+message GetWebhookEndpointRequest { string tenant_id = 1; string webhook_endpoint_id = 2; }
 message GetWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
 message CreateWebhookEndpointRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string url = 2;
   string secret = 3;
   repeated string events = 4;
@@ -48,8 +48,8 @@ message CreateWebhookEndpointRequest {
 }
 message CreateWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
 message UpdateWebhookEndpointRequest {
-  string tenant_uuid = 1;
-  string webhook_endpoint_uuid = 2;
+  string tenant_id = 1;
+  string webhook_endpoint_id = 2;
   string url = 3;
   string secret = 4;
   repeated string events = 5;
@@ -59,7 +59,7 @@ message UpdateWebhookEndpointRequest {
   string status = 9;
 }
 message UpdateWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }
-message SetWebhookEndpointStatusRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; string status = 3; }
+message SetWebhookEndpointStatusRequest { string tenant_id = 1; string webhook_endpoint_id = 2; string status = 3; }
 message SetWebhookEndpointStatusResponse { WebhookEndpoint endpoint = 1; }
-message DeleteWebhookEndpointRequest { string tenant_uuid = 1; string webhook_endpoint_uuid = 2; }
+message DeleteWebhookEndpointRequest { string tenant_id = 1; string webhook_endpoint_id = 2; }
 message DeleteWebhookEndpointResponse { WebhookEndpoint endpoint = 1; }

@@ -82,7 +82,7 @@ export function WebhookDeliveries({ webhookId }: Props) {
           <div className="space-y-3">
             {deliveries.map((d: DeliveryHistoryItem) => (
               <div
-                key={d.delivery_history_uuid}
+                key={d.delivery_history_id}
                 data-md-listing-item
                 className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
               >
@@ -121,9 +121,9 @@ export function WebhookDeliveries({ webhookId }: Props) {
                   variant="outline"
                   size="sm"
                   className="h-9 w-fit gap-2"
-                  disabled={replayingId === d.delivery_history_uuid}
+                  disabled={replayingId === d.delivery_history_id}
                   onClick={() => {
-                    setReplayingId(d.delivery_history_uuid)
+                    setReplayingId(d.delivery_history_id)
                     replayMut.mutate(d.event_id)
                   }}
                 >

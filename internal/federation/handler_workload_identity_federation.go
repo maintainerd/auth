@@ -72,7 +72,7 @@ func auditChanges(d *WorkloadIdentityFederationServiceDataResult) string {
 		"allowed_scopes":    d.AllowedScopes,
 		"attribute_mapping": d.AttributeMapping,
 		"is_active":         d.IsActive,
-		"client_uuid":       d.ClientUUID.String(),
+		"client_id":         d.ClientUUID.String(),
 	})
 	return string(payload)
 }

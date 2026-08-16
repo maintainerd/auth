@@ -19,7 +19,7 @@ func NewRoleGRPCHandler(tenantService TenantResolver, roleService RoleService) *
 }
 
 func (h *RoleGRPCHandler) ListRoles(ctx context.Context, req *authv1.ListRolesRequest) (*authv1.ListRolesResponse, error) {
-	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantUuid())
+	scope, err := resolveIAMTenant(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (h *RoleGRPCHandler) ListRoles(ctx context.Context, req *authv1.ListRolesRe
 }
 
 func (h *RoleGRPCHandler) GetRole(ctx context.Context, req *authv1.GetRoleRequest) (*authv1.GetRoleResponse, error) {
-	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), "Role UUID")
+	scope, id, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId(), "Role UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (h *RoleGRPCHandler) GetRole(ctx context.Context, req *authv1.GetRoleReques
 }
 
 func (h *RoleGRPCHandler) CreateRole(ctx context.Context, req *authv1.CreateRoleRequest) (*authv1.CreateRoleResponse, error) {
-	scope, actor, err := resolveIAMTenantAndActor(ctx, h.tenantService, req.GetTenantUuid())
+	scope, actor, err := resolveIAMTenantAndActor(ctx, h.tenantService, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (h *RoleGRPCHandler) CreateRole(ctx context.Context, req *authv1.CreateRole
 }
 
 func (h *RoleGRPCHandler) UpdateRole(ctx context.Context, req *authv1.UpdateRoleRequest) (*authv1.UpdateRoleResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId())
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (h *RoleGRPCHandler) UpdateRole(ctx context.Context, req *authv1.UpdateRole
 }
 
 func (h *RoleGRPCHandler) SetRoleStatus(ctx context.Context, req *authv1.SetRoleStatusRequest) (*authv1.SetRoleStatusResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId())
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (h *RoleGRPCHandler) SetRoleStatus(ctx context.Context, req *authv1.SetRole
 }
 
 func (h *RoleGRPCHandler) DeleteRole(ctx context.Context, req *authv1.DeleteRoleRequest) (*authv1.DeleteRoleResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId())
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (h *RoleGRPCHandler) DeleteRole(ctx context.Context, req *authv1.DeleteRole
 }
 
 func (h *RoleGRPCHandler) ListRolePermissions(ctx context.Context, req *authv1.ListRolePermissionsRequest) (*authv1.ListRolePermissionsResponse, error) {
-	scope, roleUUID, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid(), "Role UUID")
+	scope, roleUUID, err := resolveIAMTenantAndUUID(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId(), "Role UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -163,11 +163,11 @@ func (h *RoleGRPCHandler) ListRolePermissions(ctx context.Context, req *authv1.L
 }
 
 func (h *RoleGRPCHandler) AddRolePermissions(ctx context.Context, req *authv1.AddRolePermissionsRequest) (*authv1.AddRolePermissionsResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId())
 	if err != nil {
 		return nil, err
 	}
-	permissionUUIDs, err := parseIAMUUIDs(req.GetPermissionUuids(), "Permission UUID")
+	permissionUUIDs, err := parseIAMUUIDs(req.GetPermissionIds(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -183,11 +183,11 @@ func (h *RoleGRPCHandler) AddRolePermissions(ctx context.Context, req *authv1.Ad
 }
 
 func (h *RoleGRPCHandler) RemoveRolePermission(ctx context.Context, req *authv1.RemoveRolePermissionRequest) (*authv1.RemoveRolePermissionResponse, error) {
-	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantUuid(), req.GetRoleUuid())
+	scope, roleUUID, actor, err := resolveIAMTenantRoleActor(ctx, h.tenantService, req.GetTenantId(), req.GetRoleId())
 	if err != nil {
 		return nil, err
 	}
-	permissionUUID, err := iamParseUUID(req.GetPermissionUuid(), "Permission UUID")
+	permissionUUID, err := iamParseUUID(req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}

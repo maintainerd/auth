@@ -26,7 +26,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
           cache: true
 
       - name: Install buf
@@ -47,7 +47,7 @@ jobs:
 
     strategy:
       matrix:
-        go: ["1.26.x"]
+        go: ["1.26.6"]
 
     steps:
       - name: Checkout code
@@ -127,7 +127,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
           cache: true
 
       - name: Run golangci-lint
@@ -167,7 +167,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
           cache: true
 
       - name: Build binary

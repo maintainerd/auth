@@ -17,10 +17,10 @@ export interface Invite {
   registration_flow_name?: string
 }
 
-/** Payload to send an invitation. registration_flow_uuid is optional — when omitted the
+/** Payload to send an invitation. registration_flow_id is optional — when omitted the
  * invitee onboards with only the default registered role and the active branding. */
 export interface SendInviteRequest {
   email: string
-  registration_flow_uuid?: string
+  registration_flow_id?: string
   callback_url?: string
 }

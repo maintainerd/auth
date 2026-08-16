@@ -36,7 +36,7 @@ export default function EventTypesPage({ standalone = true }: { standalone?: boo
   // Overrides only contain events with an explicit on/off; absence = enabled.
   const overrides = useMemo(() => {
     const map = new Map<string, boolean>()
-    for (const c of tenantConfigs ?? []) map.set(c.event_type_uuid, c.enabled)
+    for (const c of tenantConfigs ?? []) map.set(c.event_type_id, c.enabled)
     return map
   }, [tenantConfigs])
 
@@ -44,7 +44,7 @@ export default function EventTypesPage({ standalone = true }: { standalone?: boo
 
   const handleToggle = (eventType: EventType, enabled: boolean) => {
     setTenantEventType.mutate(
-      { event_type_uuid: eventType.uuid, enabled },
+      { event_type_id: eventType.uuid, enabled },
       {
         onSuccess: () => showSuccess(`${eventType.key} ${enabled ? "enabled" : "disabled"}`),
         onError: (error) => showError(error, "Failed to update event"),

@@ -10,8 +10,8 @@ import (
 
 // EmailConfig holds tenant-level SMTP delivery configuration.
 type EmailConfig struct {
-	EmailConfigID     int64          `gorm:"column:email_config_id;primaryKey;autoIncrement" json:"email_config_id"`
-	EmailConfigUUID   uuid.UUID      `gorm:"column:email_config_uuid;type:uuid;uniqueIndex;not null" json:"email_config_uuid"`
+	EmailConfigID     int64          `gorm:"column:email_config_id;primaryKey;autoIncrement" json:"-"`
+	EmailConfigUUID   uuid.UUID      `gorm:"column:email_config_uuid;type:uuid;uniqueIndex;not null" json:"email_config_id"`
 	TenantID          int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	Provider          string         `gorm:"column:provider;type:varchar(50);not null" json:"provider"`
 	Host              string         `gorm:"column:host;type:varchar(255)" json:"host"`

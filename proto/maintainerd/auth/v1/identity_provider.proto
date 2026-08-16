@@ -17,7 +17,7 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // kept as the agreed wire shape for the day a handler is written.
 
 message IdentityProvider {
-  string identity_provider_uuid = 1;
+  string identity_provider_id = 1;
   string name = 2;
   string display_name = 3;
   string provider = 4;
@@ -40,20 +40,20 @@ message IdentityProvider {
 }
 
 message RegistrationFlow {
-  string registration_flow_uuid = 1;
+  string registration_flow_id = 1;
   string name = 2;
   string description = 3;
   string identifier = 4;
   google.protobuf.Struct config = 5;
   string status = 6;
-  string client_uuid = 7;
+  string client_id = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
 }
 
 message RegistrationFlowRole {
-  string registration_flow_role_uuid = 1;
-  string role_uuid = 2;
+  string registration_flow_role_id = 1;
+  string role_id = 2;
   string role_name = 3;
   string role_description = 4;
   bool role_is_default = 5;
@@ -64,7 +64,7 @@ message RegistrationFlowRole {
 }
 
 message ListIdentityProvidersRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   repeated string provider = 4;
@@ -82,8 +82,8 @@ message ListIdentityProvidersResponse {
 }
 
 message GetIdentityProviderRequest {
-  string tenant_uuid = 1;
-  string identity_provider_uuid = 2;
+  string tenant_id = 1;
+  string identity_provider_id = 2;
 }
 
 message GetIdentityProviderResponse {
@@ -91,14 +91,14 @@ message GetIdentityProviderResponse {
 }
 
 message CreateIdentityProviderRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string provider = 4;
   string provider_type = 5;
   google.protobuf.Struct config = 6;
   string status = 7;
-  string actor_user_uuid = 8;
+  string actor_user_id = 8;
   string issuer = 9;
   string provider_client_id = 10;
   bool allow_jit_provisioning = 11;
@@ -112,15 +112,15 @@ message CreateIdentityProviderResponse {
 }
 
 message UpdateIdentityProviderRequest {
-  string tenant_uuid = 1;
-  string identity_provider_uuid = 2;
+  string tenant_id = 1;
+  string identity_provider_id = 2;
   string name = 3;
   string display_name = 4;
   string provider = 5;
   string provider_type = 6;
   google.protobuf.Struct config = 7;
   string status = 8;
-  string actor_user_uuid = 9;
+  string actor_user_id = 9;
   string issuer = 10;
   string provider_client_id = 11;
   bool allow_jit_provisioning = 12;
@@ -134,10 +134,10 @@ message UpdateIdentityProviderResponse {
 }
 
 message SetIdentityProviderStatusRequest {
-  string tenant_uuid = 1;
-  string identity_provider_uuid = 2;
+  string tenant_id = 1;
+  string identity_provider_id = 2;
   string status = 3;
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message SetIdentityProviderStatusResponse {
@@ -145,9 +145,9 @@ message SetIdentityProviderStatusResponse {
 }
 
 message DeleteIdentityProviderRequest {
-  string tenant_uuid = 1;
-  string identity_provider_uuid = 2;
-  string actor_user_uuid = 3;
+  string tenant_id = 1;
+  string identity_provider_id = 2;
+  string actor_user_id = 3;
 }
 
 message DeleteIdentityProviderResponse {
@@ -155,11 +155,11 @@ message DeleteIdentityProviderResponse {
 }
 
 message ListRegistrationFlowsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string identifier = 3;
   repeated string status = 4;
-  string client_uuid = 5;
+  string client_id = 5;
   Pagination pagination = 6;
 }
 
@@ -169,8 +169,8 @@ message ListRegistrationFlowsResponse {
 }
 
 message GetRegistrationFlowRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
 }
 
 message GetRegistrationFlowResponse {
@@ -178,12 +178,12 @@ message GetRegistrationFlowResponse {
 }
 
 message CreateRegistrationFlowRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string description = 3;
   google.protobuf.Struct config = 4;
   string status = 5;
-  string client_uuid = 6;
+  string client_id = 6;
 }
 
 message CreateRegistrationFlowResponse {
@@ -191,8 +191,8 @@ message CreateRegistrationFlowResponse {
 }
 
 message UpdateRegistrationFlowRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
   string name = 3;
   string description = 4;
   google.protobuf.Struct config = 5;
@@ -204,8 +204,8 @@ message UpdateRegistrationFlowResponse {
 }
 
 message SetRegistrationFlowStatusRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
   string status = 3;
 }
 
@@ -214,8 +214,8 @@ message SetRegistrationFlowStatusResponse {
 }
 
 message DeleteRegistrationFlowRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
 }
 
 message DeleteRegistrationFlowResponse {
@@ -223,9 +223,9 @@ message DeleteRegistrationFlowResponse {
 }
 
 message AssignRegistrationFlowRolesRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
-  repeated string role_uuids = 3;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
+  repeated string role_ids = 3;
 }
 
 message AssignRegistrationFlowRolesResponse {
@@ -233,8 +233,8 @@ message AssignRegistrationFlowRolesResponse {
 }
 
 message ListRegistrationFlowRolesRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
   Pagination pagination = 3;
 }
 
@@ -244,9 +244,9 @@ message ListRegistrationFlowRolesResponse {
 }
 
 message RemoveRegistrationFlowRoleRequest {
-  string tenant_uuid = 1;
-  string registration_flow_uuid = 2;
-  string role_uuid = 3;
+  string tenant_id = 1;
+  string registration_flow_id = 2;
+  string role_id = 3;
 }
 
 message RemoveRegistrationFlowRoleResponse {

@@ -9,8 +9,8 @@ import (
 
 // DeliveryHistory records the outcome of a webhook delivery attempt.
 type DeliveryHistory struct {
-	DeliveryHistoryID   int64      `gorm:"column:delivery_history_id;primaryKey;autoIncrement" json:"delivery_history_id"`
-	DeliveryHistoryUUID uuid.UUID  `gorm:"column:delivery_history_uuid;type:uuid;uniqueIndex;not null" json:"delivery_history_uuid"`
+	DeliveryHistoryID   int64      `gorm:"column:delivery_history_id;primaryKey;autoIncrement" json:"-"`
+	DeliveryHistoryUUID uuid.UUID  `gorm:"column:delivery_history_uuid;type:uuid;uniqueIndex;not null" json:"delivery_history_id"`
 	WebhookEndpointID   int64      `gorm:"column:webhook_endpoint_id;not null" json:"webhook_endpoint_id"`
 	EventID             uuid.UUID  `gorm:"column:event_id;type:uuid;not null" json:"event_id"`
 	EventType           string     `gorm:"column:event_type;type:varchar(100);not null" json:"event_type"`

@@ -18,7 +18,7 @@ export function WorkloadIdentityActions({ federation }: WorkloadIdentityActionsP
   const updateMutation = useUpdateWorkloadIdentity()
   const deleteMutation = useDeleteWorkloadIdentity()
 
-  const federationId = federation.workload_identity_federation_uuid
+  const federationId = federation.workload_identity_federation_id
 
   /**
    * Activation is a full-replace PUT, so every field has to be resent — omitting one

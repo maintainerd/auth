@@ -168,7 +168,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		res, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String()})
+		res, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -184,7 +184,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -197,7 +197,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "testuser", Password: "pass", Status: "active"})
+		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantId: tenantUUID.String(), Username: "testuser", Password: "pass", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,7 +210,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		res, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		res, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -226,7 +226,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuids: []string{roleUUID.String()}})
+		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleIds: []string{roleUUID.String()}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -239,7 +239,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: "bad"})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -253,7 +253,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -266,7 +266,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -279,7 +279,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -292,7 +292,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Status: "inactive"})
+		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Status: "inactive"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -305,7 +305,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Status: "inactive"})
+		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Status: "inactive"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -318,7 +318,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -331,7 +331,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -344,7 +344,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,7 +357,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -370,7 +370,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -383,7 +383,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -396,7 +396,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -409,7 +409,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -422,7 +422,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		res, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Force: true})
+		res, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Force: true})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -438,7 +438,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Force: true})
+		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Force: true})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -451,7 +451,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		res, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		res, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -467,7 +467,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -480,7 +480,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuid: roleUUID.String()})
+		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleId: roleUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -493,7 +493,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuid: roleUUID.String()})
+		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleId: roleUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -506,7 +506,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -519,7 +519,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "test", Password: "pass"})
+		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantId: tenantUUID.String(), Username: "test", Password: "pass"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -532,7 +532,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -545,7 +545,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuids: []string{roleUUID.String()}})
+		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleIds: []string{roleUUID.String()}})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -626,7 +626,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 	t.Run("assignRoles invalid role UUID", func(t *testing.T) {
 		svc := &testUserService{}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuids: []string{"bad"}})
+		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleIds: []string{"bad"}})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -638,7 +638,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 		}}
 		svc := &testUserService{}
 		h := NewUserGRPCHandler(errResolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -649,7 +649,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -660,7 +660,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "test", Password: "pass"})
+		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantId: tenantUUID.String(), Username: "test", Password: "pass"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -673,7 +673,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantUuid: tenantUUID.String(), Username: "test", Password: "pass", ActorUserUuid: "bad"})
+		_, err := h.CreateUser(ctx, &authv1.CreateUserRequest{TenantId: tenantUUID.String(), Username: "test", Password: "pass", ActorUserId: "bad"})
 		// INVERTED: the body field is no longer read, so garbage in it changes
 		// nothing — the actor comes from the verified token.
 		if err != nil {
@@ -686,7 +686,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -699,7 +699,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ActorUserUuid: "bad"})
+		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), ActorUserId: "bad"})
 		// INVERTED: the body field is no longer read, so garbage in it changes
 		// nothing — the actor comes from the verified token.
 		if err != nil {
@@ -712,7 +712,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Status: "inactive"})
+		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Status: "inactive"})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -725,7 +725,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Status: "inactive", ActorUserUuid: "bad"})
+		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Status: "inactive", ActorUserId: "bad"})
 		// INVERTED: the body field is no longer read, so garbage in it changes
 		// nothing — the actor comes from the verified token.
 		if err != nil {
@@ -738,7 +738,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -749,7 +749,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -760,7 +760,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -771,7 +771,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -784,7 +784,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), ActorUserUuid: "bad"})
+		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), ActorUserId: "bad"})
 		// INVERTED: the body field is no longer read, so garbage in it changes
 		// nothing — the actor comes from the verified token.
 		if err != nil {
@@ -797,7 +797,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), Force: true})
+		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), Force: true})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -805,7 +805,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("forcePasswordChange invalid user UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", Force: true})
+		_, err := h.ForceUserPasswordChange(ctx, &authv1.ForceUserPasswordChangeRequest{TenantId: tenantUUID.String(), UserId: "bad", Force: true})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -816,7 +816,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuids: []string{roleUUID.String()}})
+		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleIds: []string{roleUUID.String()}})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -827,7 +827,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuid: roleUUID.String()})
+		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleId: roleUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -857,7 +857,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String(), Email: "test@example.com"})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String(), Email: "test@example.com"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -873,7 +873,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String(), Phone: "+123"})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String(), Phone: "+123"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -882,7 +882,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 	t.Run("listUsers pagination validation error", func(t *testing.T) {
 		svc := &testUserService{}
 		h := NewUserGRPCHandler(resolver, svc)
-		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantUuid: tenantUUID.String(), Pagination: &authv1.Pagination{Page: -1}})
+		_, err := h.ListUsers(ctx, &authv1.ListUsersRequest{TenantId: tenantUUID.String(), Pagination: &authv1.Pagination{Page: -1}})
 		if err == nil {
 			t.Fatal("expected error")
 		}
@@ -890,7 +890,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("getUser invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.GetUser(ctx, &authv1.GetUserRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -898,7 +898,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("updateUser invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.UpdateUser(ctx, &authv1.UpdateUserRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -906,7 +906,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("setUserStatus invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", Status: "inactive"})
+		_, err := h.SetUserStatus(ctx, &authv1.SetUserStatusRequest{TenantId: tenantUUID.String(), UserId: "bad", Status: "inactive"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -914,7 +914,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("verifyEmail invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.VerifyUserEmail(ctx, &authv1.VerifyUserEmailRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -922,7 +922,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("verifyPhone invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.VerifyUserPhone(ctx, &authv1.VerifyUserPhoneRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -930,7 +930,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("completeAccount invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.CompleteUserAccount(ctx, &authv1.CompleteUserAccountRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -938,7 +938,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("deleteUser invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.DeleteUser(ctx, &authv1.DeleteUserRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -946,7 +946,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("listUserRoles invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -957,7 +957,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.ListUserRoles(ctx, &authv1.ListUserRolesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -965,7 +965,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("listUserIdentities invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad"})
+		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantId: tenantUUID.String(), UserId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -976,7 +976,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 			return nil, errors.New("tenant")
 		}}
 		h := NewUserGRPCHandler(errResolver, &testUserService{})
-		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String()})
+		_, err := h.ListUserIdentities(ctx, &authv1.ListUserIdentitiesRequest{TenantId: tenantUUID.String(), UserId: userUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -984,7 +984,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("assignUserRoles invalid UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", RoleUuids: []string{roleUUID.String()}})
+		_, err := h.AssignUserRoles(ctx, &authv1.AssignUserRolesRequest{TenantId: tenantUUID.String(), UserId: "bad", RoleIds: []string{roleUUID.String()}})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -992,7 +992,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("removeUserRole invalid user UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantUuid: tenantUUID.String(), UserUuid: "bad", RoleUuid: roleUUID.String()})
+		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantId: tenantUUID.String(), UserId: "bad", RoleId: roleUUID.String()})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -1000,7 +1000,7 @@ func TestUserGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("removeUserRole invalid role UUID", func(t *testing.T) {
 		h := NewUserGRPCHandler(resolver, &testUserService{})
-		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantUuid: tenantUUID.String(), UserUuid: userUUID.String(), RoleUuid: "bad"})
+		_, err := h.RemoveUserRole(ctx, &authv1.RemoveUserRoleRequest{TenantId: tenantUUID.String(), UserId: userUUID.String(), RoleId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}

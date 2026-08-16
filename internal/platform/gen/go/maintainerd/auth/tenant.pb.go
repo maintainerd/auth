@@ -25,7 +25,7 @@ const (
 
 type Tenant struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -68,9 +68,9 @@ func (*Tenant) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Tenant) GetTenantUuid() string {
+func (x *Tenant) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -133,7 +133,7 @@ func (x *Tenant) GetUpdatedAt() *timestamppb.Timestamp {
 
 type TenantMemberUser struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	UserUuid           string                 `protobuf:"bytes,1,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	UserId             string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Username           string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	Fullname           string                 `protobuf:"bytes,3,opt,name=fullname,proto3" json:"fullname,omitempty"`
 	Email              string                 `protobuf:"bytes,4,opt,name=email,proto3" json:"email,omitempty"`
@@ -180,9 +180,9 @@ func (*TenantMemberUser) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *TenantMemberUser) GetUserUuid() string {
+func (x *TenantMemberUser) GetUserId() string {
 	if x != nil {
-		return x.UserUuid
+		return x.UserId
 	}
 	return ""
 }
@@ -272,14 +272,14 @@ func (x *TenantMemberUser) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type TenantMember struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantMemberUuid string                 `protobuf:"bytes,1,opt,name=tenant_member_uuid,json=tenantMemberUuid,proto3" json:"tenant_member_uuid,omitempty"`
-	Role             string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
-	User             *TenantMemberUser      `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
-	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantMemberId string                 `protobuf:"bytes,1,opt,name=tenant_member_id,json=tenantMemberId,proto3" json:"tenant_member_id,omitempty"`
+	Role           string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	User           *TenantMemberUser      `protobuf:"bytes,3,opt,name=user,proto3" json:"user,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TenantMember) Reset() {
@@ -312,9 +312,9 @@ func (*TenantMember) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *TenantMember) GetTenantMemberUuid() string {
+func (x *TenantMember) GetTenantMemberId() string {
 	if x != nil {
-		return x.TenantMemberUuid
+		return x.TenantMemberId
 	}
 	return ""
 }
@@ -701,7 +701,7 @@ func (x *ListTenantsResponse) GetPage() *PageMetadata {
 
 type GetTenantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -736,9 +736,9 @@ func (*GetTenantRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *GetTenantRequest) GetTenantUuid() string {
+func (x *GetTenantRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -901,7 +901,7 @@ func (x *TenantServiceCreateTenantResponse) GetTenant() *Tenant {
 
 type TenantServiceUpdateTenantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -940,9 +940,9 @@ func (*TenantServiceUpdateTenantRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *TenantServiceUpdateTenantRequest) GetTenantUuid() string {
+func (x *TenantServiceUpdateTenantRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1021,7 +1021,7 @@ func (x *TenantServiceUpdateTenantResponse) GetTenant() *Tenant {
 
 type SetTenantStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1057,9 +1057,9 @@ func (*SetTenantStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SetTenantStatusRequest) GetTenantUuid() string {
+func (x *SetTenantStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1117,8 +1117,8 @@ func (x *SetTenantStatusResponse) GetTenant() *Tenant {
 
 type DeleteTenantRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,2,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,2,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1153,16 +1153,16 @@ func (*DeleteTenantRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *DeleteTenantRequest) GetTenantUuid() string {
+func (x *DeleteTenantRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeleteTenantRequest) GetActorUserUuid() string {
+func (x *DeleteTenantRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1213,7 +1213,7 @@ func (x *DeleteTenantResponse) GetTenant() *Tenant {
 
 type ListTenantMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,3,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1250,9 +1250,9 @@ func (*ListTenantMembersRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ListTenantMembersRequest) GetTenantUuid() string {
+func (x *ListTenantMembersRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1325,10 +1325,10 @@ func (x *ListTenantMembersResponse) GetPage() *PageMetadata {
 
 type AddTenantMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	UserUuid      string                 `protobuf:"bytes,2,opt,name=user_uuid,json=userUuid,proto3" json:"user_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
-	ActorUserUuid string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
+	ActorUserId   string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1363,16 +1363,16 @@ func (*AddTenantMemberRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *AddTenantMemberRequest) GetTenantUuid() string {
+func (x *AddTenantMemberRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *AddTenantMemberRequest) GetUserUuid() string {
+func (x *AddTenantMemberRequest) GetUserId() string {
 	if x != nil {
-		return x.UserUuid
+		return x.UserId
 	}
 	return ""
 }
@@ -1384,9 +1384,9 @@ func (x *AddTenantMemberRequest) GetRole() string {
 	return ""
 }
 
-func (x *AddTenantMemberRequest) GetActorUserUuid() string {
+func (x *AddTenantMemberRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1436,13 +1436,13 @@ func (x *AddTenantMemberResponse) GetMember() *TenantMember {
 }
 
 type UpdateTenantMemberRoleRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	TenantMemberUuid string                 `protobuf:"bytes,2,opt,name=tenant_member_uuid,json=tenantMemberUuid,proto3" json:"tenant_member_uuid,omitempty"`
-	Role             string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
-	ActorUserUuid    string                 `protobuf:"bytes,4,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantMemberId string                 `protobuf:"bytes,2,opt,name=tenant_member_id,json=tenantMemberId,proto3" json:"tenant_member_id,omitempty"`
+	Role           string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	ActorUserId    string                 `protobuf:"bytes,4,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateTenantMemberRoleRequest) Reset() {
@@ -1475,16 +1475,16 @@ func (*UpdateTenantMemberRoleRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *UpdateTenantMemberRoleRequest) GetTenantUuid() string {
+func (x *UpdateTenantMemberRoleRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdateTenantMemberRoleRequest) GetTenantMemberUuid() string {
+func (x *UpdateTenantMemberRoleRequest) GetTenantMemberId() string {
 	if x != nil {
-		return x.TenantMemberUuid
+		return x.TenantMemberId
 	}
 	return ""
 }
@@ -1496,9 +1496,9 @@ func (x *UpdateTenantMemberRoleRequest) GetRole() string {
 	return ""
 }
 
-func (x *UpdateTenantMemberRoleRequest) GetActorUserUuid() string {
+func (x *UpdateTenantMemberRoleRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1548,12 +1548,12 @@ func (x *UpdateTenantMemberRoleResponse) GetMember() *TenantMember {
 }
 
 type RemoveTenantMemberRequest struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid       string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	TenantMemberUuid string                 `protobuf:"bytes,2,opt,name=tenant_member_uuid,json=tenantMemberUuid,proto3" json:"tenant_member_uuid,omitempty"`
-	ActorUserUuid    string                 `protobuf:"bytes,3,opt,name=actor_user_uuid,json=actorUserUuid,proto3" json:"actor_user_uuid,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TenantId       string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantMemberId string                 `protobuf:"bytes,2,opt,name=tenant_member_id,json=tenantMemberId,proto3" json:"tenant_member_id,omitempty"`
+	ActorUserId    string                 `protobuf:"bytes,3,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RemoveTenantMemberRequest) Reset() {
@@ -1586,23 +1586,23 @@ func (*RemoveTenantMemberRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *RemoveTenantMemberRequest) GetTenantUuid() string {
+func (x *RemoveTenantMemberRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *RemoveTenantMemberRequest) GetTenantMemberUuid() string {
+func (x *RemoveTenantMemberRequest) GetTenantMemberId() string {
 	if x != nil {
-		return x.TenantMemberUuid
+		return x.TenantMemberId
 	}
 	return ""
 }
 
-func (x *RemoveTenantMemberRequest) GetActorUserUuid() string {
+func (x *RemoveTenantMemberRequest) GetActorUserId() string {
 	if x != nil {
-		return x.ActorUserUuid
+		return x.ActorUserId
 	}
 	return ""
 }
@@ -1653,7 +1653,7 @@ func (x *RemoveTenantMemberResponse) GetRemoved() bool {
 
 type GetRateLimitConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1688,9 +1688,9 @@ func (*GetRateLimitConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{27}
 }
 
-func (x *GetRateLimitConfigRequest) GetTenantUuid() string {
+func (x *GetRateLimitConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1741,7 +1741,7 @@ func (x *GetRateLimitConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateRateLimitConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1777,9 +1777,9 @@ func (*UpdateRateLimitConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *UpdateRateLimitConfigRequest) GetTenantUuid() string {
+func (x *UpdateRateLimitConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1837,7 +1837,7 @@ func (x *UpdateRateLimitConfigResponse) GetConfig() *structpb.Struct {
 
 type GetAuditConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1872,9 +1872,9 @@ func (*GetAuditConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *GetAuditConfigRequest) GetTenantUuid() string {
+func (x *GetAuditConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -1925,7 +1925,7 @@ func (x *GetAuditConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateAuditConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1961,9 +1961,9 @@ func (*UpdateAuditConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{33}
 }
 
-func (x *UpdateAuditConfigRequest) GetTenantUuid() string {
+func (x *UpdateAuditConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -2021,7 +2021,7 @@ func (x *UpdateAuditConfigResponse) GetConfig() *structpb.Struct {
 
 type GetMaintenanceConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2056,9 +2056,9 @@ func (*GetMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *GetMaintenanceConfigRequest) GetTenantUuid() string {
+func (x *GetMaintenanceConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -2109,7 +2109,7 @@ func (x *GetMaintenanceConfigResponse) GetConfig() *structpb.Struct {
 
 type UpdateMaintenanceConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Config        *structpb.Struct       `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2145,9 +2145,9 @@ func (*UpdateMaintenanceConfigRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_tenant_proto_rawDescGZIP(), []int{37}
 }
 
-func (x *UpdateMaintenanceConfigRequest) GetTenantUuid() string {
+func (x *UpdateMaintenanceConfigRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -2207,10 +2207,9 @@ var File_maintainerd_auth_v1_tenant_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/tenant.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x02\n" +
-	"\x06Tenant\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	" maintainerd/auth/v1/tenant.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xde\x02\n" +
+	"\x06Tenant\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
@@ -2221,9 +2220,9 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x92\x04\n" +
-	"\x10TenantMemberUser\x12\x1b\n" +
-	"\tuser_uuid\x18\x01 \x01(\tR\buserUuid\x12\x1a\n" +
+	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8e\x04\n" +
+	"\x10TenantMemberUser\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
 	"\bfullname\x18\x03 \x01(\tR\bfullname\x12\x14\n" +
 	"\x05email\x18\x04 \x01(\tR\x05email\x12\x14\n" +
@@ -2238,9 +2237,9 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x81\x02\n" +
-	"\fTenantMember\x12,\n" +
-	"\x12tenant_member_uuid\x18\x01 \x01(\tR\x10tenantMemberUuid\x12\x12\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xfd\x01\n" +
+	"\fTenantMember\x12(\n" +
+	"\x10tenant_member_id\x18\x01 \x01(\tR\x0etenantMemberId\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x129\n" +
 	"\x04user\x18\x03 \x01(\v2%.maintainerd.auth.v1.TenantMemberUserR\x04user\x129\n" +
 	"\n" +
@@ -2276,10 +2275,9 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"_is_system\"\x83\x01\n" +
 	"\x13ListTenantsResponse\x125\n" +
 	"\atenants\x18\x01 \x03(\v2\x1b.maintainerd.auth.v1.TenantR\atenants\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"3\n" +
-	"\x10GetTenantRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"H\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"/\n" +
+	"\x10GetTenantRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"H\n" +
 	"\x11GetTenantResponse\x123\n" +
 	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x93\x01\n" +
 	" TenantServiceCreateTenantRequest\x12\x12\n" +
@@ -2288,91 +2286,78 @@ const file_maintainerd_auth_v1_tenant_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\"X\n" +
 	"!TenantServiceCreateTenantResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xb4\x01\n" +
-	" TenantServiceUpdateTenantRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\xb0\x01\n" +
+	" TenantServiceUpdateTenantRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\"X\n" +
 	"!TenantServiceUpdateTenantResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"Q\n" +
-	"\x16SetTenantStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x16\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"M\n" +
+	"\x16SetTenantStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"N\n" +
 	"\x17SetTenantStatusResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"^\n" +
-	"\x13DeleteTenantRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x02 \x01(\tR\ractorUserUuid\"K\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"V\n" +
+	"\x13DeleteTenantRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\"\n" +
+	"\ractor_user_id\x18\x02 \x01(\tR\vactorUserId\"K\n" +
 	"\x14DeleteTenantResponse\x123\n" +
-	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x90\x01\n" +
-	"\x18ListTenantMembersRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x06tenant\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.TenantR\x06tenant\"\x8c\x01\n" +
+	"\x18ListTenantMembersRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12?\n" +
 	"\n" +
 	"pagination\x18\x03 \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"pagination\"\x8f\x01\n" +
 	"\x19ListTenantMembersResponse\x12;\n" +
 	"\amembers\x18\x01 \x03(\v2!.maintainerd.auth.v1.TenantMemberR\amembers\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x92\x01\n" +
-	"\x16AddTenantMemberRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1b\n" +
-	"\tuser_uuid\x18\x02 \x01(\tR\buserUuid\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"T\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\x86\x01\n" +
+	"\x16AddTenantMemberRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"T\n" +
 	"\x17AddTenantMemberResponse\x129\n" +
-	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\xaa\x01\n" +
-	"\x1dUpdateTenantMemberRoleRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12,\n" +
-	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\x12&\n" +
-	"\x0factor_user_uuid\x18\x04 \x01(\tR\ractorUserUuid\"[\n" +
+	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\x9e\x01\n" +
+	"\x1dUpdateTenantMemberRoleRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12(\n" +
+	"\x10tenant_member_id\x18\x02 \x01(\tR\x0etenantMemberId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12\"\n" +
+	"\ractor_user_id\x18\x04 \x01(\tR\vactorUserId\"[\n" +
 	"\x1eUpdateTenantMemberRoleResponse\x129\n" +
-	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\x92\x01\n" +
-	"\x19RemoveTenantMemberRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12,\n" +
-	"\x12tenant_member_uuid\x18\x02 \x01(\tR\x10tenantMemberUuid\x12&\n" +
-	"\x0factor_user_uuid\x18\x03 \x01(\tR\ractorUserUuid\"6\n" +
+	"\x06member\x18\x01 \x01(\v2!.maintainerd.auth.v1.TenantMemberR\x06member\"\x86\x01\n" +
+	"\x19RemoveTenantMemberRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12(\n" +
+	"\x10tenant_member_id\x18\x02 \x01(\tR\x0etenantMemberId\x12\"\n" +
+	"\ractor_user_id\x18\x03 \x01(\tR\vactorUserId\"6\n" +
 	"\x1aRemoveTenantMemberResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved\"<\n" +
-	"\x19GetRateLimitConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"M\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved\"8\n" +
+	"\x19GetRateLimitConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"M\n" +
 	"\x1aGetRateLimitConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"p\n" +
-	"\x1cUpdateRateLimitConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"l\n" +
+	"\x1cUpdateRateLimitConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"P\n" +
 	"\x1dUpdateRateLimitConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"8\n" +
-	"\x15GetAuditConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"I\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"4\n" +
+	"\x15GetAuditConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"I\n" +
 	"\x16GetAuditConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"l\n" +
-	"\x18UpdateAuditConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"h\n" +
+	"\x18UpdateAuditConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"L\n" +
 	"\x19UpdateAuditConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\">\n" +
-	"\x1bGetMaintenanceConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\"O\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\":\n" +
+	"\x1bGetMaintenanceConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\"O\n" +
 	"\x1cGetMaintenanceConfigResponse\x12/\n" +
-	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"r\n" +
-	"\x1eUpdateMaintenanceConfigRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12/\n" +
+	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config\"n\n" +
+	"\x1eUpdateMaintenanceConfigRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\"R\n" +
 	"\x1fUpdateMaintenanceConfigResponse\x12/\n" +
 	"\x06config\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06config2\xec\t\n" +

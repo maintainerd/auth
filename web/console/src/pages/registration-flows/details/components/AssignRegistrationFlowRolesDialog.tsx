@@ -87,7 +87,7 @@ export function AssignRegistrationFlowRolesDialog({
     try {
       await assignRolesMutation.mutateAsync({
         registrationFlowId,
-        data: { role_uuids: selectedRoles }
+        data: { role_ids: selectedRoles }
       })
 
       showSuccess(`${selectedRoles.length} role${selectedRoles.length !== 1 ? 's' : ''} assigned successfully`)

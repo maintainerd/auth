@@ -21,7 +21,7 @@ service ServiceService {
 }
 
 message Service {
-  string service_uuid = 1;
+  string service_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -52,7 +52,7 @@ message GetMyPolicyBundleResponse {
 }
 
 message ListServicesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -68,8 +68,8 @@ message ListServicesResponse {
 }
 
 message GetServiceRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
+  string tenant_id = 1;
+  string service_id = 2;
 }
 
 message GetServiceResponse {
@@ -77,7 +77,7 @@ message GetServiceResponse {
 }
 
 message CreateServiceRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -90,8 +90,8 @@ message CreateServiceResponse {
 }
 
 message UpdateServiceRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
+  string tenant_id = 1;
+  string service_id = 2;
   string name = 3;
   string display_name = 4;
   string description = 5;
@@ -104,8 +104,8 @@ message UpdateServiceResponse {
 }
 
 message SetServiceStatusRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
+  string tenant_id = 1;
+  string service_id = 2;
   string status = 3;
 }
 
@@ -114,8 +114,8 @@ message SetServiceStatusResponse {
 }
 
 message DeleteServiceRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
+  string tenant_id = 1;
+  string service_id = 2;
 }
 
 message DeleteServiceResponse {
@@ -123,9 +123,9 @@ message DeleteServiceResponse {
 }
 
 message AssignServicePolicyRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
-  string policy_uuid = 3;
+  string tenant_id = 1;
+  string service_id = 2;
+  string policy_id = 3;
 }
 
 message AssignServicePolicyResponse {
@@ -133,9 +133,9 @@ message AssignServicePolicyResponse {
 }
 
 message RemoveServicePolicyRequest {
-  string tenant_uuid = 1;
-  string service_uuid = 2;
-  string policy_uuid = 3;
+  string tenant_id = 1;
+  string service_id = 2;
+  string policy_id = 3;
 }
 
 message RemoveServicePolicyResponse {

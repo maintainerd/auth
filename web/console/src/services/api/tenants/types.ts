@@ -130,11 +130,11 @@ export interface TenantBootstrapClient {
 
 /**
  * Tenant summary embedded in the bootstrap response. Note the id field is
- * `tenant_uuid` here (the public surface names it differently from the internal
+ * `tenant_id` here (the public surface names it differently from the internal
  * `tenant_id`); it is normalized to `tenant_id` when stored in tenant state.
  */
 export interface TenantBootstrapTenant {
-  tenant_uuid: string
+  tenant_id: string
   name: string
   display_name: string
   description: string

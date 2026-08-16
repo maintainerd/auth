@@ -16,7 +16,7 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // are kept as the agreed wire shape for the day a handler is written.
 
 message AuthEvent {
-  string auth_event_uuid = 1;
+  string auth_event_id = 1;
   string category = 2;
   string event_type = 3;
   string severity = 4;
@@ -31,7 +31,7 @@ message AuthEvent {
 }
 
 message ListAuthEventsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string event_type = 2;
   string category = 3;
   string severity = 4;
@@ -42,7 +42,7 @@ message ListAuthEventsRequest {
   Pagination pagination = 9;
 }
 message ListAuthEventsResponse { repeated AuthEvent events = 1; PageMetadata page = 2; }
-message GetAuthEventRequest { string tenant_uuid = 1; string auth_event_uuid = 2; }
+message GetAuthEventRequest { string tenant_id = 1; string auth_event_id = 2; }
 message GetAuthEventResponse { AuthEvent event = 1; }
-message CountAuthEventsByTypeRequest { string tenant_uuid = 1; string event_type = 2; }
+message CountAuthEventsByTypeRequest { string tenant_id = 1; string event_type = 2; }
 message CountAuthEventsByTypeResponse { int64 count = 1; }

@@ -18,7 +18,7 @@ service APIService {
 }
 
 message API {
-  string api_uuid = 1;
+  string api_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -31,11 +31,11 @@ message API {
 }
 
 message ListAPIsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string identifier = 5;
-  string service_uuid = 6;
+  string service_id = 6;
   repeated string status = 7;
   optional bool is_system = 8;
   Pagination pagination = 9;
@@ -47,8 +47,8 @@ message ListAPIsResponse {
 }
 
 message GetAPIRequest {
-  string tenant_uuid = 1;
-  string api_uuid = 2;
+  string tenant_id = 1;
+  string api_id = 2;
 }
 
 message GetAPIResponse {
@@ -56,12 +56,12 @@ message GetAPIResponse {
 }
 
 message CreateAPIRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
   string status = 6;
-  string service_uuid = 7;
+  string service_id = 7;
 }
 
 message CreateAPIResponse {
@@ -69,13 +69,13 @@ message CreateAPIResponse {
 }
 
 message UpdateAPIRequest {
-  string tenant_uuid = 1;
-  string api_uuid = 2;
+  string tenant_id = 1;
+  string api_id = 2;
   string name = 3;
   string display_name = 4;
   string description = 5;
   string status = 7;
-  string service_uuid = 8;
+  string service_id = 8;
 }
 
 message UpdateAPIResponse {
@@ -83,8 +83,8 @@ message UpdateAPIResponse {
 }
 
 message SetAPIStatusRequest {
-  string tenant_uuid = 1;
-  string api_uuid = 2;
+  string tenant_id = 1;
+  string api_id = 2;
   string status = 3;
 }
 
@@ -93,8 +93,8 @@ message SetAPIStatusResponse {
 }
 
 message DeleteAPIRequest {
-  string tenant_uuid = 1;
-  string api_uuid = 2;
+  string tenant_id = 1;
+  string api_id = 2;
 }
 
 message DeleteAPIResponse {

@@ -16,7 +16,7 @@ message IntrospectRequest {
 message IntrospectResponse {
   bool active = 1;
   string scope = 2;
-  string client_id = 3;
+  string oauth_client_id = 3;
   string username = 4;
   string token_type = 5;
   int64 exp = 6;

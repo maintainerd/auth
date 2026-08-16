@@ -82,13 +82,13 @@ export function useToggleEventRoute() {
       enabled: boolean
     }) => {
       const routes = queryClient.getQueryData<EventRoute[]>(eventRouteKeys.list()) ?? []
-      const existing = routes.find((r) => r.event_type_uuid === eventTypeUuid)
+      const existing = routes.find((r) => r.event_type_id === eventTypeUuid)
 
       if (enabled) {
         if (existing) {
           return updateEventRoute(existing.uuid, { enabled: true })
         }
-        return createEventRoute({ event_type_uuid: eventTypeUuid })
+        return createEventRoute({ event_type_id: eventTypeUuid })
       }
       if (existing) {
         return updateEventRoute(existing.uuid, { enabled: false })

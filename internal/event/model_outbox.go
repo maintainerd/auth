@@ -10,14 +10,14 @@ import (
 
 // Outbox represents a durable integration event record in the transactional outbox.
 type Outbox struct {
-	OutboxID      int64          `gorm:"column:outbox_id;primaryKey;autoIncrement" json:"outbox_id"`
-	OutboxUUID    uuid.UUID      `gorm:"column:outbox_uuid;type:uuid;uniqueIndex;not null" json:"outbox_uuid"`
+	OutboxID      int64          `gorm:"column:outbox_id;primaryKey;autoIncrement" json:"-"`
+	OutboxUUID    uuid.UUID      `gorm:"column:outbox_uuid;type:uuid;uniqueIndex;not null" json:"outbox_id"`
 	EventID       uuid.UUID      `gorm:"column:event_id;type:uuid;not null" json:"event_id"`
 	EventType     string         `gorm:"column:event_type;type:varchar(100);not null" json:"event_type"`
 	EventVersion  int            `gorm:"column:event_version;not null;default:1" json:"event_version"`
 	TenantID      int64          `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	ActorUserID   *int64         `gorm:"column:actor_user_id" json:"actor_user_id"`
-	SubjectUUID   *uuid.UUID     `gorm:"column:subject_uuid;type:uuid" json:"subject_uuid"`
+	SubjectUUID   *uuid.UUID     `gorm:"column:subject_uuid;type:uuid" json:"subject_id"`
 	SubjectType   string         `gorm:"column:subject_type;type:varchar(50)" json:"subject_type"`
 	ChangedFields datatypes.JSON `gorm:"column:changed_fields;type:jsonb;default:'[]'" json:"changed_fields"`
 	Payload       datatypes.JSON `gorm:"column:payload;type:jsonb;not null;default:'{}'" json:"payload"`

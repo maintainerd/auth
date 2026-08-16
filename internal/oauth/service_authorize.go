@@ -178,7 +178,7 @@ type OAuthAuthorizeService interface {
 
 // BrokerResumeRequestDTO is the request body for POST /oauth/broker/resume.
 type BrokerResumeRequestDTO struct {
-	BrokerSessionUUID string `json:"broker_session_uuid"`
+	BrokerSessionUUID string `json:"broker_session_id"`
 	AccountLinkToken  string `json:"account_link_token"`
 }
 

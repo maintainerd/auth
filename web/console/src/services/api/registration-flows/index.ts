@@ -179,7 +179,7 @@ export async function assignRegistrationFlowRoles(
 ): Promise<RegistrationFlowRole[]> {
   const endpoint = `${API_ENDPOINTS.REGISTRATION_FLOW}/${registrationFlowId}/roles`
   const response = await post<ApiResponse<RegistrationFlowRole[]>>(endpoint, {
-    role_uuids: roleUuids,
+    role_ids: roleUuids,
   })
 
   if (response.success && response.data) {

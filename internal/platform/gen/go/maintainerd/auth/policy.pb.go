@@ -25,7 +25,7 @@ const (
 
 type Policy struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	PolicyUuid    string                 `protobuf:"bytes,1,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Document      *structpb.Struct       `protobuf:"bytes,4,opt,name=document,proto3" json:"document,omitempty"`
@@ -68,9 +68,9 @@ func (*Policy) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Policy) GetPolicyUuid() string {
+func (x *Policy) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -133,13 +133,13 @@ func (x *Policy) GetUpdatedAt() *timestamppb.Timestamp {
 
 type ListPoliciesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	Version       string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
 	Status        []string               `protobuf:"bytes,5,rep,name=status,proto3" json:"status,omitempty"`
 	IsSystem      *bool                  `protobuf:"varint,6,opt,name=is_system,json=isSystem,proto3,oneof" json:"is_system,omitempty"`
-	ServiceUuid   string                 `protobuf:"bytes,7,opt,name=service_uuid,json=serviceUuid,proto3" json:"service_uuid,omitempty"`
+	ServiceId     string                 `protobuf:"bytes,7,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	Pagination    *Pagination            `protobuf:"bytes,8,opt,name=pagination,proto3" json:"pagination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -175,9 +175,9 @@ func (*ListPoliciesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ListPoliciesRequest) GetTenantUuid() string {
+func (x *ListPoliciesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -217,9 +217,9 @@ func (x *ListPoliciesRequest) GetIsSystem() bool {
 	return false
 }
 
-func (x *ListPoliciesRequest) GetServiceUuid() string {
+func (x *ListPoliciesRequest) GetServiceId() string {
 	if x != nil {
-		return x.ServiceUuid
+		return x.ServiceId
 	}
 	return ""
 }
@@ -285,8 +285,8 @@ func (x *ListPoliciesResponse) GetPage() *PageMetadata {
 
 type GetPolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,2,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -321,16 +321,16 @@ func (*GetPolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetPolicyRequest) GetTenantUuid() string {
+func (x *GetPolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *GetPolicyRequest) GetPolicyUuid() string {
+func (x *GetPolicyRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -381,8 +381,8 @@ func (x *GetPolicyResponse) GetPolicy() *Policy {
 
 type ListPolicyServicesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,2,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
@@ -421,16 +421,16 @@ func (*ListPolicyServicesRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListPolicyServicesRequest) GetTenantUuid() string {
+func (x *ListPolicyServicesRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *ListPolicyServicesRequest) GetPolicyUuid() string {
+func (x *ListPolicyServicesRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -517,7 +517,7 @@ func (x *ListPolicyServicesResponse) GetPage() *PageMetadata {
 
 type CreatePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Document      *structpb.Struct       `protobuf:"bytes,4,opt,name=document,proto3" json:"document,omitempty"`
@@ -557,9 +557,9 @@ func (*CreatePolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CreatePolicyRequest) GetTenantUuid() string {
+func (x *CreatePolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
@@ -645,8 +645,8 @@ func (x *CreatePolicyResponse) GetPolicy() *Policy {
 
 type UpdatePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,2,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	Document      *structpb.Struct       `protobuf:"bytes,5,opt,name=document,proto3" json:"document,omitempty"`
@@ -686,16 +686,16 @@ func (*UpdatePolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *UpdatePolicyRequest) GetTenantUuid() string {
+func (x *UpdatePolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *UpdatePolicyRequest) GetPolicyUuid() string {
+func (x *UpdatePolicyRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -781,8 +781,8 @@ func (x *UpdatePolicyResponse) GetPolicy() *Policy {
 
 type SetPolicyStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,2,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -818,16 +818,16 @@ func (*SetPolicyStatusRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *SetPolicyStatusRequest) GetTenantUuid() string {
+func (x *SetPolicyStatusRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *SetPolicyStatusRequest) GetPolicyUuid() string {
+func (x *SetPolicyStatusRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -885,8 +885,8 @@ func (x *SetPolicyStatusResponse) GetPolicy() *Policy {
 
 type DeletePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TenantUuid    string                 `protobuf:"bytes,1,opt,name=tenant_uuid,json=tenantUuid,proto3" json:"tenant_uuid,omitempty"`
-	PolicyUuid    string                 `protobuf:"bytes,2,opt,name=policy_uuid,json=policyUuid,proto3" json:"policy_uuid,omitempty"`
+	TenantId      string                 `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	PolicyId      string                 `protobuf:"bytes,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -921,16 +921,16 @@ func (*DeletePolicyRequest) Descriptor() ([]byte, []int) {
 	return file_maintainerd_auth_v1_policy_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *DeletePolicyRequest) GetTenantUuid() string {
+func (x *DeletePolicyRequest) GetTenantId() string {
 	if x != nil {
-		return x.TenantUuid
+		return x.TenantId
 	}
 	return ""
 }
 
-func (x *DeletePolicyRequest) GetPolicyUuid() string {
+func (x *DeletePolicyRequest) GetPolicyId() string {
 	if x != nil {
-		return x.PolicyUuid
+		return x.PolicyId
 	}
 	return ""
 }
@@ -983,10 +983,9 @@ var File_maintainerd_auth_v1_policy_proto protoreflect.FileDescriptor
 
 const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"\n" +
-	" maintainerd/auth/v1/policy.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\xee\x02\n" +
-	"\x06Policy\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x01 \x01(\tR\n" +
-	"policyUuid\x12\x12\n" +
+	" maintainerd/auth/v1/policy.proto\x12\x13maintainerd.auth.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a!maintainerd/auth/v1/service.proto\x1a maintainerd/auth/v1/tenant.proto\"\xea\x02\n" +
+	"\x06Policy\x12\x1b\n" +
+	"\tpolicy_id\x18\x01 \x01(\tR\bpolicyId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x123\n" +
 	"\bdocument\x18\x04 \x01(\v2\x17.google.protobuf.StructR\bdocument\x12\x18\n" +
@@ -997,16 +996,16 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"\xb2\x02\n" +
-	"\x13ListPoliciesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\f_description\"\xaa\x02\n" +
+	"\x13ListPoliciesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12\x16\n" +
 	"\x06status\x18\x05 \x03(\tR\x06status\x12 \n" +
-	"\tis_system\x18\x06 \x01(\bH\x00R\bisSystem\x88\x01\x01\x12!\n" +
-	"\fservice_uuid\x18\a \x01(\tR\vserviceUuid\x12?\n" +
+	"\tis_system\x18\x06 \x01(\bH\x00R\bisSystem\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\a \x01(\tR\tserviceId\x12?\n" +
 	"\n" +
 	"pagination\x18\b \x01(\v2\x1f.maintainerd.auth.v1.PaginationR\n" +
 	"paginationB\f\n" +
@@ -1014,19 +1013,15 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"_is_system\"\x86\x01\n" +
 	"\x14ListPoliciesResponse\x127\n" +
 	"\bpolicies\x18\x01 \x03(\v2\x1b.maintainerd.auth.v1.PolicyR\bpolicies\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"T\n" +
-	"\x10GetPolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x02 \x01(\tR\n" +
-	"policyUuid\"H\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"L\n" +
+	"\x10GetPolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\"H\n" +
 	"\x11GetPolicyResponse\x123\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"\xf7\x01\n" +
-	"\x19ListPolicyServicesRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x02 \x01(\tR\n" +
-	"policyUuid\x12\x12\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"\xef\x01\n" +
+	"\x19ListPolicyServicesRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12?\n" +
@@ -1035,10 +1030,9 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"pagination\"\x8d\x01\n" +
 	"\x1aListPolicyServicesResponse\x128\n" +
 	"\bservices\x18\x01 \x03(\v2\x1c.maintainerd.auth.v1.ServiceR\bservices\x125\n" +
-	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\xe8\x01\n" +
-	"\x13CreatePolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\v2!.maintainerd.auth.v1.PageMetadataR\x04page\"\xe4\x01\n" +
+	"\x13CreatePolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x123\n" +
 	"\bdocument\x18\x04 \x01(\v2\x17.google.protobuf.StructR\bdocument\x12\x18\n" +
@@ -1046,12 +1040,10 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"\x06status\x18\x06 \x01(\tR\x06statusB\x0e\n" +
 	"\f_description\"K\n" +
 	"\x14CreatePolicyResponse\x123\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"\x89\x02\n" +
-	"\x13UpdatePolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x02 \x01(\tR\n" +
-	"policyUuid\x12\x12\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"\x81\x02\n" +
+	"\x13UpdatePolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x123\n" +
 	"\bdocument\x18\x05 \x01(\v2\x17.google.protobuf.StructR\bdocument\x12\x18\n" +
@@ -1059,20 +1051,16 @@ const file_maintainerd_auth_v1_policy_proto_rawDesc = "" +
 	"\x06status\x18\a \x01(\tR\x06statusB\x0e\n" +
 	"\f_description\"K\n" +
 	"\x14UpdatePolicyResponse\x123\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"r\n" +
-	"\x16SetPolicyStatusRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x02 \x01(\tR\n" +
-	"policyUuid\x12\x16\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"j\n" +
+	"\x16SetPolicyStatusRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"N\n" +
 	"\x17SetPolicyStatusResponse\x123\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"W\n" +
-	"\x13DeletePolicyRequest\x12\x1f\n" +
-	"\vtenant_uuid\x18\x01 \x01(\tR\n" +
-	"tenantUuid\x12\x1f\n" +
-	"\vpolicy_uuid\x18\x02 \x01(\tR\n" +
-	"policyUuid\"K\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy\"O\n" +
+	"\x13DeletePolicyRequest\x12\x1b\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x1b\n" +
+	"\tpolicy_id\x18\x02 \x01(\tR\bpolicyId\"K\n" +
 	"\x14DeletePolicyResponse\x123\n" +
 	"\x06policy\x18\x01 \x01(\v2\x1b.maintainerd.auth.v1.PolicyR\x06policy2\xe4\x05\n" +
 	"\rPolicyService\x12c\n" +

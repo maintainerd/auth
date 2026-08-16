@@ -348,7 +348,7 @@ export async function fetchClientRoles(clientId: string): Promise<Role[]> {
 export async function addClientRole(clientId: string, roleUuid: string): Promise<void> {
   const response = await post<ApiResponse<void>>(
     API_ENDPOINTS.CLIENT_ROLES(clientId),
-    { role_uuid: roleUuid },
+    { role_id: roleUuid },
   )
   if (!response.success) throw new Error(response.message || 'Failed to add client role')
 }

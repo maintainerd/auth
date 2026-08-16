@@ -800,7 +800,7 @@ export default function ClientAddOrUpdateForm() {
 
               <div className="space-y-1">
                 <Label>Client ID</Label>
-                <CopyableCode value={issuedSecret.client_id} label="Client ID" variant="block" />
+                <CopyableCode value={issuedSecret.oauth_client_id} label="Client ID" variant="block" />
               </div>
               <div className="space-y-1">
                 <Label>Client secret</Label>

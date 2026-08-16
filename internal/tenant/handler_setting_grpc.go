@@ -71,7 +71,7 @@ func configStruct(cfg map[string]any) (*structpb.Struct, error) {
 }
 
 func (h *TenantSettingGRPCHandler) GetRateLimitConfig(ctx context.Context, req *authv1.GetRateLimitConfigRequest) (*authv1.GetRateLimitConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (h *TenantSettingGRPCHandler) GetRateLimitConfig(ctx context.Context, req *
 }
 
 func (h *TenantSettingGRPCHandler) UpdateRateLimitConfig(ctx context.Context, req *authv1.UpdateRateLimitConfigRequest) (*authv1.UpdateRateLimitConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (h *TenantSettingGRPCHandler) UpdateRateLimitConfig(ctx context.Context, re
 }
 
 func (h *TenantSettingGRPCHandler) GetAuditConfig(ctx context.Context, req *authv1.GetAuditConfigRequest) (*authv1.GetAuditConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (h *TenantSettingGRPCHandler) GetAuditConfig(ctx context.Context, req *auth
 }
 
 func (h *TenantSettingGRPCHandler) UpdateAuditConfig(ctx context.Context, req *authv1.UpdateAuditConfigRequest) (*authv1.UpdateAuditConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (h *TenantSettingGRPCHandler) UpdateAuditConfig(ctx context.Context, req *a
 }
 
 func (h *TenantSettingGRPCHandler) GetMaintenanceConfig(ctx context.Context, req *authv1.GetMaintenanceConfigRequest) (*authv1.GetMaintenanceConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (h *TenantSettingGRPCHandler) GetMaintenanceConfig(ctx context.Context, req
 }
 
 func (h *TenantSettingGRPCHandler) UpdateMaintenanceConfig(ctx context.Context, req *authv1.UpdateMaintenanceConfigRequest) (*authv1.UpdateMaintenanceConfigResponse, error) {
-	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantUuid())
+	tenantID, err := h.resolveAndAuthorize(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}

@@ -10,8 +10,8 @@ import (
 // TenantEventType represents the per-tenant master switch for an event type.
 // Absence of a row means enabled (default-on); only deliberate "off" overrides are stored.
 type TenantEventType struct {
-	TenantEventTypeID   int64     `gorm:"column:tenant_event_type_id;primaryKey;autoIncrement" json:"tenant_event_type_id"`
-	TenantEventTypeUUID uuid.UUID `gorm:"column:tenant_event_type_uuid;type:uuid;uniqueIndex;not null" json:"tenant_event_type_uuid"`
+	TenantEventTypeID   int64     `gorm:"column:tenant_event_type_id;primaryKey;autoIncrement" json:"-"`
+	TenantEventTypeUUID uuid.UUID `gorm:"column:tenant_event_type_uuid;type:uuid;uniqueIndex;not null" json:"tenant_event_type_id"`
 	TenantID            int64     `gorm:"column:tenant_id;not null" json:"tenant_id"`
 	EventTypeID         int64     `gorm:"column:event_type_id;not null" json:"event_type_id"`
 	Enabled             bool      `gorm:"column:enabled;not null;default:true" json:"enabled"`

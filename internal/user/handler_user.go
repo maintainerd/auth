@@ -702,7 +702,7 @@ func (h *UserHandler) RemoveRole(w http.ResponseWriter, r *http.Request) {
 	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
 		actorUserIDRR = &authUser.UserID
 	}
-	changesJSONRR, _ := json.Marshal(map[string]any{"update": map[string]any{"role_uuid": roleUUIDStr}})
+	changesJSONRR, _ := json.Marshal(map[string]any{"update": map[string]any{"role_id": roleUUIDStr}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRR, "user.remove_role", "user", userUUID.String(), &userUUID, string(changesJSONRR), "success")
 
 	resp.Success(w, dtoRes, "Role removed from user successfully")
@@ -1025,7 +1025,7 @@ func (h *UserHandler) RevokeUserSession(w http.ResponseWriter, r *http.Request) 
 	if authUser := middleware.AuthFromRequest(r).User; authUser != nil {
 		actorUserIDRS = &authUser.UserID
 	}
-	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_uuid": sessionUUID.String()}})
+	changesJSONRS, _ := json.Marshal(map[string]any{"update": map[string]any{"session_id": sessionUUID.String()}})
 	sessionUUIDRef := sessionUUID
 	h.logAudit(r, tenant.TenantID, actorUserIDRS, "user.revoke_session", "session", sessionUUID.String(), &sessionUUIDRef, string(changesJSONRS), "success")
 
@@ -1218,7 +1218,7 @@ func (h *UserHandler) UnlinkUserIdentity(w http.ResponseWriter, r *http.Request)
 	}
 
 	actorUserIDUL := &actor.UserID
-	changesJSONUL, _ := json.Marshal(map[string]any{"update": map[string]any{"identity_uuid": identityUUID.String()}})
+	changesJSONUL, _ := json.Marshal(map[string]any{"update": map[string]any{"identity_id": identityUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDUL, "user.unlink_identity", "user_identity", identityUUID.String(), &identityUUID, string(changesJSONUL), "success")
 
 	resp.Success(w, nil, "Identity unlinked successfully")

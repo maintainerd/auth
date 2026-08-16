@@ -16,43 +16,43 @@ option go_package = "github.com/maintainerd/maintainerd-auth/internal/platform/g
 // (see internal/secpolicy/routes.go). The messages below are kept as the agreed
 // wire shape for the day a handler is written.
 
-message GetMFAConfigRequest { int64 tenant_id = 1; }
+message GetMFAConfigRequest { string tenant_id = 1; }
 message GetMFAConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateMFAConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateMFAConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateMFAConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetPasswordConfigRequest { int64 tenant_id = 1; }
+message GetPasswordConfigRequest { string tenant_id = 1; }
 message GetPasswordConfigResponse { google.protobuf.Struct config = 1; }
-message UpdatePasswordConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdatePasswordConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdatePasswordConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetSessionConfigRequest { int64 tenant_id = 1; }
+message GetSessionConfigRequest { string tenant_id = 1; }
 message GetSessionConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateSessionConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateSessionConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateSessionConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetThreatConfigRequest { int64 tenant_id = 1; }
+message GetThreatConfigRequest { string tenant_id = 1; }
 message GetThreatConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateThreatConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateThreatConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateThreatConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetLockoutConfigRequest { int64 tenant_id = 1; }
+message GetLockoutConfigRequest { string tenant_id = 1; }
 message GetLockoutConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateLockoutConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateLockoutConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateLockoutConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetRegistrationConfigRequest { int64 tenant_id = 1; }
+message GetRegistrationConfigRequest { string tenant_id = 1; }
 message GetRegistrationConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateRegistrationConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateRegistrationConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateRegistrationConfigResponse { google.protobuf.Struct config = 1; }
 
-message GetTokenConfigRequest { int64 tenant_id = 1; }
+message GetTokenConfigRequest { string tenant_id = 1; }
 message GetTokenConfigResponse { google.protobuf.Struct config = 1; }
-message UpdateTokenConfigRequest { int64 tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
+message UpdateTokenConfigRequest { string tenant_id = 1; google.protobuf.Struct config = 2; string updated_by = 3; string ip_address = 4; string user_agent = 5; }
 message UpdateTokenConfigResponse { google.protobuf.Struct config = 1; }
 
 message IPRestrictionRule {
-  string ip_restriction_rule_uuid = 1;
+  string ip_restriction_rule_id = 1;
   string description = 2;
   string type = 3;
   string ip_address = 4;
@@ -62,7 +62,7 @@ message IPRestrictionRule {
 }
 
 message ListIPRestrictionRulesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string type = 2;
   repeated string status = 3;
   string ip_address = 4;
@@ -76,8 +76,8 @@ message ListIPRestrictionRulesResponse {
 }
 
 message GetIPRestrictionRuleRequest {
-  string tenant_uuid = 1;
-  string ip_restriction_rule_uuid = 2;
+  string tenant_id = 1;
+  string ip_restriction_rule_id = 2;
 }
 
 message GetIPRestrictionRuleResponse {
@@ -85,7 +85,7 @@ message GetIPRestrictionRuleResponse {
 }
 
 message CreateIPRestrictionRuleRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string description = 2;
   string type = 3;
   string ip_address = 4;
@@ -98,8 +98,8 @@ message CreateIPRestrictionRuleResponse {
 }
 
 message UpdateIPRestrictionRuleRequest {
-  string tenant_uuid = 1;
-  string ip_restriction_rule_uuid = 2;
+  string tenant_id = 1;
+  string ip_restriction_rule_id = 2;
   string description = 3;
   string type = 4;
   string ip_address = 5;
@@ -112,8 +112,8 @@ message UpdateIPRestrictionRuleResponse {
 }
 
 message SetIPRestrictionRuleStatusRequest {
-  string tenant_uuid = 1;
-  string ip_restriction_rule_uuid = 2;
+  string tenant_id = 1;
+  string ip_restriction_rule_id = 2;
   string status = 3;
   int64 updated_by = 4;
 }
@@ -123,8 +123,8 @@ message SetIPRestrictionRuleStatusResponse {
 }
 
 message DeleteIPRestrictionRuleRequest {
-  string tenant_uuid = 1;
-  string ip_restriction_rule_uuid = 2;
+  string tenant_id = 1;
+  string ip_restriction_rule_id = 2;
 }
 
 message DeleteIPRestrictionRuleResponse {

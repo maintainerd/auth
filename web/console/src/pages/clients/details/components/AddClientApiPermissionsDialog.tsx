@@ -86,7 +86,7 @@ export function AddClientApiPermissionsDialog({
         clientId,
         apiId,
         data: {
-          permission_uuids: selectedPermissions
+          permission_ids: selectedPermissions
         }
       })
 

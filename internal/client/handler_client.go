@@ -874,7 +874,7 @@ func (h *ClientHandler) RemoveAPI(w http.ResponseWriter, r *http.Request) {
 	if authCtxRemoveAPI.User != nil {
 		actorUserIDRemoveAPI = &authCtxRemoveAPI.User.UserID
 	}
-	changesJSONRemoveAPI, _ := json.Marshal(map[string]any{"update": map[string]any{"api_uuid": apiUUID.String()}})
+	changesJSONRemoveAPI, _ := json.Marshal(map[string]any{"update": map[string]any{"api_id": apiUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRemoveAPI, "remove_api", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemoveAPI), "success")
 
 	response := SuccessResponseDTO{
@@ -1044,7 +1044,7 @@ func (h *ClientHandler) RemoveAPIPermission(w http.ResponseWriter, r *http.Reque
 	if authCtxRemovePerm.User != nil {
 		actorUserIDRemovePerm = &authCtxRemovePerm.User.UserID
 	}
-	changesJSONRemovePerm, _ := json.Marshal(map[string]any{"update": map[string]any{"api_uuid": apiUUID.String(), "permission_uuid": permissionUUID.String()}})
+	changesJSONRemovePerm, _ := json.Marshal(map[string]any{"update": map[string]any{"api_id": apiUUID.String(), "permission_id": permissionUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRemovePerm, "remove_api_permission", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemovePerm), "success")
 
 	response := SuccessResponseDTO{
@@ -1332,7 +1332,7 @@ func (h *ClientHandler) RemoveConnection(w http.ResponseWriter, r *http.Request)
 	dtoRes := toClientResponseDTO(*Client)
 
 	actorUserIDRemoveConn := &user.UserID
-	changesJSONRemoveConn, _ := json.Marshal(map[string]any{"update": map[string]any{"connection_uuid": connectionUUID.String()}})
+	changesJSONRemoveConn, _ := json.Marshal(map[string]any{"update": map[string]any{"connection_id": connectionUUID.String()}})
 	h.logAudit(r, tenant.TenantID, actorUserIDRemoveConn, "remove_connection", "client", ClientUUID.String(), &ClientUUID, string(changesJSONRemoveConn), "success")
 
 	resp.Success(w, dtoRes, "Identity provider connection removed successfully")

@@ -933,7 +933,7 @@ func TestRegistrationFlowHandler_Delete(t *testing.T) {
 func TestRegistrationFlowHandler_AssignRoles(t *testing.T) {
 	flowUUID := uuid.New()
 	roleUUID := uuid.New()
-	validBody := map[string]any{"role_uuids": []string{roleUUID.String()}}
+	validBody := map[string]any{"role_ids": []string{roleUUID.String()}}
 
 	t.Run("no tenant returns 401", func(t *testing.T) {
 		r := withChiParam(jsonReq(t, http.MethodPost, "/", validBody), "registration_flow_uuid", flowUUID.String())
@@ -979,14 +979,14 @@ func TestRegistrationFlowHandler_AssignRoles(t *testing.T) {
 	})
 
 	t.Run("empty role_uuids returns 400", func(t *testing.T) {
-		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"role_uuids": []string{}}), "registration_flow_uuid", flowUUID.String()))
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"role_ids": []string{}}), "registration_flow_uuid", flowUUID.String()))
 		w := httptest.NewRecorder()
 		NewRegistrationFlowHandler(&mockRegistrationFlowService{}).AssignRoles(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("malformed role uuid returns 400", func(t *testing.T) {
-		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"role_uuids": []string{"nope"}}), "registration_flow_uuid", flowUUID.String()))
+		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPost, "/", map[string]any{"role_ids": []string{"nope"}}), "registration_flow_uuid", flowUUID.String()))
 		w := httptest.NewRecorder()
 		NewRegistrationFlowHandler(&mockRegistrationFlowService{}).AssignRoles(w, r)
 		assert.Equal(t, http.StatusBadRequest, w.Code)

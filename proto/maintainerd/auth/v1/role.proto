@@ -21,7 +21,7 @@ service RoleService {
 }
 
 message Role {
-  string role_uuid = 1;
+  string role_id = 1;
   string name = 2;
   string description = 3;
   repeated Permission permissions = 4;
@@ -33,7 +33,7 @@ message Role {
 }
 
 message ListRolesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string description = 3;
   optional bool is_default = 4;
@@ -48,8 +48,8 @@ message ListRolesResponse {
 }
 
 message GetRoleRequest {
-  string tenant_uuid = 1;
-  string role_uuid = 2;
+  string tenant_id = 1;
+  string role_id = 2;
 }
 
 message GetRoleResponse {
@@ -57,8 +57,8 @@ message GetRoleResponse {
 }
 
 message CreateRoleRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
+  string tenant_id = 1;
+  string actor_user_id = 2;
   string name = 3;
   string description = 4;
   string status = 5;
@@ -69,9 +69,9 @@ message CreateRoleResponse {
 }
 
 message UpdateRoleRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
-  string role_uuid = 3;
+  string tenant_id = 1;
+  string actor_user_id = 2;
+  string role_id = 3;
   string name = 4;
   string description = 5;
   string status = 6;
@@ -82,9 +82,9 @@ message UpdateRoleResponse {
 }
 
 message SetRoleStatusRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
-  string role_uuid = 3;
+  string tenant_id = 1;
+  string actor_user_id = 2;
+  string role_id = 3;
   string status = 4;
 }
 
@@ -93,9 +93,9 @@ message SetRoleStatusResponse {
 }
 
 message DeleteRoleRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
-  string role_uuid = 3;
+  string tenant_id = 1;
+  string actor_user_id = 2;
+  string role_id = 3;
 }
 
 message DeleteRoleResponse {
@@ -103,8 +103,8 @@ message DeleteRoleResponse {
 }
 
 message ListRolePermissionsRequest {
-  string tenant_uuid = 1;
-  string role_uuid = 2;
+  string tenant_id = 1;
+  string role_id = 2;
   string status = 3;
   Pagination pagination = 4;
 }
@@ -115,10 +115,10 @@ message ListRolePermissionsResponse {
 }
 
 message AddRolePermissionsRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
-  string role_uuid = 3;
-  repeated string permission_uuids = 4;
+  string tenant_id = 1;
+  string actor_user_id = 2;
+  string role_id = 3;
+  repeated string permission_ids = 4;
 }
 
 message AddRolePermissionsResponse {
@@ -126,10 +126,10 @@ message AddRolePermissionsResponse {
 }
 
 message RemoveRolePermissionRequest {
-  string tenant_uuid = 1;
-  string actor_user_uuid = 2;
-  string role_uuid = 3;
-  string permission_uuid = 4;
+  string tenant_id = 1;
+  string actor_user_id = 2;
+  string role_id = 3;
+  string permission_id = 4;
 }
 
 message RemoveRolePermissionResponse {

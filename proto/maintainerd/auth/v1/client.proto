@@ -31,7 +31,7 @@ service ClientService {
 }
 
 message Client {
-  string client_uuid = 1;
+  string client_id = 1;
   string name = 2;
   string display_name = 3;
   string client_type = 4;
@@ -48,7 +48,7 @@ message Client {
 }
 
 message ClientIdentityProvider {
-  string identity_provider_uuid = 1;
+  string identity_provider_id = 1;
   string name = 2;
   string display_name = 3;
   string provider = 4;
@@ -62,7 +62,7 @@ message ClientIdentityProvider {
 }
 
 message ClientURI {
-  string client_uri_uuid = 1;
+  string client_uri_id = 1;
   string uri = 2;
   string type = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -70,14 +70,14 @@ message ClientURI {
 }
 
 message ClientAPI {
-  string client_api_uuid = 1;
+  string client_api_id = 1;
   ClientAPIDetail api = 2;
   repeated ClientAPIPermission permissions = 3;
   google.protobuf.Timestamp created_at = 4;
 }
 
 message ClientAPIDetail {
-  string api_uuid = 1;
+  string api_id = 1;
   string name = 2;
   string display_name = 3;
   string description = 4;
@@ -88,7 +88,7 @@ message ClientAPIDetail {
 }
 
 message ClientAPIPermission {
-  string permission_uuid = 1;
+  string permission_id = 1;
   string name = 2;
   string description = 3;
   string status = 4;
@@ -99,11 +99,11 @@ message ClientAPIPermission {
 }
 
 message ListClientsRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   repeated string client_type = 4;
-  string identity_provider_uuid = 5;
+  string identity_provider_id = 5;
   repeated string status = 6;
   optional bool is_default = 7;
   optional bool is_system = 8;
@@ -116,8 +116,8 @@ message ListClientsResponse {
 }
 
 message GetClientRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
 }
 
 message GetClientResponse {
@@ -125,19 +125,19 @@ message GetClientResponse {
 }
 
 message GetClientSecretRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
 }
 
 message GetClientSecretResponse {
-  string client_id = 1;
+  string oauth_client_id = 1;
   string message = 2;
 }
 
 message RotateClientSecretRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string actor_user_uuid = 3;
+  string tenant_id = 1;
+  string client_id = 2;
+  string actor_user_id = 3;
   int32 grace_period_hours = 4;
 }
 
@@ -147,8 +147,8 @@ message RotateClientSecretResponse {
 }
 
 message GetClientConfigRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
 }
 
 message GetClientConfigResponse {
@@ -156,15 +156,15 @@ message GetClientConfigResponse {
 }
 
 message CreateClientRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string display_name = 3;
   string client_type = 4;
   string domain = 5;
   google.protobuf.Struct config = 6;
   string status = 7;
-  string identity_provider_uuid = 8;
-  string actor_user_uuid = 9;
+  string identity_provider_id = 8;
+  string actor_user_id = 9;
   string branding_id = 10;
   optional bool allow_registration = 11;
 
@@ -183,21 +183,21 @@ message CreateClientResponse {
 }
 
 message ClientCredentials {
-  string client_uuid = 1;
-  string client_id = 2;
+  string client_id = 1;
+  string oauth_client_id = 2;
   string client_secret = 3;
 }
 
 message UpdateClientRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
   string name = 3;
   string display_name = 4;
   string client_type = 5;
   string domain = 6;
   google.protobuf.Struct config = 7;
   string status = 8;
-  string actor_user_uuid = 9;
+  string actor_user_id = 9;
   string branding_id = 10;
   optional bool allow_registration = 11;
 }
@@ -207,10 +207,10 @@ message UpdateClientResponse {
 }
 
 message SetClientStatusRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
   string status = 3;
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message SetClientStatusResponse {
@@ -218,9 +218,9 @@ message SetClientStatusResponse {
 }
 
 message DeleteClientRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string actor_user_uuid = 3;
+  string tenant_id = 1;
+  string client_id = 2;
+  string actor_user_id = 3;
 }
 
 message DeleteClientResponse {
@@ -228,8 +228,8 @@ message DeleteClientResponse {
 }
 
 message ListClientURIsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
 }
 
 message ListClientURIsResponse {
@@ -237,11 +237,11 @@ message ListClientURIsResponse {
 }
 
 message CreateClientURIRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
   string uri = 3;
   string type = 4;
-  string actor_user_uuid = 5;
+  string actor_user_id = 5;
 }
 
 message CreateClientURIResponse {
@@ -249,12 +249,12 @@ message CreateClientURIResponse {
 }
 
 message UpdateClientURIRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string client_uri_uuid = 3;
+  string tenant_id = 1;
+  string client_id = 2;
+  string client_uri_id = 3;
   string uri = 4;
   string type = 5;
-  string actor_user_uuid = 6;
+  string actor_user_id = 6;
 }
 
 message UpdateClientURIResponse {
@@ -262,10 +262,10 @@ message UpdateClientURIResponse {
 }
 
 message DeleteClientURIRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string client_uri_uuid = 3;
-  string actor_user_uuid = 4;
+  string tenant_id = 1;
+  string client_id = 2;
+  string client_uri_id = 3;
+  string actor_user_id = 4;
 }
 
 message DeleteClientURIResponse {
@@ -273,8 +273,8 @@ message DeleteClientURIResponse {
 }
 
 message ListClientAPIsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
+  string tenant_id = 1;
+  string client_id = 2;
 }
 
 message ListClientAPIsResponse {
@@ -282,12 +282,12 @@ message ListClientAPIsResponse {
 }
 
 message AddClientAPIsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  repeated string api_uuids = 3;
+  string tenant_id = 1;
+  string client_id = 2;
+  repeated string api_ids = 3;
   // Required. The mutation is refused without an actor holding an identity in the
   // tenant, so a grant change is never anonymous.
-  string actor_user_uuid = 4;
+  string actor_user_id = 4;
 }
 
 message AddClientAPIsResponse {
@@ -295,10 +295,10 @@ message AddClientAPIsResponse {
 }
 
 message RemoveClientAPIRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string api_uuid = 3;
-  string actor_user_uuid = 4;
+  string tenant_id = 1;
+  string client_id = 2;
+  string api_id = 3;
+  string actor_user_id = 4;
 }
 
 message RemoveClientAPIResponse {
@@ -306,9 +306,9 @@ message RemoveClientAPIResponse {
 }
 
 message ListClientAPIPermissionsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string api_uuid = 3;
+  string tenant_id = 1;
+  string client_id = 2;
+  string api_id = 3;
 }
 
 message ListClientAPIPermissionsResponse {
@@ -316,11 +316,11 @@ message ListClientAPIPermissionsResponse {
 }
 
 message AddClientAPIPermissionsRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string api_uuid = 3;
-  repeated string permission_uuids = 4;
-  string actor_user_uuid = 5;
+  string tenant_id = 1;
+  string client_id = 2;
+  string api_id = 3;
+  repeated string permission_ids = 4;
+  string actor_user_id = 5;
 }
 
 message AddClientAPIPermissionsResponse {
@@ -328,11 +328,11 @@ message AddClientAPIPermissionsResponse {
 }
 
 message RemoveClientAPIPermissionRequest {
-  string tenant_uuid = 1;
-  string client_uuid = 2;
-  string api_uuid = 3;
-  string permission_uuid = 4;
-  string actor_user_uuid = 5;
+  string tenant_id = 1;
+  string client_id = 2;
+  string api_id = 3;
+  string permission_id = 4;
+  string actor_user_id = 5;
 }
 
 message RemoveClientAPIPermissionResponse {

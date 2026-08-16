@@ -209,7 +209,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantUuid: tenantUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
+		res, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantId: tenantUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -225,7 +225,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.GetClient(ctx, &authv1.GetClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.GetClient(ctx, &authv1.GetClientRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,7 +242,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 	t.Run("getSecret is unimplemented, not a successful empty response", func(t *testing.T) {
 		svc := &testClientService{}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.GetClientSecret(ctx, &authv1.GetClientSecretRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.GetClientSecret(ctx, &authv1.GetClientSecretRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err == nil {
 			t.Fatal("expected an error")
 		}
@@ -261,7 +261,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ActorUserUuid: uuid.New().String(), GracePeriodHours: 24})
+		res, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ActorUserId: uuid.New().String(), GracePeriodHours: 24})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -277,7 +277,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -293,7 +293,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tenantUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
+		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantId: tenantUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -309,7 +309,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
+		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), Name: "my-app", DisplayName: "My Application", ClientType: "spa", Domain: "app.example.com", Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -325,7 +325,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), Status: "inactive"})
+		res, err := h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), Status: "inactive"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -341,7 +341,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -357,7 +357,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ClientUriUuid: uriUUID.String()})
+		res, err := h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ClientUriId: uriUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -373,7 +373,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -389,7 +389,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), Uri: "https://example.com/callback", Type: "redirect"})
+		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), Uri: "https://example.com/callback", Type: "redirect"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -405,7 +405,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ClientUriUuid: uriUUID.String(), Uri: "https://example.com/callback", Type: "redirect"})
+		res, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ClientUriId: uriUUID.String(), Uri: "https://example.com/callback", Type: "redirect"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -421,7 +421,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		res, err := h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -437,7 +437,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		res, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserId: uuid.New().String(), TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ApiIds: []string{apiUUID.String()}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -453,7 +453,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String()})
+		res, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserId: uuid.New().String(), TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ApiId: apiUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -469,7 +469,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String()})
+		res, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ApiId: apiUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -485,7 +485,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		res, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserId: uuid.New().String(), TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ApiId: apiUUID.String(), PermissionIds: []string{permUUID.String()}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -501,7 +501,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		res, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		res, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserId: uuid.New().String(), TenantId: tenantUUID.String(), ClientId: clientUUID.String(), ApiId: apiUUID.String(), PermissionId: permUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -517,11 +517,11 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantUuid: "bad"})
+		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
-		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: "bad"})
+		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantId: tenantUUID.String(), ClientId: "bad"})
 		if code := status.Code(err); code != codes.InvalidArgument {
 			t.Errorf("expected InvalidArgument, got %v", code)
 		}
@@ -538,11 +538,11 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(resolver, svc)
-		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantUuid: tenantUUID.String()})
+		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantId: tenantUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
-		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantUuid: tenantUUID.String(), ClientUuid: clientUUID.String()})
+		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantId: tenantUUID.String(), ClientId: clientUUID.String()})
 		if code := status.Code(err); code != codes.Internal {
 			t.Errorf("expected Internal, got %v", code)
 		}
@@ -600,77 +600,77 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("tenant resolver errors across handlers", func(t *testing.T) {
 		h := NewClientGRPCHandler(failResolver, &testClientService{})
-		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantUuid: tUUID.String()})
+		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantId: tUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.GetClient(ctx, &authv1.GetClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String()})
+		_, err = h.CreateClient(ctx, &authv1.CreateClientRequest{TenantId: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderId: uuid.New().String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
+		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive"})
+		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Status: "inactive"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String()})
+		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: uriUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiIds: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionIds: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionId: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 	})
 
 	t.Run("UUID parse errors", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.GetClient(ctx, &authv1.GetClientRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err := h.GetClient(ctx, &authv1.GetClientRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err = h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
+		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", Status: "inactive"})
+		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", Status: "inactive"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", Uri: "https://example.com", Type: "redirect"})
+		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ClientUriUuid: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", ClientUriId: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ClientUriUuid: uriUUID.String()})
+		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", ClientUriId: uriUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid"})
+		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantId: tUUID.String(), ClientId: "bad-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: "bad-uuid", ApiIds: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: "bad-uuid", ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String()})
+		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tUUID.String(), ClientId: "bad-uuid", ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: "bad-uuid", ApiId: apiUUID.String(), PermissionIds: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: "bad-uuid", ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: "bad-uuid", ApiId: apiUUID.String(), PermissionId: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -694,8 +694,8 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		callerCtx := grpcCallerCtxAs(1, callerUUID)
 
 		_, err := h.SetClientStatus(callerCtx, &authv1.SetClientStatusRequest{
-			TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive",
-			ActorUserUuid: "bad-actor-uuid",
+			TenantId: tUUID.String(), ClientId: cUUID.String(), Status: "inactive",
+			ActorUserId: "bad-actor-uuid",
 		})
 		if err != nil {
 			t.Fatalf("a malformed body actor must not fail the call: %v", err)
@@ -713,7 +713,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			Service:  "control-plane",
 		})
 		_, err := h.SetClientStatus(serviceCtx, &authv1.SetClientStatusRequest{
-			TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive",
+			TenantId: tUUID.String(), ClientId: cUUID.String(), Status: "inactive",
 		})
 		assertGRPCErrCode(t, err, codes.PermissionDenied)
 	})
@@ -767,37 +767,37 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		_, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err := h.RotateClientSecret(ctx, &authv1.RotateClientSecretRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String()})
+		_, err = h.CreateClient(ctx, &authv1.CreateClientRequest{TenantId: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderId: uuid.New().String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
+		_, err = h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Status: "inactive"})
+		_, err = h.SetClientStatus(ctx, &authv1.SetClientStatusRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Status: "inactive"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.DeleteClient(ctx, &authv1.DeleteClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		_, err = h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		_, err = h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: uriUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String()})
+		_, err = h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: uriUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		_, err = h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{apiUUID.String()}})
+		_, err = h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiIds: []string{apiUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		_, err = h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{permUUID.String()}})
+		_, err = h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionIds: []string{permUUID.String()}})
 		assertGRPCErrCode(t, err, codes.Internal)
-		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: permUUID.String()})
+		_, err = h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionId: permUUID.String()})
 		assertGRPCErrCode(t, err, codes.Internal)
 	})
 
@@ -808,49 +808,49 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantUuid: tUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10, SortOrder: "bad", SortBy: "created_at"}})
+		_, err := h.ListClients(ctx, &authv1.ListClientsRequest{TenantId: tUUID.String(), Pagination: &authv1.Pagination{Page: 1, Limit: 10, SortOrder: "bad", SortBy: "created_at"}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid API UUID in AddClientAPIs list", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuids: []string{"bad-api-uuid"}})
+		_, err := h.AddClientAPIs(ctx, &authv1.AddClientAPIsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiIds: []string{"bad-api-uuid"}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid Permission UUID in AddClientAPIPermissions list", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuids: []string{"bad-perm-uuid"}})
+		_, err := h.AddClientAPIPermissions(ctx, &authv1.AddClientAPIPermissionsRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionIds: []string{"bad-perm-uuid"}})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid URI UUID in UpdateClientURI", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: "bad-uri-uuid", Uri: "https://example.com", Type: "redirect"})
+		_, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: "bad-uri-uuid", Uri: "https://example.com", Type: "redirect"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid URI UUID in DeleteClientURI", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: "bad-uri-uuid"})
+		_, err := h.DeleteClientURI(ctx, &authv1.DeleteClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: "bad-uri-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid API UUID in RemoveClientAPI", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: "bad-api-uuid"})
+		_, err := h.RemoveClientAPI(ctx, &authv1.RemoveClientAPIRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: "bad-api-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid API UUID in ListClientAPIPermissions", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: "bad-api-uuid"})
+		_, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: "bad-api-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
 	t.Run("invalid perm UUID in RemoveClientAPIPermission", func(t *testing.T) {
 		h := NewClientGRPCHandler(okResolver, &testClientService{})
-		_, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserUuid: uuid.New().String(), TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String(), PermissionUuid: "bad-perm-uuid"})
+		_, err := h.RemoveClientAPIPermission(ctx, &authv1.RemoveClientAPIPermissionRequest{ActorUserId: uuid.New().String(), TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String(), PermissionId: "bad-perm-uuid"})
 		assertGRPCErrCode(t, err, codes.InvalidArgument)
 	})
 
@@ -861,7 +861,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -877,7 +877,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
+		res, err := h.CreateClientURI(ctx, &authv1.CreateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Uri: "https://example.com", Type: "redirect"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -899,7 +899,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ClientUriUuid: uriUUID.String(), Uri: "https://updated.com", Type: "redirect"})
+		res, err := h.UpdateClientURI(ctx, &authv1.UpdateClientURIRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ClientUriId: uriUUID.String(), Uri: "https://updated.com", Type: "redirect"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -915,7 +915,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -931,7 +931,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		res, err := h.GetClientConfig(ctx, &authv1.GetClientConfigRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -954,7 +954,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		res, err := h.ListClientAPIs(ctx, &authv1.ListClientAPIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -974,7 +974,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), ApiUuid: apiUUID.String()})
+		res, err := h.ListClientAPIPermissions(ctx, &authv1.ListClientAPIPermissionsRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), ApiId: apiUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -990,7 +990,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String()})
+		res, err := h.ListClientURIs(ctx, &authv1.ListClientURIsRequest{TenantId: tUUID.String(), ClientId: cUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1006,7 +1006,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Config: cfgStruct, Status: "active", IdentityProviderUuid: uuid.New().String()})
+		res, err := h.CreateClient(ctx, &authv1.CreateClientRequest{TenantId: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Config: cfgStruct, Status: "active", IdentityProviderId: uuid.New().String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1022,7 +1022,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 			},
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
-		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantUuid: tUUID.String(), ClientUuid: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Config: cfgStruct, Status: "active"})
+		res, err := h.UpdateClient(ctx, &authv1.UpdateClientRequest{TenantId: tUUID.String(), ClientId: cUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Config: cfgStruct, Status: "active"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1046,7 +1046,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		}
 		h := NewClientGRPCHandler(okResolver, svc)
 		callerCtx := grpcCallerCtxAs(1, callerUUID)
-		_, err := h.CreateClient(callerCtx, &authv1.CreateClientRequest{TenantUuid: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderUuid: uuid.New().String(), ActorUserUuid: decoyUUID.String()})
+		_, err := h.CreateClient(callerCtx, &authv1.CreateClientRequest{TenantId: tUUID.String(), Name: "app", DisplayName: "My Application", ClientType: "spa", Domain: "example.com", Status: "active", IdentityProviderId: uuid.New().String(), ActorUserId: decoyUUID.String()})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1220,7 +1220,7 @@ func TestClientProtoConverters(t *testing.T) {
 	c := &ClientServiceDataResult{ClientUUID: id, Name: "test", Status: "active"}
 	proto := toClientProto(c)
 	assert.Equal("test", proto.Name)
-	assert.Equal(id.String(), proto.ClientUuid)
+	assert.Equal(id.String(), proto.ClientId)
 }
 
 func (m *testClientService) AssignClientRole(context.Context, uuid.UUID, uuid.UUID, int64, uuid.UUID) (*ClientRole, error) {

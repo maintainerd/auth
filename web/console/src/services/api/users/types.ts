@@ -342,7 +342,7 @@ export interface UserMFAResponse {
 }
 
 export interface UserMFAWebAuthnKey {
-  credential_uuid: string
+  credential_id: string
   name: string
   /** Scalar on the wire (user.UserMFAWebAuthnKeyDTO.Transport is a string). */
   transport?: string

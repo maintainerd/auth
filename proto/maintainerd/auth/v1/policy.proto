@@ -20,7 +20,7 @@ service PolicyService {
 }
 
 message Policy {
-  string policy_uuid = 1;
+  string policy_id = 1;
   string name = 2;
   optional string description = 3;
   google.protobuf.Struct document = 4;
@@ -32,13 +32,13 @@ message Policy {
 }
 
 message ListPoliciesRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   string description = 3;
   string version = 4;
   repeated string status = 5;
   optional bool is_system = 6;
-  string service_uuid = 7;
+  string service_id = 7;
   Pagination pagination = 8;
 }
 
@@ -48,8 +48,8 @@ message ListPoliciesResponse {
 }
 
 message GetPolicyRequest {
-  string tenant_uuid = 1;
-  string policy_uuid = 2;
+  string tenant_id = 1;
+  string policy_id = 2;
 }
 
 message GetPolicyResponse {
@@ -57,8 +57,8 @@ message GetPolicyResponse {
 }
 
 message ListPolicyServicesRequest {
-  string tenant_uuid = 1;
-  string policy_uuid = 2;
+  string tenant_id = 1;
+  string policy_id = 2;
   string name = 3;
   string display_name = 4;
   string description = 5;
@@ -71,7 +71,7 @@ message ListPolicyServicesResponse {
 }
 
 message CreatePolicyRequest {
-  string tenant_uuid = 1;
+  string tenant_id = 1;
   string name = 2;
   optional string description = 3;
   google.protobuf.Struct document = 4;
@@ -84,8 +84,8 @@ message CreatePolicyResponse {
 }
 
 message UpdatePolicyRequest {
-  string tenant_uuid = 1;
-  string policy_uuid = 2;
+  string tenant_id = 1;
+  string policy_id = 2;
   string name = 3;
   optional string description = 4;
   google.protobuf.Struct document = 5;
@@ -98,8 +98,8 @@ message UpdatePolicyResponse {
 }
 
 message SetPolicyStatusRequest {
-  string tenant_uuid = 1;
-  string policy_uuid = 2;
+  string tenant_id = 1;
+  string policy_id = 2;
   string status = 3;
 }
 
@@ -108,8 +108,8 @@ message SetPolicyStatusResponse {
 }
 
 message DeletePolicyRequest {
-  string tenant_uuid = 1;
-  string policy_uuid = 2;
+  string tenant_id = 1;
+  string policy_id = 2;
 }
 
 message DeletePolicyResponse {

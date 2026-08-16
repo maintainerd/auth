@@ -10,7 +10,7 @@ const getMock = vi.mocked(get)
 
 const bootstrap: TenantBootstrap = {
   tenant: {
-    tenant_uuid: 'uuid-1',
+    tenant_id: 'uuid-1',
     name: 'acme',
     display_name: 'Acme',
     description: 'Acme tenant',

@@ -175,7 +175,7 @@ export const workloadIdentitySchema = yup.object({
   // Required only: the value comes from a select of real clients, and yup's .uuid()
   // enforces the RFC 4122 version/variant nibbles, which would reject legitimate
   // UUIDs the server accepts (the backend uses a plain is.UUID check).
-  client_uuid: yup.string().required("Client is required"),
+  client_id: yup.string().required("Client is required"),
   name: yup
     .string()
     .required("Name is required")

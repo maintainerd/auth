@@ -30,7 +30,7 @@ func NewClientGRPCHandler(tenantResolver TenantResolver, clientService ClientSer
 }
 
 func (h *ClientGRPCHandler) ListClients(ctx context.Context, req *authv1.ListClientsRequest) (*authv1.ListClientsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (h *ClientGRPCHandler) ListClients(ctx context.Context, req *authv1.ListCli
 		Name:                 optionalStr(req.GetName()),
 		DisplayName:          optionalStr(req.GetDisplayName()),
 		ClientType:           req.GetClientType(),
-		IdentityProviderUUID: optionalStr(req.GetIdentityProviderUuid()),
+		IdentityProviderUUID: optionalStr(req.GetIdentityProviderId()),
 		Status:               req.GetStatus(),
 		IsDefault:            req.IsDefault,
 		IsSystem:             req.IsSystem,
@@ -72,11 +72,11 @@ func (h *ClientGRPCHandler) ListClients(ctx context.Context, req *authv1.ListCli
 }
 
 func (h *ClientGRPCHandler) GetClient(ctx context.Context, req *authv1.GetClientRequest) (*authv1.GetClientResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +100,11 @@ func (h *ClientGRPCHandler) GetClientSecret(ctx context.Context, req *authv1.Get
 }
 
 func (h *ClientGRPCHandler) RotateClientSecret(ctx context.Context, req *authv1.RotateClientSecretRequest) (*authv1.RotateClientSecretResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -120,11 +120,11 @@ func (h *ClientGRPCHandler) RotateClientSecret(ctx context.Context, req *authv1.
 }
 
 func (h *ClientGRPCHandler) GetClientConfig(ctx context.Context, req *authv1.GetClientConfigRequest) (*authv1.GetClientConfigResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func (h *ClientGRPCHandler) GetClientConfig(ctx context.Context, req *authv1.Get
 // create a spare client — it strands a live credential the caller never sees
 // again and cannot rotate, because it does not know the client is there.
 func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.CreateClientRequest) (*authv1.CreateClientResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
@@ -183,31 +183,31 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 		Domain:               req.GetDomain(),
 		Config:               configJSON,
 		Status:               req.GetStatus(),
-		IdentityProviderUUID: req.GetIdentityProviderUuid(),
+		IdentityProviderUUID: req.GetIdentityProviderId(),
 	}).Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
 
-	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), req.GetIdentityProviderUuid(), nil, allowReg, nil, nil, nil, nil, actorUUID, nil)
+	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), req.GetIdentityProviderId(), nil, allowReg, nil, nil, nil, nil, actorUUID, nil)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
 	return &authv1.CreateClientResponse{
 		Client: toClientProto(result.Client),
 		Credentials: &authv1.ClientCredentials{
-			ClientUuid:   result.Client.ClientUUID.String(),
-			ClientId:     result.ClientIdentifier,
-			ClientSecret: result.PlaintextSecret,
+			ClientId:      result.Client.ClientUUID.String(),
+			OauthClientId: result.ClientIdentifier,
+			ClientSecret:  result.PlaintextSecret,
 		},
 	}, nil
 }
 
 func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.UpdateClientRequest) (*authv1.UpdateClientResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -252,11 +252,11 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 }
 
 func (h *ClientGRPCHandler) SetClientStatus(ctx context.Context, req *authv1.SetClientStatusRequest) (*authv1.SetClientStatusResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -272,11 +272,11 @@ func (h *ClientGRPCHandler) SetClientStatus(ctx context.Context, req *authv1.Set
 }
 
 func (h *ClientGRPCHandler) DeleteClient(ctx context.Context, req *authv1.DeleteClientRequest) (*authv1.DeleteClientResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -292,11 +292,11 @@ func (h *ClientGRPCHandler) DeleteClient(ctx context.Context, req *authv1.Delete
 }
 
 func (h *ClientGRPCHandler) ListClientURIs(ctx context.Context, req *authv1.ListClientURIsRequest) (*authv1.ListClientURIsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -318,11 +318,11 @@ func (h *ClientGRPCHandler) ListClientURIs(ctx context.Context, req *authv1.List
 // retry with a conflict that core cannot distinguish from "another operator
 // registered this redirect URI".
 func (h *ClientGRPCHandler) CreateClientURI(ctx context.Context, req *authv1.CreateClientURIRequest) (*authv1.CreateClientURIResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -341,15 +341,15 @@ func (h *ClientGRPCHandler) CreateClientURI(ctx context.Context, req *authv1.Cre
 }
 
 func (h *ClientGRPCHandler) UpdateClientURI(ctx context.Context, req *authv1.UpdateClientURIRequest) (*authv1.UpdateClientURIResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	uriUUID, err := parseUUID(req.GetClientUriUuid(), "Client URI UUID")
+	uriUUID, err := parseUUID(req.GetClientUriId(), "Client URI UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -372,15 +372,15 @@ func (h *ClientGRPCHandler) UpdateClientURI(ctx context.Context, req *authv1.Upd
 }
 
 func (h *ClientGRPCHandler) DeleteClientURI(ctx context.Context, req *authv1.DeleteClientURIRequest) (*authv1.DeleteClientURIResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	uriUUID, err := parseUUID(req.GetClientUriUuid(), "Client URI UUID")
+	uriUUID, err := parseUUID(req.GetClientUriId(), "Client URI UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -396,11 +396,11 @@ func (h *ClientGRPCHandler) DeleteClientURI(ctx context.Context, req *authv1.Del
 }
 
 func (h *ClientGRPCHandler) ListClientAPIs(ctx context.Context, req *authv1.ListClientAPIsRequest) (*authv1.ListClientAPIsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -415,9 +415,9 @@ func (h *ClientGRPCHandler) ListClientAPIs(ctx context.Context, req *authv1.List
 			permProtos[j] = toClientAPIPermissionProto(&perm)
 		}
 		apis[i] = &authv1.ClientAPI{
-			ClientApiUuid: api.ClientAPIUUID.String(),
+			ClientApiId: api.ClientAPIUUID.String(),
 			Api: &authv1.ClientAPIDetail{
-				ApiUuid:     api.Api.APIUUID.String(),
+				ApiId:       api.Api.APIUUID.String(),
 				Name:        api.Api.Name,
 				DisplayName: api.Api.DisplayName,
 				Description: api.Api.Description,
@@ -434,16 +434,16 @@ func (h *ClientGRPCHandler) ListClientAPIs(ctx context.Context, req *authv1.List
 }
 
 func (h *ClientGRPCHandler) AddClientAPIs(ctx context.Context, req *authv1.AddClientAPIsRequest) (*authv1.AddClientAPIsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	apiUUIDs := make([]uuid.UUID, len(req.GetApiUuids()))
-	for i, a := range req.GetApiUuids() {
+	apiUUIDs := make([]uuid.UUID, len(req.GetApiIds()))
+	for i, a := range req.GetApiIds() {
 		parsed, err := parseUUID(a, "API UUID")
 		if err != nil {
 			return nil, err
@@ -461,15 +461,15 @@ func (h *ClientGRPCHandler) AddClientAPIs(ctx context.Context, req *authv1.AddCl
 }
 
 func (h *ClientGRPCHandler) RemoveClientAPI(ctx context.Context, req *authv1.RemoveClientAPIRequest) (*authv1.RemoveClientAPIResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	apiUUID, err := parseUUID(req.GetApiUuid(), "API UUID")
+	apiUUID, err := parseUUID(req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -484,15 +484,15 @@ func (h *ClientGRPCHandler) RemoveClientAPI(ctx context.Context, req *authv1.Rem
 }
 
 func (h *ClientGRPCHandler) ListClientAPIPermissions(ctx context.Context, req *authv1.ListClientAPIPermissionsRequest) (*authv1.ListClientAPIPermissionsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	apiUUID, err := parseUUID(req.GetApiUuid(), "API UUID")
+	apiUUID, err := parseUUID(req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -508,20 +508,20 @@ func (h *ClientGRPCHandler) ListClientAPIPermissions(ctx context.Context, req *a
 }
 
 func (h *ClientGRPCHandler) AddClientAPIPermissions(ctx context.Context, req *authv1.AddClientAPIPermissionsRequest) (*authv1.AddClientAPIPermissionsResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	apiUUID, err := parseUUID(req.GetApiUuid(), "API UUID")
+	apiUUID, err := parseUUID(req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
-	permUUIDs := make([]uuid.UUID, len(req.GetPermissionUuids()))
-	for i, p := range req.GetPermissionUuids() {
+	permUUIDs := make([]uuid.UUID, len(req.GetPermissionIds()))
+	for i, p := range req.GetPermissionIds() {
 		parsed, err := parseUUID(p, "Permission UUID")
 		if err != nil {
 			return nil, err
@@ -539,19 +539,19 @@ func (h *ClientGRPCHandler) AddClientAPIPermissions(ctx context.Context, req *au
 }
 
 func (h *ClientGRPCHandler) RemoveClientAPIPermission(ctx context.Context, req *authv1.RemoveClientAPIPermissionRequest) (*authv1.RemoveClientAPIPermissionResponse, error) {
-	tenant, err := h.resolveTenant(ctx, req.GetTenantUuid())
+	tenant, err := h.resolveTenant(ctx, req.GetTenantId())
 	if err != nil {
 		return nil, err
 	}
-	clientUUID, err := parseUUID(req.GetClientUuid(), "Client UUID")
+	clientUUID, err := parseUUID(req.GetClientId(), "Client UUID")
 	if err != nil {
 		return nil, err
 	}
-	apiUUID, err := parseUUID(req.GetApiUuid(), "API UUID")
+	apiUUID, err := parseUUID(req.GetApiId(), "API UUID")
 	if err != nil {
 		return nil, err
 	}
-	permUUID, err := parseUUID(req.GetPermissionUuid(), "Permission UUID")
+	permUUID, err := parseUUID(req.GetPermissionId(), "Permission UUID")
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +634,7 @@ func (h *ClientGRPCHandler) callerTenantIsSystem(ctx context.Context, callerTena
 
 // clientActorUserUUID resolves the acting user from the VERIFIED token.
 //
-// Every mutating RPC here took the actor from req.GetActorUserUuid(), a request-body
+// Every mutating RPC here took the actor from req.GetActorUserId(), a request-body
 // field, and defaulted to uuid.Nil when it was absent. That value is both the audit
 // attribution AND the subject of ValidateTenantAccess in the service layer, so a
 // caller could pin a secret rotation or a client deletion on an innocent tenant admin
@@ -716,17 +716,17 @@ func toClientProto(result *ClientServiceDataResult) *authv1.Client {
 	var idp *authv1.ClientIdentityProvider
 	if result.IdentityProvider != nil {
 		idp = &authv1.ClientIdentityProvider{
-			IdentityProviderUuid: result.IdentityProvider.IdentityProviderUUID.String(),
-			Name:                 result.IdentityProvider.Name,
-			DisplayName:          result.IdentityProvider.DisplayName,
-			Provider:             result.IdentityProvider.Provider,
-			ProviderType:         result.IdentityProvider.ProviderType,
-			Identifier:           result.IdentityProvider.Identifier,
-			Status:               result.IdentityProvider.Status,
-			IsDefault:            result.IdentityProvider.IsDefault,
-			IsSystem:             result.IdentityProvider.IsSystem,
-			CreatedAt:            timestamppb.New(result.IdentityProvider.CreatedAt),
-			UpdatedAt:            timestamppb.New(result.IdentityProvider.UpdatedAt),
+			IdentityProviderId: result.IdentityProvider.IdentityProviderUUID.String(),
+			Name:               result.IdentityProvider.Name,
+			DisplayName:        result.IdentityProvider.DisplayName,
+			Provider:           result.IdentityProvider.Provider,
+			ProviderType:       result.IdentityProvider.ProviderType,
+			Identifier:         result.IdentityProvider.Identifier,
+			Status:             result.IdentityProvider.Status,
+			IsDefault:          result.IdentityProvider.IsDefault,
+			IsSystem:           result.IdentityProvider.IsSystem,
+			CreatedAt:          timestamppb.New(result.IdentityProvider.CreatedAt),
+			UpdatedAt:          timestamppb.New(result.IdentityProvider.UpdatedAt),
 		}
 	}
 	var uris []*authv1.ClientURI
@@ -737,7 +737,7 @@ func toClientProto(result *ClientServiceDataResult) *authv1.Client {
 		}
 	}
 	return &authv1.Client{
-		ClientUuid:        result.ClientUUID.String(),
+		ClientId:          result.ClientUUID.String(),
 		Name:              result.Name,
 		DisplayName:       result.DisplayName,
 		ClientType:        result.ClientType,
@@ -759,11 +759,11 @@ func toClientURIProto(u *ClientURIServiceDataResult) *authv1.ClientURI {
 		return nil
 	}
 	return &authv1.ClientURI{
-		ClientUriUuid: u.ClientURIUUID.String(),
-		Uri:           u.URI,
-		Type:          u.Type,
-		CreatedAt:     timestamppb.New(u.CreatedAt),
-		UpdatedAt:     timestamppb.New(u.UpdatedAt),
+		ClientUriId: u.ClientURIUUID.String(),
+		Uri:         u.URI,
+		Type:        u.Type,
+		CreatedAt:   timestamppb.New(u.CreatedAt),
+		UpdatedAt:   timestamppb.New(u.UpdatedAt),
 	}
 }
 
@@ -772,13 +772,13 @@ func toClientAPIPermissionProto(p *PermissionServiceDataResult) *authv1.ClientAP
 		return nil
 	}
 	return &authv1.ClientAPIPermission{
-		PermissionUuid: p.PermissionUUID.String(),
-		Name:           p.Name,
-		Description:    p.Description,
-		Status:         p.Status,
-		IsSystem:       p.IsSystem,
-		CreatedAt:      timestamppb.New(p.CreatedAt),
-		UpdatedAt:      timestamppb.New(p.UpdatedAt),
+		PermissionId: p.PermissionUUID.String(),
+		Name:         p.Name,
+		Description:  p.Description,
+		Status:       p.Status,
+		IsSystem:     p.IsSystem,
+		CreatedAt:    timestamppb.New(p.CreatedAt),
+		UpdatedAt:    timestamppb.New(p.UpdatedAt),
 	}
 }
 

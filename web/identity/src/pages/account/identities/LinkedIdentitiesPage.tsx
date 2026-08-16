@@ -19,7 +19,7 @@ import type { ApiResponse } from "@/services/api/types"
 // not exist on the wire — the friendly name is resolved from the connections
 // list below.
 interface LinkedIdentity {
-  identity_uuid: string
+  identity_id: string
   provider: string
   sub?: string
   is_default?: boolean
@@ -178,7 +178,7 @@ export default function LinkedIdentitiesPage() {
           const detail = identity.email || identity.name || (builtin ? "Your sign-in account" : identity.sub)
           return (
             <ListingItemCard
-              key={identity.identity_uuid}
+              key={identity.identity_id}
               icon={Link2}
               action={
                 builtin ? (
@@ -192,7 +192,7 @@ export default function LinkedIdentitiesPage() {
                     className="size-10 text-destructive hover:text-destructive sm:size-8"
                     aria-label={`Disconnect ${name}`}
                     disabled={unlinkMut.isPending}
-                    onClick={() => unlinkMut.mutate(identity.identity_uuid)}
+                    onClick={() => unlinkMut.mutate(identity.identity_id)}
                   >
                     <Trash2 className="size-4" />
                   </Button>
