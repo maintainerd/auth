@@ -99,7 +99,15 @@ func (r *apiRepository) FindByIdentifier(identifier string, tenantID int64) (*AP
 	err := r.DB().
 		Where("identifier = ? AND tenant_id = ?", identifier, tenantID).
 		First(&api).Error
-	return &api, err
+	if err != nil {
+		// Not-found is a normal "does not exist yet" answer for the get-or-create
+		// setup flows — return (nil, nil) like the sibling finders, not an error.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &api, nil
 }
 
 func (r *apiRepository) FindPaginated(filter APIRepositoryGetFilter) (*PaginationResult[API], error) {

@@ -605,6 +605,7 @@ func (s *setupService) EnsureConsoleClient(ctx context.Context, req EnsureConsol
 				if existing == nil {
 					if _, err := txClientURIRepo.Create(&clientmodel.ClientURI{
 						ClientURIUUID: uuid.New(),
+						TenantID:      sysTenant.TenantID,
 						ClientID:      record.ClientID,
 						URI:           uri,
 						Type:          spec.uriType,
