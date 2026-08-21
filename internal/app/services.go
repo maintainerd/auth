@@ -418,6 +418,12 @@ func initServices(ctx context.Context, db *gorm.DB, r *repos, appCache *cache.Ca
 	// Inject the policy version history repo (snapshots before-state on every
 	// Update + powers the read endpoints in PolicyHistoryHandler).
 	iam.SetPolicyVersionHistory(s.policyService, r.policyVersionHistoryRepo)
+	// Inject the tenant directory so policy writes can enforce the MRN tenant
+	// boundary: a regular tenant may only carry MRN resources scoped to its own
+	// tenant segment; "*", platform scope, and other tenants' literals are
+	// reserved for the system tenant (the control plane). Without this wiring
+	// MRN-bearing policies are refused outright (fail closed).
+	iam.SetPolicyTenantDirectory(s.policyService, s.tenantService)
 	// Inject the MFA factor verifier so login can run the MFA second step (acr=2).
 	s.loginService.SetMFAFactorAuthenticator(mfaSvc)
 	s.loginService.SetUserLockoutRepository(r.userLockoutRepo)

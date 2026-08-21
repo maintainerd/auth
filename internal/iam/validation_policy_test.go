@@ -58,6 +58,67 @@ func TestPolicyStatement_Validate(t *testing.T) {
 		s := PolicyStatement{Effect: shared.PolicyEffectAllow, Action: []string{"user:*"}}
 		require.Error(t, s.Validate())
 	})
+
+	// Anything with the "mrn:" prefix is committed to the MRN grammar. A
+	// half-formed entry would never match at evaluation time, so storing it
+	// creates a statement that does not do what its author believes — an allow
+	// that grants nothing, or a deny that guards nothing.
+	t.Run("valid MRN pattern resources accepted", func(t *testing.T) {
+		s := PolicyStatement{Effect: shared.PolicyEffectAllow, Action: []string{"storage:read"}, Resource: []string{
+			"mrn:storage:acme:billing:bucket/invoices/*",
+			"mrn:core:acme::role/admin",
+			"mrn:core:::agent/*",
+			"mrn:storage:*:*:*",
+		}}
+		assert.NoError(t, s.Validate())
+	})
+
+	t.Run("malformed MRN resource rejected with the bad entry named", func(t *testing.T) {
+		s := PolicyStatement{Effect: shared.PolicyEffectAllow, Action: []string{"storage:read"}, Resource: []string{
+			"auth:*",           // legacy, fine
+			"mrn:storage:acme", // too few parts
+		}}
+		err := s.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"mrn:storage:acme"`)
+	})
+
+	t.Run("mid-path MRN wildcard rejected", func(t *testing.T) {
+		s := PolicyStatement{Effect: shared.PolicyEffectAllow, Action: []string{"storage:read"}, Resource: []string{
+			"mrn:storage:acme:proj:bucket/*/object",
+		}}
+		require.Error(t, s.Validate())
+	})
+
+	t.Run("legacy flat resources untouched by MRN validation", func(t *testing.T) {
+		s := PolicyStatement{Effect: shared.PolicyEffectAllow, Action: []string{"user:*"}, Resource: []string{"auth:*", "account:profile", "*"}}
+		assert.NoError(t, s.Validate())
+	})
+}
+
+// The gRPC CreatePolicy/UpdatePolicy handlers run the same DTO Validate() the
+// REST handlers do, so exercising the DTO with an MRN-bearing document proves
+// transport parity for the malformed-MRN rejection.
+func TestPolicyCreateRequestDto_Validate_MRNResources(t *testing.T) {
+	base := PolicyCreateRequestDTO{
+		Name:    "storage:invoices:read",
+		Version: "v1",
+		Status:  shared.StatusActive,
+	}
+
+	t.Run("valid MRN document accepted", func(t *testing.T) {
+		d := base
+		d.Document = datatypes.JSON(`{"version":"v1","statement":[{"effect":"allow","action":["storage:read"],"resource":["mrn:storage:acme:billing:bucket/invoices/*"]}]}`)
+		assert.NoError(t, d.Validate())
+	})
+
+	t.Run("malformed MRN document rejected", func(t *testing.T) {
+		d := base
+		d.Document = datatypes.JSON(`{"version":"v1","statement":[{"effect":"allow","action":["storage:read"],"resource":["mrn:storage:acme"]}]}`)
+		err := d.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "mrn:storage:acme")
+	})
 }
 
 func TestPolicyCreateRequestDto_Validate(t *testing.T) {

@@ -2,9 +2,11 @@ package iam
 
 import (
 	"context"
+	"strings"
 
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/mrn"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -42,6 +44,15 @@ func (h *AuthorizationGRPCHandler) Authorize(ctx context.Context, req *authv1.Au
 		// A tenant-less decision would be evaluated against whichever tenant's
 		// policies happened to be found first.
 		return nil, status.Error(codes.PermissionDenied, "this token is not bound to a tenant")
+	}
+	// Transport parity with the REST twin: a resource claiming the MRN scheme
+	// that cannot be parsed is a malformed question, refused as a validation
+	// error rather than evaluated — it must never fall through to legacy
+	// flat-string matching.
+	if trimmed := strings.TrimSpace(req.GetResource()); mrn.IsMRN(trimmed) {
+		if _, err := mrn.Parse(trimmed); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "requested resource is not a valid MRN: "+err.Error())
+		}
 	}
 
 	decision := h.authorizationService.Authorize(ctx, AuthzRequest{

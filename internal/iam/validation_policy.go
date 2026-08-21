@@ -3,9 +3,12 @@ package iam
 import (
 	"encoding/json"
 	"regexp"
+	"strconv"
+	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/go-ozzo/ozzo-validation/v4/is"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/mrn"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"gorm.io/datatypes"
 )
@@ -38,8 +41,40 @@ func (s PolicyStatement) Validate() error {
 		validation.Field(&s.Resource,
 			validation.Required.Error("Statement must contain at least one resource"),
 			validation.Length(1, 0).Error("Statement must contain at least one resource"),
+			validation.By(validateStatementMRNResources),
 		),
 	)
+}
+
+// validateStatementMRNResources rejects malformed MRN-scheme resources at
+// write time. The "mrn:" prefix is a commitment to the MRN grammar: a
+// half-formed entry like "mrn:storage:acme" would never match anything at
+// evaluation time (the evaluator refuses malformed MRNs rather than falling
+// back to legacy glob matching), so accepting it here would store a statement
+// that silently does not do what its author believes — an allow that grants
+// nothing, or worse, a deny that guards nothing. Legacy flat resource strings
+// (no "mrn:" prefix) are untouched.
+//
+// Both transports funnel through this rule: the REST handlers and the gRPC
+// CreatePolicy/UpdatePolicy handlers all run the DTO Validate(), which
+// validates every statement via PolicyStatement.Validate.
+func validateStatementMRNResources(value any) error {
+	resources, ok := value.([]string)
+	if !ok {
+		// The Required/Length rules on the field own the shape complaint.
+		return nil
+	}
+	for _, raw := range resources {
+		trimmed := strings.TrimSpace(raw)
+		if !mrn.IsMRN(trimmed) {
+			continue
+		}
+		if _, err := mrn.ParsePattern(trimmed); err != nil {
+			return validation.NewError("validation_error",
+				"Statement resource "+strconv.Quote(raw)+" is not a valid MRN pattern: "+err.Error())
+		}
+	}
+	return nil
 }
 
 func (r PolicyCreateRequestDTO) Validate() error {

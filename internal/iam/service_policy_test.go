@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/shared"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -672,4 +673,162 @@ func TestPolicyService_Update_RecordsChangeAttribution(t *testing.T) {
 	assert.Equal(t, reason, *captured.ChangeReason)
 	// The snapshot is the document BEFORE the change.
 	assert.JSONEq(t, `{"version":"v1","statement":[]}`, string(captured.Document))
+}
+
+// ---------------------------------------------------------------------------
+// PolicyService – MRN tenant boundary (Create/Update)
+// ---------------------------------------------------------------------------
+
+// stubTenantDirectory implements PolicyTenantDirectory for the boundary tests.
+type stubTenantDirectory struct {
+	system *tenant.TenantServiceDataResult
+	byName map[string]*tenant.TenantServiceDataResult
+}
+
+func (d *stubTenantDirectory) GetSystem(context.Context) (*tenant.TenantServiceDataResult, error) {
+	if d.system == nil {
+		return nil, errNotFound
+	}
+	return d.system, nil
+}
+
+func (d *stubTenantDirectory) GetByName(_ context.Context, name string) (*tenant.TenantServiceDataResult, error) {
+	if t, ok := d.byName[name]; ok {
+		return t, nil
+	}
+	return nil, errNotFound
+}
+
+// The policy row is tenant-scoped but the evaluator matches on the resource
+// STRING alone, so the write path is the only place that can stop tenant A
+// granting itself mrn:storage:tenant-b:... — these tests pin that boundary.
+func TestPolicyService_Create_MRNTenantBoundary(t *testing.T) {
+	const (
+		systemTenantID = int64(1)
+		acmeTenantID   = int64(2)
+		otherTenantID  = int64(3)
+	)
+	directory := &stubTenantDirectory{
+		system: &tenant.TenantServiceDataResult{TenantID: systemTenantID, Name: "system", IsSystem: true},
+		byName: map[string]*tenant.TenantServiceDataResult{
+			"system":   {TenantID: systemTenantID, Name: "system", IsSystem: true},
+			"acme":     {TenantID: acmeTenantID, Name: "acme"},
+			"tenant-b": {TenantID: otherTenantID, Name: "tenant-b"},
+		},
+	}
+	mrnDoc := func(resource string) datatypes.JSON {
+		return datatypes.JSON(`{"version":"v1","statement":[{"effect":"allow","action":["storage:read"],"resource":["` + resource + `"]}]}`)
+	}
+
+	newService := func(t *testing.T, expectWrite bool, dir PolicyTenantDirectory) PolicyService {
+		t.Helper()
+		db, mock := newMockGormDB(t)
+		if expectWrite {
+			mock.ExpectBegin()
+			mock.ExpectCommit()
+		}
+		svc := NewPolicyService(db, &mockPolicyRepo{}, &mockServiceRepo{}, &mockAPIRepo{}, nil)
+		if dir != nil {
+			SetPolicyTenantDirectory(svc, dir)
+		}
+		return svc
+	}
+
+	t.Run("regular tenant may reference its own tenant segment", func(t *testing.T) {
+		svc := newService(t, true, directory)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:acme:billing:bucket/*"), "v1", shared.StatusActive, false)
+		require.NoError(t, err)
+	})
+
+	t.Run("regular tenant cross-tenant literal refused", func(t *testing.T) {
+		svc := newService(t, false, directory)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:tenant-b:billing:bucket/*"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not this policy's own tenant")
+	})
+
+	t.Run("regular tenant wildcard tenant segment refused", func(t *testing.T) {
+		svc := newService(t, false, directory)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:*:billing:bucket/*"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "wildcard tenant segment")
+	})
+
+	t.Run("regular tenant platform-scoped (empty tenant) refused", func(t *testing.T) {
+		svc := newService(t, false, directory)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:core:::agent/*"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "platform-scoped")
+	})
+
+	t.Run("system tenant may use wildcard, empty, and other tenants' literals", func(t *testing.T) {
+		for _, resource := range []string{
+			"mrn:storage:*:billing:bucket/*",
+			"mrn:core:::agent/*",
+			"mrn:storage:tenant-b:billing:bucket/*",
+		} {
+			svc := newService(t, true, directory)
+			_, err := svc.Create(context.Background(), systemTenantID, "p", nil, mrnDoc(resource), "v1", shared.StatusActive, false)
+			require.NoError(t, err, "system tenant must be allowed %q", resource)
+		}
+	})
+
+	t.Run("malformed MRN resource refused with the entry named", func(t *testing.T) {
+		svc := newService(t, false, directory)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:acme"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"mrn:storage:acme"`)
+	})
+
+	// Fail closed: an unverifiable tenant boundary is indistinguishable from a
+	// crossed one, so no directory means no MRN-bearing policies — even for a
+	// resource that names the owner's own tenant.
+	t.Run("directory not wired → MRN resources refused", func(t *testing.T) {
+		svc := newService(t, false, nil)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:acme:billing:bucket/*"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot be verified")
+	})
+
+	t.Run("system tenant unresolvable → MRN resources refused", func(t *testing.T) {
+		svc := newService(t, false, &stubTenantDirectory{byName: directory.byName})
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, mrnDoc("mrn:storage:acme:billing:bucket/*"), "v1", shared.StatusActive, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "system tenant could not be resolved")
+	})
+
+	// Legacy flat resources never touch the tenant directory at all — an
+	// un-wired directory must not break the policies that exist today.
+	t.Run("legacy flat resources untouched even without a directory", func(t *testing.T) {
+		svc := newService(t, true, nil)
+		doc := datatypes.JSON(`{"version":"v1","statement":[{"effect":"allow","action":["user:*"],"resource":["auth:*","account:profile","*"]}]}`)
+		_, err := svc.Create(context.Background(), acmeTenantID, "p", nil, doc, "v1", shared.StatusActive, false)
+		require.NoError(t, err)
+	})
+}
+
+// Update is just another write path for smuggling a cross-tenant MRN into an
+// already-accepted policy, so it enforces the same boundary.
+func TestPolicyService_Update_MRNTenantBoundary(t *testing.T) {
+	const acmeTenantID = int64(2)
+	directory := &stubTenantDirectory{
+		system: &tenant.TenantServiceDataResult{TenantID: 1, Name: "system", IsSystem: true},
+		byName: map[string]*tenant.TenantServiceDataResult{
+			"acme": {TenantID: acmeTenantID, Name: "acme"},
+		},
+	}
+
+	db, _ := newMockGormDB(t)
+	svc := NewPolicyService(db, &mockPolicyRepo{
+		findByUUIDAndTenantIDFn: func(uuid.UUID, int64) (*Policy, error) {
+			t.Fatal("the boundary must be enforced before the policy is even loaded")
+			return nil, nil
+		},
+	}, &mockServiceRepo{}, &mockAPIRepo{}, nil)
+	SetPolicyTenantDirectory(svc, directory)
+
+	doc := datatypes.JSON(`{"version":"v1","statement":[{"effect":"allow","action":["storage:read"],"resource":["mrn:storage:tenant-b:billing:bucket/*"]}]}`)
+	_, err := svc.Update(context.Background(), uuid.New(), acmeTenantID, "p", nil, doc, "v1", shared.StatusActive, PolicyChangeContext{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not this policy's own tenant")
 }

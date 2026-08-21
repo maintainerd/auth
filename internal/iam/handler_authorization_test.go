@@ -172,4 +172,41 @@ func TestAuthorizationHandler_Authorize(t *testing.T) {
 			t.Fatalf("bad json status = %d", w.Code)
 		}
 	})
+
+	// A resource claiming the MRN scheme that cannot be parsed is a malformed
+	// question: it is refused as a validation error and must never fall through
+	// to legacy flat-string matching (which could glob-match it).
+	t.Run("refuses a malformed MRN resource without evaluating", func(t *testing.T) {
+		h := NewAuthorizationHandler(&mockAuthorizationService{
+			authorizeFn: func(AuthzRequest) Decision {
+				t.Fatal("a malformed MRN resource must not reach the evaluator")
+				return Decision{}
+			},
+		})
+		w := httptest.NewRecorder()
+		h.Authorize(w, authorizeReq(
+			`{"action":"storage:read","resource":"mrn:storage:acme"}`,
+			&middleware.JWTClaims{Service: "serviceA", TenantID: 7},
+		))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("malformed MRN status = %d body=%s", w.Code, w.Body.String())
+		}
+
+		// A WELL-FORMED MRN resource still flows through to the evaluator.
+		evaluated := false
+		h = NewAuthorizationHandler(&mockAuthorizationService{
+			authorizeFn: func(req AuthzRequest) Decision {
+				evaluated = true
+				return Decision{Allowed: false, Reason: "no matching allow"}
+			},
+		})
+		w = httptest.NewRecorder()
+		h.Authorize(w, authorizeReq(
+			`{"action":"storage:read","resource":"mrn:storage:acme:billing:bucket/x"}`,
+			&middleware.JWTClaims{Service: "serviceA", TenantID: 7},
+		))
+		if w.Code != http.StatusOK || !evaluated {
+			t.Fatalf("valid MRN status = %d evaluated = %v", w.Code, evaluated)
+		}
+	})
 }

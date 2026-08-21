@@ -3,8 +3,10 @@ package iam
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/mrn"
 	resp "github.com/maintainerd/maintainerd-auth/internal/platform/response"
 )
 
@@ -44,6 +46,18 @@ func (h *AuthorizationHandler) Authorize(w http.ResponseWriter, r *http.Request)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		resp.BadRequestBody(w)
 		return
+	}
+	// A resource that claims the MRN scheme but cannot be parsed is a malformed
+	// QUESTION, refused as a validation error before any evaluation. It must
+	// never fall through to legacy flat-string matching: the "mrn:" prefix is a
+	// commitment to the MRN grammar, and matching a half-formed MRN under glob
+	// semantics would answer a question the caller did not ask. (The evaluator
+	// refuses these too — this is the transport-level half of failing closed.)
+	if trimmed := strings.TrimSpace(req.Resource); mrn.IsMRN(trimmed) {
+		if _, err := mrn.Parse(trimmed); err != nil {
+			resp.Error(w, http.StatusBadRequest, "Requested resource is not a valid MRN", err.Error())
+			return
+		}
 	}
 	// The caller supplies only the QUESTION (action + resource). Principal and
 	// tenant are taken from the signed token and overwrite whatever the body said.

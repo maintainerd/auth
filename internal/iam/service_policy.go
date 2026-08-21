@@ -2,13 +2,18 @@ package iam
 
 import (
 	"context"
+	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/maintainerd/maintainerd-auth/internal/authevent"
 	"github.com/maintainerd/maintainerd-auth/internal/event"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
+	"github.com/maintainerd/maintainerd-auth/internal/platform/mrn"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/ptr"
+	"github.com/maintainerd/maintainerd-auth/internal/tenant"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -134,6 +139,26 @@ type policyService struct {
 	authEventService authevent.AuthEventService
 	eventService     event.EventService
 	historyRepo      PolicyVersionHistoryRepository // nil → policy version history disabled
+	tenantDirectory  PolicyTenantDirectory          // nil → MRN resources are refused (fail closed)
+}
+
+// PolicyTenantDirectory resolves tenants for the MRN tenant-boundary check on
+// policy writes. Implemented by tenant.TenantService.
+type PolicyTenantDirectory interface {
+	GetSystem(ctx context.Context) (*tenant.TenantServiceDataResult, error)
+	GetByName(ctx context.Context, name string) (*tenant.TenantServiceDataResult, error)
+}
+
+// SetPolicyTenantDirectory injects the tenant directory used to enforce the
+// MRN tenant boundary on policy Create/Update (setter pattern, mirroring
+// SetPolicyVersionHistory, so NewPolicyService callers and tests are
+// unaffected). When it is absent, any policy carrying an MRN resource is
+// REFUSED — without a directory the boundary cannot be verified, and the only
+// safe answer for an unverifiable cross-tenant grant is no.
+func SetPolicyTenantDirectory(svc PolicyService, dir PolicyTenantDirectory) {
+	if s, ok := svc.(*policyService); ok {
+		s.tenantDirectory = dir
+	}
 }
 
 // SetPolicyVersionHistory injects the append-only policy version history repo
@@ -309,6 +334,14 @@ func (s *policyService) Create(ctx context.Context, tenantID int64, name string,
 	span.SetAttributes(attribute.Int64("tenant.id", tenantID))
 	var createdPolicy *Policy
 
+	// Enforced HERE — the service layer both transports (REST and gRPC) funnel
+	// through — so neither surface can drift out of parity.
+	if err := s.enforceMRNTenantBoundary(ctx, tenantID, document); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create policy failed")
+		return nil, err
+	}
+
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
 
@@ -377,6 +410,14 @@ func (s *policyService) Update(ctx context.Context, policyUUID uuid.UUID, tenant
 	defer span.End()
 	span.SetAttributes(attribute.String("policy.uuid", policyUUID.String()), attribute.Int64("tenant.id", tenantID))
 	var updatedPolicy *Policy
+
+	// Same boundary as Create: an update is just another write path for smuggling
+	// a cross-tenant MRN into an already-accepted policy.
+	if err := s.enforceMRNTenantBoundary(ctx, tenantID, document); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update policy failed")
+		return nil, err
+	}
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txPolicyRepo := s.policyRepo.WithTx(tx)
@@ -697,6 +738,98 @@ func (s *policyService) GetHistoryVersion(ctx context.Context, policyUUID uuid.U
 	}
 	result := toHistoryEntry(entry)
 	return &result, nil
+}
+
+// enforceMRNTenantBoundary refuses MRN statement resources that reach outside
+// the policy's owning tenant.
+//
+// The WHY: a policy row is tenant-scoped, but the evaluator matches on the
+// resource STRING alone. Without this rule, tenant A's admin writes a policy
+// granting themselves "mrn:storage:tenant-b:..." — a perfectly well-formed
+// MRN — attaches it to a principal in tenant A, and the evaluator honors it,
+// because nothing at evaluation time knows which tenant authored the grant.
+// The write path is the only place that knows both the document AND its owner,
+// so the boundary must be enforced here.
+//
+// The rule: a policy owned by a regular tenant may only carry MRN resources
+// whose tenant segment is that tenant's own slug. "*" (every tenant) and ""
+// (platform scope) are REFUSED for regular tenants — both are broader than the
+// tenant itself. Only a policy owned by the singleton SYSTEM tenant (the
+// control plane, resolved via the same GetSystem mechanism the gRPC
+// cross-tenant guard uses) may use "*", "", or another tenant's literal.
+// Legacy flat resource strings are untouched by all of this.
+func (s *policyService) enforceMRNTenantBoundary(ctx context.Context, tenantID int64, document datatypes.JSON) error {
+	if len(document) == 0 {
+		// "Document is required" belongs to the DTO structure validation.
+		return nil
+	}
+	var doc PolicyDocument
+	if err := json.Unmarshal(document, &doc); err != nil {
+		// Also rejected by DTO validation on both transports; repeated here
+		// because a document this chokepoint cannot read cannot be cleared.
+		return apperror.NewValidation("policy document must be valid JSON: " + err.Error())
+	}
+
+	// Resolved lazily, once, and only when an MRN resource actually appears, so
+	// legacy-only policies never touch the tenant directory.
+	ownerIsSystem := (*bool)(nil)
+	for _, stmt := range doc.Statement {
+		for _, raw := range stmt.Resource {
+			res := strings.TrimSpace(raw)
+			if !mrn.IsMRN(res) {
+				continue
+			}
+			pattern, err := mrn.ParsePattern(res)
+			if err != nil {
+				return apperror.NewValidation("statement resource " + strconv.Quote(raw) + " is not a valid MRN pattern: " + err.Error())
+			}
+
+			if ownerIsSystem == nil {
+				isSystem, err := s.ownerIsSystemTenant(ctx, tenantID)
+				if err != nil {
+					return err
+				}
+				ownerIsSystem = &isSystem
+			}
+			if *ownerIsSystem {
+				// The control plane writes policies about any tenant by design.
+				continue
+			}
+
+			switch pattern.Tenant {
+			case "*":
+				return apperror.NewValidation("statement resource " + strconv.Quote(raw) + " uses a wildcard tenant segment; only the system tenant may grant across tenants")
+			case "":
+				return apperror.NewValidation("statement resource " + strconv.Quote(raw) + " is platform-scoped (empty tenant segment); only the system tenant may grant platform-scoped resources")
+			}
+
+			// The literal must be THIS policy's own tenant. The lookup result is
+			// deliberately not distinguished from a mismatch: reporting "no such
+			// tenant" vs "not your tenant" would turn this validator into an
+			// existence oracle for other tenants' slugs.
+			owner, err := s.tenantDirectory.GetByName(ctx, pattern.Tenant)
+			if err != nil || owner == nil || owner.TenantID != tenantID {
+				return apperror.NewValidation("statement resource " + strconv.Quote(raw) + " names tenant segment " + strconv.Quote(pattern.Tenant) + ", which is not this policy's own tenant")
+			}
+		}
+	}
+	return nil
+}
+
+// ownerIsSystemTenant reports whether the policy's owning tenant is the
+// singleton system tenant. Every failure mode fails CLOSED: if the directory
+// is not wired or the system tenant cannot be resolved, no MRN-bearing policy
+// is accepted, because an unverifiable tenant boundary is indistinguishable
+// from a crossed one.
+func (s *policyService) ownerIsSystemTenant(ctx context.Context, tenantID int64) (bool, error) {
+	if s.tenantDirectory == nil {
+		return false, apperror.NewValidation("MRN resources cannot be accepted: the tenant boundary cannot be verified")
+	}
+	system, err := s.tenantDirectory.GetSystem(ctx)
+	if err != nil || system == nil {
+		return false, apperror.NewValidation("MRN resources cannot be accepted: the system tenant could not be resolved")
+	}
+	return system.TenantID == tenantID, nil
 }
 
 func toHistoryEntry(e *PolicyVersionHistory) PolicyHistoryEntryResult {

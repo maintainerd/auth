@@ -78,3 +78,23 @@ func TestAuthorizationGRPCHandler_Authorize_RejectsUnusableTokens(t *testing.T) 
 		})
 	}
 }
+
+// Transport parity with the REST twin: a resource claiming the MRN scheme that
+// cannot be parsed is refused as InvalidArgument and never reaches the
+// evaluator, where falling through to legacy matching could glob-match it.
+func TestAuthorizationGRPCHandler_Authorize_RefusesMalformedMRNResource(t *testing.T) {
+	h := NewAuthorizationGRPCHandler(&mockAuthorizationService{
+		authorizeFn: func(AuthzRequest) Decision {
+			t.Fatal("a malformed MRN resource must not reach the evaluator")
+			return Decision{}
+		},
+	})
+	ctx := middleware.ContextWithJWTClaims(context.Background(), &middleware.JWTClaims{
+		Service: "auth", SubjectType: "service", TenantID: 77,
+	})
+
+	res, err := h.Authorize(ctx, &authv1.AuthorizeRequest{Action: "storage:read", Resource: "mrn:storage:acme"})
+
+	assert.Nil(t, res)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
