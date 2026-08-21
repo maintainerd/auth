@@ -120,7 +120,8 @@ func TestAPIRepository(t *testing.T) {
 
 		got, err = repo.FindByIdentifier("svc:missing", tenantID)
 		require.Error(t, err)
-		assert.NotNil(t, got)
+		// On a query error the repo returns (nil, err), like every sibling finder.
+		assert.Nil(t, got)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
