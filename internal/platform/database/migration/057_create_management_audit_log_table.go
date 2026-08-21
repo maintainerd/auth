@@ -7,7 +7,10 @@ func CreateManagementAuditLogTable(db *gorm.DB) error {
 CREATE TABLE IF NOT EXISTS management_audit_log (
     management_audit_log_id   BIGSERIAL    PRIMARY KEY,
     management_audit_log_uuid UUID         NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-    tenant_id                 BIGINT       NOT NULL,
+    -- tenant_id is NULLABLE: setup-window (bootstrap) mutations are audited too,
+    -- and the very first bootstrap call is what CREATES the system tenant — no
+    -- valid FK value can exist yet. NULL means "platform-scoped, pre-tenant".
+    tenant_id                 BIGINT,
     actor_user_id             BIGINT,
     actor_client_id           BIGINT,
     action                    VARCHAR(100) NOT NULL,

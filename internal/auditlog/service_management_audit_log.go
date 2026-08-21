@@ -53,7 +53,6 @@ func (l *managementAuditLogger) Log(ctx context.Context, entry LogEntry) error {
 	}
 
 	record := &ManagementAuditLog{
-		TenantID:      entry.TenantID,
 		ActorUserID:   entry.ActorUserID,
 		ActorClientID: entry.ActorClientID,
 		Action:        entry.Action,
@@ -64,6 +63,13 @@ func (l *managementAuditLogger) Log(ctx context.Context, entry LogEntry) error {
 		ErrorMessage:  entry.ErrorMessage,
 		IPAddress:     ptr.PtrOrNil(middleware.ClientIPFromContext(ctx)),
 		UserAgent:     ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
+	}
+
+	// TenantID 0 means "no tenant": tenant PKs start at 1, and the setup-window
+	// bootstrap mutations happen before the system tenant exists, so those rows
+	// record NULL rather than a dangling FK value the insert would reject.
+	if entry.TenantID != 0 {
+		record.TenantID = &entry.TenantID
 	}
 
 	// Populate TraceID from OTel span context.

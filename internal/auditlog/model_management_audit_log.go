@@ -9,23 +9,27 @@ import (
 )
 
 type ManagementAuditLog struct {
-	ManagementAuditLogID   int64          `gorm:"column:management_audit_log_id;primaryKey;not null"`
-	ManagementAuditLogUUID uuid.UUID      `gorm:"column:management_audit_log_uuid;type:uuid;not null"`
-	TenantID               int64          `gorm:"column:tenant_id;not null"`
-	ActorUserID            *int64         `gorm:"column:actor_user_id"`
-	ActorClientID          *int64         `gorm:"column:actor_client_id"`
-	Action                 string         `gorm:"column:action;type:varchar(100);not null"`
-	ResourceType           string         `gorm:"column:resource_type;type:varchar(100);not null"`
-	ResourceID             string         `gorm:"column:resource_id;type:varchar(255);not null"`
-	ResourceUUID           *uuid.UUID     `gorm:"column:resource_uuid;type:uuid"`
-	Changes                datatypes.JSON `gorm:"column:changes;type:jsonb;not null;default:'{}'"`
-	IPAddress              *string        `gorm:"column:ip_address;type:inet"`
-	UserAgent              *string        `gorm:"column:user_agent;type:text"`
-	TraceID                *string        `gorm:"column:trace_id;type:varchar(64)"`
-	RequestID              *string        `gorm:"column:request_id;type:varchar(255)"`
-	Outcome                string         `gorm:"column:outcome;type:varchar(20);not null;default:'success'"`
-	ErrorMessage           *string        `gorm:"column:error_message;type:text"`
-	CreatedAt              time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
+	ManagementAuditLogID   int64     `gorm:"column:management_audit_log_id;primaryKey;not null"`
+	ManagementAuditLogUUID uuid.UUID `gorm:"column:management_audit_log_uuid;type:uuid;not null"`
+	// TenantID is nullable because the setup-window bootstrap RPCs mutate BEFORE
+	// any tenant exists (the first of them is what creates the system tenant),
+	// and those mutations must still be auditable. NULL means "outside any
+	// tenant"; a non-NULL value is FK-checked against tenants exactly as before.
+	TenantID      *int64         `gorm:"column:tenant_id"`
+	ActorUserID   *int64         `gorm:"column:actor_user_id"`
+	ActorClientID *int64         `gorm:"column:actor_client_id"`
+	Action        string         `gorm:"column:action;type:varchar(100);not null"`
+	ResourceType  string         `gorm:"column:resource_type;type:varchar(100);not null"`
+	ResourceID    string         `gorm:"column:resource_id;type:varchar(255);not null"`
+	ResourceUUID  *uuid.UUID     `gorm:"column:resource_uuid;type:uuid"`
+	Changes       datatypes.JSON `gorm:"column:changes;type:jsonb;not null;default:'{}'"`
+	IPAddress     *string        `gorm:"column:ip_address;type:inet"`
+	UserAgent     *string        `gorm:"column:user_agent;type:text"`
+	TraceID       *string        `gorm:"column:trace_id;type:varchar(64)"`
+	RequestID     *string        `gorm:"column:request_id;type:varchar(255)"`
+	Outcome       string         `gorm:"column:outcome;type:varchar(20);not null;default:'success'"`
+	ErrorMessage  *string        `gorm:"column:error_message;type:text"`
+	CreatedAt     time.Time      `gorm:"column:created_at;autoCreateTime;not null"`
 
 	// Read-only presentation fields populated by audit-log read queries.
 	ActorUserName   *string `gorm:"->;column:actor_user_name"`

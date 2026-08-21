@@ -72,7 +72,7 @@ func TestManagementAuditLogHandler_ListIncludesActorNames(t *testing.T) {
 			return []ManagementAuditLog{
 				{
 					ManagementAuditLogUUID: entryUUID,
-					TenantID:               tenantID,
+					TenantID:               &tenantID,
 					ActorUserID:            &actorUserID,
 					ActorUserName:          &actorName,
 					Action:                 "user.updated",
@@ -110,7 +110,7 @@ func TestManagementAuditLogHandler_Get(t *testing.T) {
 				require.Equal(t, int64(42), tenantID)
 				return &ManagementAuditLog{
 					ManagementAuditLogUUID: entryUUID,
-					TenantID:               tenantID,
+					TenantID:               &tenantID,
 					ActorClientID:          &actorClientID,
 					ActorClientName:        &clientName,
 					Action:                 "client.updated",

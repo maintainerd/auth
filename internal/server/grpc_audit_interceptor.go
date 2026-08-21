@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/maintainerd/maintainerd-auth/internal/auditlog"
@@ -42,9 +43,32 @@ func grpcAuditUnaryInterceptor(application *Application) grpc.UnaryServerInterce
 		}
 
 		claims := middleware.JWTClaimsFromContext(ctx)
-		if claims == nil {
-			// Unauthenticated calls were rejected before reaching a handler.
-			return resp, err
+		var tenantID int64
+		var principal string
+		switch {
+		case claims != nil:
+			tenantID = claims.TenantID
+			principal = grpcAuditPrincipal(claims)
+		default:
+			// No JWT. The one legitimate way to reach a handler without claims is
+			// the setup window: bootstrap RPCs authenticate by x-setup-token + mTLS
+			// (see authorizeSetupBootstrap), yet they perform the most
+			// security-relevant mutations of an install's life — system tenant,
+			// first admin, control service — so skipping them left the whole setup
+			// window invisible in management_audit_log. The principal is the mTLS
+			// peer identity the setup interceptor already relies on; tenant stays 0
+			// (recorded as NULL) because these mutations happen before any tenant
+			// exists. Every other claims-less method keeps the existing bail:
+			// unauthenticated calls were rejected before reaching a handler.
+			if _, isBootstrap := grpcBootstrapMethods[info.FullMethod]; !isBootstrap {
+				return resp, err
+			}
+			principal = grpcBootstrapCaller(ctx)
+			if principal == "" {
+				// Never log a blank "who". The call was still authorized by the
+				// pre-shared credential, so name the credential class.
+				principal = "setup-token"
+			}
 		}
 
 		outcome := "success"
@@ -53,14 +77,15 @@ func grpcAuditUnaryInterceptor(application *Application) grpc.UnaryServerInterce
 		}
 
 		_ = application.AuditLogger.Log(ctx, auditlog.LogEntry{
-			TenantID:     claims.TenantID,
+			TenantID:     tenantID,
 			Action:       action,
 			ResourceType: resourceType,
-			// The calling principal, as carried by the token. The internal
-			// actor_client_id is not resolvable here without a lookup per call, so the
-			// service name is recorded in the change payload instead.
+			// The calling principal, as carried by the token (or the mTLS peer on
+			// setup RPCs). The internal actor_client_id is not resolvable here
+			// without a lookup per call, so the principal is recorded in the change
+			// payload instead.
 			ResourceID: "",
-			Changes:    grpcAuditChanges(info.FullMethod, claims),
+			Changes:    grpcAuditChanges(info.FullMethod, principal),
 			Outcome:    outcome,
 		})
 
@@ -94,6 +119,15 @@ func grpcAuditTarget(fullMethod string) (action string, resourceType string, mut
 		action, resourceType = "rotate", strings.TrimPrefix(name, "Rotate")
 	case strings.HasPrefix(name, "Register"):
 		action, resourceType = "create", strings.TrimPrefix(name, "Register")
+	// Ensure* is get-or-create (the SetupService convergence RPCs: EnsureRole,
+	// EnsureControlClient, ...) and Complete* finalizes state (CompleteSetup
+	// activates the system tenant; CompleteUserAccount flips account state).
+	// Both mutate, and without these prefixes the setup window's client/role/API
+	// provisioning never produced a row.
+	case strings.HasPrefix(name, "Ensure"):
+		action, resourceType = "create", strings.TrimPrefix(name, "Ensure")
+	case strings.HasPrefix(name, "Complete"):
+		action, resourceType = "update", strings.TrimPrefix(name, "Complete")
 	default:
 		// Get/List/Introspect/Authorize and anything else non-mutating.
 		return "", "", false
@@ -105,12 +139,29 @@ func grpcAuditTarget(fullMethod string) (action string, resourceType string, mut
 	return action, strings.ToLower(resourceType), true
 }
 
-// grpcAuditChanges records the calling principal and the exact method, so a reviewer
-// can tell which control-plane service made the call.
-func grpcAuditChanges(fullMethod string, claims *middleware.JWTClaims) string {
-	principal := claims.Service
-	if principal == "" {
-		principal = claims.Sub
+// grpcAuditPrincipal names the calling principal as carried by the token: the
+// service (`svc`) claim when present, the bare subject otherwise — never blank.
+func grpcAuditPrincipal(claims *middleware.JWTClaims) string {
+	if claims.Service != "" {
+		return claims.Service
 	}
-	return `{"transport":"grpc","method":"` + fullMethod + `","principal":"` + principal + `"}`
+	return claims.Sub
+}
+
+// grpcAuditChanges records the calling principal and the exact method, so a reviewer
+// can tell which control-plane service (or, on setup RPCs, which mTLS peer) made
+// the call. Marshalled rather than concatenated: the setup principal embeds a
+// certificate CommonName, which the deployment's operator controls, and a quote
+// in it would otherwise corrupt the JSON and make the logger DROP the row.
+func grpcAuditChanges(fullMethod string, principal string) string {
+	payload, marshalErr := json.Marshal(map[string]string{
+		"transport": "grpc",
+		"method":    fullMethod,
+		"principal": principal,
+	})
+	if marshalErr != nil {
+		// Unreachable for a map of strings; keep the row rather than dropping it.
+		return `{"transport":"grpc"}`
+	}
+	return string(payload)
 }
