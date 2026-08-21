@@ -205,6 +205,8 @@ func TestGRPCInterceptors_AuthContextAndActorGate(t *testing.T) {
 
 	// The whole mutation surface returned PermissionDenied with no hint of what
 	// an operator had to change; the message now names the missing claim.
+	// SetRoleStatus is the probe because it is DESTRUCTIVE and therefore still
+	// actor-required; the wiring RPCs (CreateRole et al.) no longer are.
 	t.Run("an actor-required method names the missing on_behalf_of claim", func(t *testing.T) {
 		initServerTestJWTKeys(t)
 		// RoleService is core-provisioning, so the actor gate is only reachable on
@@ -212,7 +214,7 @@ func TestGRPCInterceptors_AuthContextAndActorGate(t *testing.T) {
 		// outright before any token is examined.
 		withSystemControlPlane(t)
 		tenantUUID := withTenantResolver(t)
-		method := grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "CreateRole")
+		method := grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "SetRoleStatus")
 
 		ctx := metadata.NewIncomingContext(context.Background(),
 			metadata.Pairs("authorization", "Bearer "+serviceToken(t, tenantUUID, "")))
@@ -231,6 +233,30 @@ func TestGRPCInterceptors_AuthContextAndActorGate(t *testing.T) {
 		for method := range grpcActorRequiredMethods {
 			_, classified := grpcServicePermissions[method]
 			assert.True(t, classified, "%s is actor-required but not in grpcServicePermissions", method)
+		}
+	})
+
+	// Role WIRING is service-principal-allowed; role DESTRUCTION is not. Every
+	// maintainerd service ships its own roles/permissions and the orchestrator
+	// (a service principal that can never carry on_behalf_of) provisions them,
+	// so the four wiring RPCs must NOT be actor-gated at the interceptor — the
+	// iam handlers pin a bare service token to its own tenant instead. The two
+	// destructive RPCs, and all tenant methods, stay human-only.
+	t.Run("role wiring escapes the actor gate, role destruction does not", func(t *testing.T) {
+		roleMethod := func(name string) string {
+			return grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, name)
+		}
+		for _, wiring := range []string{"CreateRole", "UpdateRole", "AddRolePermissions", "RemoveRolePermission"} {
+			_, gated := grpcActorRequiredMethods[roleMethod(wiring)]
+			assert.False(t, gated, "%s is role wiring and must be reachable by a service principal", wiring)
+		}
+		for _, destructive := range []string{"SetRoleStatus", "DeleteRole"} {
+			_, gated := grpcActorRequiredMethods[roleMethod(destructive)]
+			assert.True(t, gated, "%s is role destruction and must stay human-only", destructive)
+		}
+		for _, tenantMethod := range []string{"DeleteTenant", "AddTenantMember", "UpdateTenantMemberRole", "RemoveTenantMember"} {
+			_, gated := grpcActorRequiredMethods[grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, tenantMethod)]
+			assert.True(t, gated, "TenantService/%s must stay human-only", tenantMethod)
 		}
 	})
 

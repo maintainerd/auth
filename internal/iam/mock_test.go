@@ -818,12 +818,12 @@ type mockRoleService struct {
 	getFn                func(RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	getByUUIDFn          func(uuid.UUID, int64) (*RoleServiceDataResult, error)
 	getRolePermissionsFn func(RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
-	createFn             func(string, string, bool, bool, string, string, uuid.UUID) (*RoleServiceDataResult, error)
-	updateFn             func(uuid.UUID, int64, string, string, bool, bool, string, uuid.UUID) (*RoleServiceDataResult, error)
+	createFn             func(string, string, bool, bool, string, string, RoleActor) (*RoleServiceDataResult, error)
+	updateFn             func(uuid.UUID, int64, string, string, bool, bool, string, RoleActor) (*RoleServiceDataResult, error)
 	setStatusByUUIDFn    func(uuid.UUID, int64, string, uuid.UUID) (*RoleServiceDataResult, error)
 	deleteByUUIDFn       func(uuid.UUID, int64, uuid.UUID) (*RoleServiceDataResult, error)
-	addRolePermsFn       func(uuid.UUID, int64, []uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error)
-	removeRolePermsFn    func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error)
+	addRolePermsFn       func(uuid.UUID, int64, []uuid.UUID, RoleActor) (*RoleServiceDataResult, error)
+	removeRolePermsFn    func(uuid.UUID, int64, uuid.UUID, RoleActor) (*RoleServiceDataResult, error)
 }
 
 func (m *mockRoleService) Get(_ context.Context, f RoleServiceGetFilter) (*RoleServiceGetResult, error) {
@@ -844,13 +844,13 @@ func (m *mockRoleService) GetRolePermissions(_ context.Context, f RoleServiceGet
 	}
 	return &RoleServiceGetPermissionsResult{}, nil
 }
-func (m *mockRoleService) Create(_ context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+func (m *mockRoleService) Create(_ context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actor RoleActor) (*RoleServiceDataResult, error) {
 	if m.createFn != nil {
 		return m.createFn(name, description, isDefault, isSystem, status, tenantUUID, actor)
 	}
 	return &RoleServiceDataResult{}, nil
 }
-func (m *mockRoleService) Update(_ context.Context, id uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+func (m *mockRoleService) Update(_ context.Context, id uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actor RoleActor) (*RoleServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tenantID, name, description, isDefault, isSystem, status, actor)
 	}
@@ -868,13 +868,13 @@ func (m *mockRoleService) DeleteByUUID(_ context.Context, id uuid.UUID, tenantID
 	}
 	return &RoleServiceDataResult{}, nil
 }
-func (m *mockRoleService) AddRolePermissions(_ context.Context, id uuid.UUID, tenantID int64, permissions []uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+func (m *mockRoleService) AddRolePermissions(_ context.Context, id uuid.UUID, tenantID int64, permissions []uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 	if m.addRolePermsFn != nil {
 		return m.addRolePermsFn(id, tenantID, permissions, actor)
 	}
 	return &RoleServiceDataResult{}, nil
 }
-func (m *mockRoleService) RemoveRolePermissions(_ context.Context, id uuid.UUID, tenantID int64, permission uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+func (m *mockRoleService) RemoveRolePermissions(_ context.Context, id uuid.UUID, tenantID int64, permission uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 	if m.removeRolePermsFn != nil {
 		return m.removeRolePermsFn(id, tenantID, permission, actor)
 	}

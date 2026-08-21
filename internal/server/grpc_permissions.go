@@ -152,21 +152,27 @@ var grpcStepUpMethods = map[string]struct{}{
 // up front with one message naming the missing on_behalf_of claim, rather than
 // letting each handler fail with its own wording after the work has started.
 //
+// The role WIRING methods (CreateRole, UpdateRole, AddRolePermissions,
+// RemoveRolePermission) are deliberately NOT listed: every maintainerd service
+// ships its own roles/permissions for its routes, and the orchestrator — a
+// SERVICE principal with a client_credentials token that can never carry a
+// user — provisions them as behind-the-scenes wiring. The iam handlers admit a
+// bare service principal for exactly those four, pinned to the token's own
+// tenant (grpc_helpers.go iamRoleMutationActor). Role DESTRUCTION stays
+// human-only: SetRoleStatus and DeleteRole remain here, as do all the tenant
+// methods.
+//
 // Keep in sync with the handlers that resolve an actor from the token:
-// iam/grpc_helpers.go iamActorUserUUID and tenant/handler_tenant_grpc.go
-// grpcActorUserID.
+// iam/grpc_helpers.go iamActorUserUUID / iamRoleMutationActor and
+// tenant/handler_tenant_grpc.go grpcActorUserID.
 var grpcActorRequiredMethods = map[string]struct{}{
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "DeleteTenant"):           {},
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "AddTenantMember"):        {},
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "UpdateTenantMemberRole"): {},
 	grpcMethod(authv1.TenantService_ServiceDesc.ServiceName, "RemoveTenantMember"):     {},
 
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "CreateRole"):           {},
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "UpdateRole"):           {},
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "SetRoleStatus"):        {},
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "DeleteRole"):           {},
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "AddRolePermissions"):   {},
-	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "RemoveRolePermission"): {},
+	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "SetRoleStatus"): {},
+	grpcMethod(authv1.RoleService_ServiceDesc.ServiceName, "DeleteRole"):    {},
 
 	grpcMethod(authv1.UserService_ServiceDesc.ServiceName, "AssignUserRoles"): {},
 }

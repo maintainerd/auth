@@ -71,16 +71,48 @@ type RoleServiceGetPermissionsResult struct {
 	TotalPages int
 }
 
+// RoleActor is the verified principal a role WIRING mutation (Create, Update,
+// AddRolePermissions, RemoveRolePermissions) is attributed to. Exactly one of
+// the two fields is set:
+//
+//   - UserUUID: a human administrator. The service layer looks the user up and
+//     runs ValidateTenantAccess against the target tenant, as it always has.
+//   - ServiceName: a SERVICE principal (the token's `svc` claim) acting with no
+//     human behind it. This path exists because every maintainerd service ships
+//     its own roles/permissions for its routes and the orchestrator provisions
+//     them with a client_credentials token that can never carry a user. It is
+//     deliberately confined to role WIRING — the destructive operations
+//     (SetStatusByUUID, DeleteByUUID) keep their uuid.UUID signature and stay
+//     human-only.
+//
+// A zero RoleActor is refused (fail closed): a mutation with no verifiable
+// principal has no attribution and no tenant boundary to check — the exact
+// hole the request-body actor field used to open.
+type RoleActor struct {
+	UserUUID    *uuid.UUID
+	ServiceName string
+}
+
+// UserActor wraps a human administrator's UUID as the acting principal.
+func UserActor(userUUID uuid.UUID) RoleActor {
+	return RoleActor{UserUUID: &userUUID}
+}
+
+// ServiceActor names a service principal as the acting principal.
+func ServiceActor(name string) RoleActor {
+	return RoleActor{ServiceName: name}
+}
+
 type RoleService interface {
 	Get(ctx context.Context, filter RoleServiceGetFilter) (*RoleServiceGetResult, error)
 	GetByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64) (*RoleServiceDataResult, error)
 	GetRolePermissions(ctx context.Context, filter RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error)
-	Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actor RoleActor) (*RoleServiceDataResult, error)
+	Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actor RoleActor) (*RoleServiceDataResult, error)
 	SetStatusByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
 	DeleteByUUID(ctx context.Context, roleUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
-	RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error)
+	AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error)
+	RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error)
 }
 
 type roleService struct {
@@ -234,13 +266,17 @@ func (s *roleService) GetRolePermissions(ctx context.Context, filter RoleService
 	}, nil
 }
 
-func (s *roleService) Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) Create(ctx context.Context, name string, description string, isDefault bool, isSystem bool, status string, tenantUUID string, actor RoleActor) (*RoleServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "role.create")
 	defer span.End()
 	span.SetAttributes(attribute.String("tenant.uuid", tenantUUID))
 
 	var createdRole *Role
-	var capturedTenantID, capturedActorID int64
+	var capturedTenantID int64
+	// nil when the actor is a service principal: the event/audit actor column is
+	// a user FK, and inventing a user row for a machine would be a forgery. The
+	// service name is carried in the auth-event description instead.
+	var capturedActorID *int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -260,18 +296,29 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 			return apperror.NewNotFound("tenant not found")
 		}
 
-		// Get actor user with user identities for tenant validation
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
-		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, targetTenant); err != nil {
-			return err
+		// Resolve WHO is creating this role. A human actor is looked up and
+		// checked against the tenant, as always. A service principal has no user
+		// row to check — the gRPC handler has already pinned its token to this
+		// tenant (iamRoleMutationActor), which is the only tenant boundary a
+		// machine token has.
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err := txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, targetTenant); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			// Role wiring by the orchestrator — nothing user-scoped to validate.
+		default:
+			// Fail closed: a mutation with no principal has no attribution and no
+			// tenant boundary to check.
+			return apperror.NewForbidden("role creation requires an acting principal")
 		}
 		capturedTenantID = targetTenant.TenantID
-		capturedActorID = actorUser.UserID
 
 		// Check if role already exist
 		existingRole, err := txRoleRepo.FindByNameAndTenantID(name, targetTenant.TenantID)
@@ -303,7 +350,7 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRoleCreated, 1, targetTenant.TenantID,
-			).SetActor(&actorUser.UserID).SetSubject(&createdRole.RoleUUID, "role")); emitErr != nil {
+			).SetActor(capturedActorID).SetSubject(&createdRole.RoleUUID, "role")); emitErr != nil {
 				return emitErr
 			}
 		}
@@ -320,25 +367,36 @@ func (s *roleService) Create(ctx context.Context, name string, description strin
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    capturedTenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzAdmin,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Role created: %s", createdRole.Name)),
+		Description: ptr.Ptr(roleMutationDescription("Role created", createdRole.Name, actor)),
 	})
 	return toRoleServiceDataResult(createdRole), nil
 }
 
-func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+// roleMutationDescription names the acting service in the auth-event trail
+// when there is no user to attribute the change to: with actor_user_id NULL the
+// description is the only place the record answers "who did this".
+func roleMutationDescription(verb string, roleName string, actor RoleActor) string {
+	if actor.ServiceName != "" {
+		return fmt.Sprintf("%s: %s (by service %s)", verb, roleName, actor.ServiceName)
+	}
+	return fmt.Sprintf("%s: %s", verb, roleName)
+}
+
+func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, status string, actor RoleActor) (*RoleServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "role.update")
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var updatedRole *Role
-	var capturedActorID int64
+	// nil when the actor is a service principal — see Create.
+	var capturedActorID *int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -359,17 +417,24 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
-		// Get actor user with user identities for tenant validation
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
+		// Resolve WHO is updating this role — see Create for the split. A service
+		// principal's tenant boundary was enforced by the gRPC handler
+		// (iamRoleMutationActor); there is no user membership to validate here.
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err := txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			// Role wiring by the orchestrator — nothing user-scoped to validate.
+		default:
+			return apperror.NewForbidden("role update requires an acting principal")
 		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
-			return err
-		}
-		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -421,7 +486,7 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 		if s.eventService != nil && len(changed) > 0 {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRoleUpdated, 1, tenantID,
-			).SetActor(&actorUser.UserID).
+			).SetActor(capturedActorID).
 				SetSubject(&updatedRole.RoleUUID, "role").
 				SetChangedFields(changed...)); emitErr != nil {
 				return emitErr
@@ -446,14 +511,14 @@ func (s *roleService) Update(ctx context.Context, roleUUID uuid.UUID, tenantID i
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzAdmin,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Role updated: %s", updatedRole.Name)),
+		Description: ptr.Ptr(roleMutationDescription("Role updated", updatedRole.Name, actor)),
 	})
 	return toRoleServiceDataResult(updatedRole), nil
 }
@@ -674,13 +739,14 @@ func (s *roleService) assertNoPrivilegeEscalation(actorUserID, tenantID int64, g
 	return nil
 }
 
-func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUIDs []uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "role.addPermissions")
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var roleWithPermissions *Role
-	var capturedActorID int64
+	// nil when the actor is a service principal — see Create.
+	var capturedActorID *int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -703,17 +769,30 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
-		// Get actor user with user identities for tenant validation
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
+		// Resolve WHO is attaching these permissions — see Create for the split.
+		// A service principal's tenant boundary was enforced by the gRPC handler
+		// (iamRoleMutationActor). The privilege-escalation guard below is
+		// user-actor-only by construction: it contains a human borrowing role
+		// editing to grant themselves a permission they do not hold, via a role
+		// they hold. A service principal authenticates as a service, never holds
+		// roles, and cannot self-elevate through one — its grant is the PDP
+		// decision on role:permission:create, pinned to its own tenant.
+		var actorUser *User
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err = txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			// Role wiring by the orchestrator — nothing user-scoped to validate.
+		default:
+			return apperror.NewForbidden("adding role permissions requires an acting principal")
 		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
-			return err
-		}
-		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -737,8 +816,10 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 			return apperror.NewNotFoundWithReason("one or more permissions not found")
 		}
 
-		if err := s.assertNoPrivilegeEscalation(actorUser.UserID, role.TenantID, permissions); err != nil {
-			return err
+		if actorUser != nil {
+			if err := s.assertNoPrivilegeEscalation(actorUser.UserID, role.TenantID, permissions); err != nil {
+				return err
+			}
 		}
 
 		// Create role-permission associations using the dedicated repository
@@ -776,7 +857,7 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRolePermissionsChanged, 1, tenantID,
-			).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+			).SetActor(capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
 				SetChangedFields("permissions")); emitErr != nil {
 				return emitErr
 			}
@@ -799,25 +880,26 @@ func (s *roleService) AddRolePermissions(ctx context.Context, roleUUID uuid.UUID
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzChange,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Permissions added to role: %s", roleWithPermissions.Name)),
+		Description: ptr.Ptr(roleMutationDescription("Permissions added to role", roleWithPermissions.Name, actor)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }
 
-func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actorUserUUID uuid.UUID) (*RoleServiceDataResult, error) {
+func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.UUID, tenantID int64, permissionUUID uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "role.removePermissions")
 	defer span.End()
 	span.SetAttributes(attribute.String("role.uuid", roleUUID.String()), attribute.Int64("tenant.id", tenantID))
 
 	var roleWithPermissions *Role
-	var capturedActorID int64
+	// nil when the actor is a service principal — see Create.
+	var capturedActorID *int64
 
 	// Transaction
 	err := s.db.Transaction(func(tx *gorm.DB) error {
@@ -840,17 +922,25 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 			return apperror.NewNotFoundWithReason("role not found or access denied")
 		}
 
-		// Get actor user with user identities for tenant validation
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
+		// Resolve WHO is detaching this permission — see Create for the split.
+		// Removing a permission is rewiring, not destruction: the role and the
+		// permission both survive, so the orchestrator may do it in its own
+		// tenant (the handler pinned the token there).
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err := txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			// Role wiring by the orchestrator — nothing user-scoped to validate.
+		default:
+			return apperror.NewForbidden("removing a role permission requires an acting principal")
 		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, role.Tenant); err != nil {
-			return err
-		}
-		capturedActorID = actorUser.UserID
 
 		// Check if role is a system record
 		if role.IsSystem {
@@ -900,7 +990,7 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeRolePermissionsChanged, 1, tenantID,
-			).SetActor(&capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
+			).SetActor(capturedActorID).SetSubject(&roleWithPermissions.RoleUUID, "role").
 				SetChangedFields("permissions")); emitErr != nil {
 				return emitErr
 			}
@@ -923,14 +1013,14 @@ func (s *roleService) RemoveRolePermissions(ctx context.Context, roleUUID uuid.U
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzChange,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Permission removed from role: %s", roleWithPermissions.Name)),
+		Description: ptr.Ptr(roleMutationDescription("Permission removed from role", roleWithPermissions.Name, actor)),
 	})
 	return toRoleServiceDataResult(roleWithPermissions), nil
 }

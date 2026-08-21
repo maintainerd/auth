@@ -156,7 +156,9 @@ func resolveIAMTenantAndUUID(ctx context.Context, tenantService TenantResolver, 
 //
 // There is deliberately NO fallback to the body. The gRPC interceptor admits
 // service principals, which carry no user identity; a token that cannot name a
-// user simply may not mutate roles. Failing closed here is the only option that
+// user simply may not DESTROY roles (SetRoleStatus, DeleteRole) — the four
+// wiring RPCs resolve through iamRoleMutationActor instead, which admits a
+// tenant-pinned service principal. Failing closed here is the only option that
 // does not reopen the hole.
 // iamActorUserUUID resolves the acting user for a mutating role RPC.
 //
@@ -164,18 +166,6 @@ func resolveIAMTenantAndUUID(ctx context.Context, tenantService TenantResolver, 
 // cannot disagree about who a token is allowed to act as.
 func iamActorUserUUID(ctx context.Context) (uuid.UUID, error) {
 	return middleware.GRPCActorUUID(ctx, "role changes")
-}
-
-func resolveIAMTenantAndActor(ctx context.Context, tenantService TenantResolver, tenantUUID string) (*tenantScope, uuid.UUID, error) {
-	scope, err := resolveIAMTenant(ctx, tenantService, tenantUUID)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-	actor, err := iamActorUserUUID(ctx)
-	if err != nil {
-		return nil, uuid.Nil, err
-	}
-	return scope, actor, nil
 }
 
 func resolveIAMTenantRoleActor(ctx context.Context, tenantService TenantResolver, tenantUUID string, roleValue string) (*tenantScope, uuid.UUID, uuid.UUID, error) {
@@ -186,6 +176,75 @@ func resolveIAMTenantRoleActor(ctx context.Context, tenantService TenantResolver
 	actor, err := iamActorUserUUID(ctx)
 	if err != nil {
 		return nil, uuid.Nil, uuid.Nil, err
+	}
+	return scope, roleUUID, actor, nil
+}
+
+// iamRoleMutationActor resolves who a role WIRING RPC (CreateRole, UpdateRole,
+// AddRolePermissions, RemoveRolePermission) acts as.
+//
+// A HUMAN actor (the signed on_behalf_of user) is resolved exactly as before
+// and stays the default. The single sanctioned exception is a SERVICE principal
+// wiring roles: every maintainerd service ships its own roles/permissions for
+// its routes, and the orchestrator must be able to provision them with its own
+// client_credentials token, which can never carry a user. That exception is
+// deliberately this narrow:
+//
+//   - only the four wiring RPCs use this resolution. Role DESTRUCTION —
+//     SetRoleStatus, DeleteRole — keeps requiring a human and fails with the
+//     same error it always has (RemoveRolePermission is rewiring, not
+//     destruction: role and permission both survive);
+//   - the token's own tenant must BE the target tenant. A human actor's
+//     membership is checked in the service layer (ValidateTenantAccess), but a
+//     service has no membership rows, so the token's tenant binding is the only
+//     boundary there is. This also deliberately withholds resolveIAMTenant's
+//     system-tenant override from bare machine tokens: wiring roles INTO a
+//     tenant remotely still requires acting as a user of that tenant.
+//
+// This handler-side helper owns the tenant comparison because only the
+// transport knows the verified token; the service layer's user checks cannot
+// see it.
+func iamRoleMutationActor(ctx context.Context, targetTenantID int64) (RoleActor, error) {
+	principal, err := middleware.GRPCActorOrService(ctx, "role changes")
+	if err != nil {
+		return RoleActor{}, err
+	}
+	if principal.User != nil {
+		return UserActor(principal.User.UserUUID), nil
+	}
+	if principal.TenantID == 0 || principal.TenantID != targetTenantID {
+		return RoleActor{}, status.Error(codes.PermissionDenied,
+			"a service principal may only manage roles in its own tenant")
+	}
+	return ServiceActor(principal.ServiceName), nil
+}
+
+// resolveIAMTenantAndPrincipal is resolveIAMTenantAndUUID's sibling for
+// CreateRole: tenant scope plus the user-or-service acting principal.
+func resolveIAMTenantAndPrincipal(ctx context.Context, tenantService TenantResolver, tenantUUID string) (*tenantScope, RoleActor, error) {
+	scope, err := resolveIAMTenant(ctx, tenantService, tenantUUID)
+	if err != nil {
+		return nil, RoleActor{}, err
+	}
+	actor, err := iamRoleMutationActor(ctx, scope.TenantID)
+	if err != nil {
+		return nil, RoleActor{}, err
+	}
+	return scope, actor, nil
+}
+
+// resolveIAMTenantRolePrincipal is resolveIAMTenantRoleActor's sibling for the
+// role-scoped WIRING RPCs (UpdateRole, AddRolePermissions,
+// RemoveRolePermission). The destructive RPCs keep resolveIAMTenantRoleActor's
+// human-only resolution.
+func resolveIAMTenantRolePrincipal(ctx context.Context, tenantService TenantResolver, tenantUUID string, roleValue string) (*tenantScope, uuid.UUID, RoleActor, error) {
+	scope, roleUUID, err := resolveIAMTenantAndUUID(ctx, tenantService, tenantUUID, roleValue, "Role UUID")
+	if err != nil {
+		return nil, uuid.Nil, RoleActor{}, err
+	}
+	actor, err := iamRoleMutationActor(ctx, scope.TenantID)
+	if err != nil {
+		return nil, uuid.Nil, RoleActor{}, err
 	}
 	return scope, roleUUID, actor, nil
 }

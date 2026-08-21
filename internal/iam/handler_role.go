@@ -202,7 +202,7 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create role associated with tenant
-	role, err := h.service.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), user.UserUUID)
+	role, err := h.service.Create(r.Context(), req.Name, req.Description, false, false, req.Status, tenant.TenantUUID.String(), UserActor(user.UserUUID))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to create role", err)
 		return
@@ -253,7 +253,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update role - service validates it belongs to tenant
-	role, err := h.service.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, user.UserUUID)
+	role, err := h.service.Update(r.Context(), roleUUID, tenant.TenantID, req.Name, req.Description, false, false, req.Status, UserActor(user.UserUUID))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to update role", err)
 		return
@@ -491,7 +491,7 @@ func (h *RoleHandler) AddPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add permissions to role - service validates role belongs to tenant
-	role, err := h.service.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, user.UserUUID)
+	role, err := h.service.AddRolePermissions(r.Context(), roleUUID, tenant.TenantID, req.Permissions, UserActor(user.UserUUID))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to add permissions to role", err)
 		return
@@ -536,7 +536,7 @@ func (h *RoleHandler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove permission from role - service validates role belongs to tenant
-	role, err := h.service.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, user.UserUUID)
+	role, err := h.service.RemoveRolePermissions(r.Context(), roleUUID, tenant.TenantID, permissionUUID, UserActor(user.UserUUID))
 	if err != nil {
 		resp.HandleServiceError(w, r, "Failed to remove permission from role", err)
 		return

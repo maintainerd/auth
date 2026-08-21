@@ -41,12 +41,14 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 				assert.Equal(t, roleUUID, f.RoleUUID)
 				return &RoleServiceGetPermissionsResult{Data: []PermissionServiceDataResult{permission}, Total: 1, Page: 1, Limit: 10, TotalPages: 1}, nil
 			},
-			createFn: func(name string, description string, isDefault bool, isSystem bool, roleStatus string, tenantID string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			createFn: func(name string, description string, isDefault bool, isSystem bool, roleStatus string, tenantID string, actor RoleActor) (*RoleServiceDataResult, error) {
 				assert.Equal(t, tenantUUID.String(), tenantID)
-				assert.Equal(t, actorUUID, actor)
+				require.NotNil(t, actor.UserUUID, "a token naming a user stays attributed to that user")
+				assert.Equal(t, actorUUID, *actor.UserUUID)
+				assert.Empty(t, actor.ServiceName)
 				return &role, nil
 			},
-			updateFn: func(id uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, roleStatus string, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			updateFn: func(id uuid.UUID, tenantID int64, name string, description string, isDefault bool, isSystem bool, roleStatus string, actor RoleActor) (*RoleServiceDataResult, error) {
 				assert.Equal(t, roleUUID, id)
 				return &role, nil
 			},
@@ -58,11 +60,11 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 			deleteByUUIDFn: func(id uuid.UUID, tenantID int64, actor uuid.UUID) (*RoleServiceDataResult, error) {
 				return &role, nil
 			},
-			addRolePermsFn: func(id uuid.UUID, tenantID int64, permissionIDs []uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			addRolePermsFn: func(id uuid.UUID, tenantID int64, permissionIDs []uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 				assert.Equal(t, []uuid.UUID{permissionUUID}, permissionIDs)
 				return &role, nil
 			},
-			removeRolePermsFn: func(id uuid.UUID, tenantID int64, permissionID uuid.UUID, actor uuid.UUID) (*RoleServiceDataResult, error) {
+			removeRolePermsFn: func(id uuid.UUID, tenantID int64, permissionID uuid.UUID, actor RoleActor) (*RoleServiceDataResult, error) {
 				assert.Equal(t, permissionUUID, permissionID)
 				return &role, nil
 			},
@@ -142,16 +144,16 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 			getRolePermissionsFn: func(RoleServiceGetPermissionsFilter) (*RoleServiceGetPermissionsResult, error) {
 				return nil, serviceErr
 			},
-			createFn: func(string, string, bool, bool, string, string, uuid.UUID) (*RoleServiceDataResult, error) {
+			createFn: func(string, string, bool, bool, string, string, RoleActor) (*RoleServiceDataResult, error) {
 				return nil, serviceErr
 			},
-			updateFn: func(uuid.UUID, int64, string, string, bool, bool, string, uuid.UUID) (*RoleServiceDataResult, error) {
+			updateFn: func(uuid.UUID, int64, string, string, bool, bool, string, RoleActor) (*RoleServiceDataResult, error) {
 				return nil, serviceErr
 			},
 			setStatusByUUIDFn: func(uuid.UUID, int64, string, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
 			deleteByUUIDFn:    func(uuid.UUID, int64, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
-			addRolePermsFn:    func(uuid.UUID, int64, []uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
-			removeRolePermsFn: func(uuid.UUID, int64, uuid.UUID, uuid.UUID) (*RoleServiceDataResult, error) { return nil, serviceErr },
+			addRolePermsFn:    func(uuid.UUID, int64, []uuid.UUID, RoleActor) (*RoleServiceDataResult, error) { return nil, serviceErr },
+			removeRolePermsFn: func(uuid.UUID, int64, uuid.UUID, RoleActor) (*RoleServiceDataResult, error) { return nil, serviceErr },
 		})
 		_, err = h.ListRoles(ctx, &authv1.ListRolesRequest{TenantId: tenantUUID.String()})
 		assert.Equal(t, codes.Internal, status.Code(err))
@@ -177,38 +179,23 @@ func TestRoleGRPCHandler_RPCS(t *testing.T) {
 	// read. What replaces them is the inverse — a body-supplied actor must NOT be
 	// able to stand in for a missing user principal. The service is left nil so any
 	// RPC that got as far as calling it would panic rather than pass.
-	t.Run("mutating RPCs fail closed for a service principal", func(t *testing.T) {
+	//
+	// Only the DESTRUCTIVE RPCs stay unconditionally human-only here: the four
+	// wiring RPCs (CreateRole, UpdateRole, AddRolePermissions,
+	// RemoveRolePermission) now admit a tenant-pinned service principal — see
+	// role_service_actor_test.go for that surface, including its refusals.
+	t.Run("destructive RPCs fail closed for a service principal", func(t *testing.T) {
 		h := NewRoleGRPCHandler(tenantResolver, nil)
 		serviceCtx := grpcCallerCtx(77)
 		innocent := uuid.New().String()
 
 		for name, call := range map[string]func() error{
-			"CreateRole": func() error {
-				req := validCreateRoleRequest(tenantUUID)
-				req.ActorUserId = innocent
-				_, err := h.CreateRole(serviceCtx, req)
-				return err
-			},
-			"UpdateRole": func() error {
-				req := validUpdateRoleRequest(tenantUUID, roleUUID)
-				req.ActorUserId = innocent
-				_, err := h.UpdateRole(serviceCtx, req)
-				return err
-			},
 			"SetRoleStatus": func() error {
 				_, err := h.SetRoleStatus(serviceCtx, &authv1.SetRoleStatusRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), Status: shared.StatusActive})
 				return err
 			},
 			"DeleteRole": func() error {
 				_, err := h.DeleteRole(serviceCtx, &authv1.DeleteRoleRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String()})
-				return err
-			},
-			"AddRolePermissions": func() error {
-				_, err := h.AddRolePermissions(serviceCtx, &authv1.AddRolePermissionsRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), PermissionIds: []string{permissionUUID.String()}})
-				return err
-			},
-			"RemoveRolePermission": func() error {
-				_, err := h.RemoveRolePermission(serviceCtx, &authv1.RemoveRolePermissionRequest{TenantId: tenantUUID.String(), ActorUserId: innocent, RoleId: roleUUID.String(), PermissionId: permissionUUID.String()})
 				return err
 			},
 		} {
