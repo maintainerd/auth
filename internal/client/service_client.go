@@ -125,6 +125,36 @@ type ClientServiceGetResult struct {
 	TotalPages int
 }
 
+// ClientActor is the verified principal a client Create/Update is attributed
+// to. Exactly one of the two fields is set:
+//
+//   - UserUUID: a human administrator. The service layer looks the user up and
+//     runs ValidateTenantAccess against the target tenant, as it always has.
+//   - ServiceName: a SERVICE principal (the token's `svc` claim) acting with no
+//     human behind it. This path exists so an orchestrator can provision machine
+//     identities for the services it manages (the AWS service-linked pattern),
+//     and it is deliberately narrow: the resulting client must be m2m AND
+//     service-bound, so a lone service token can never mint a user-facing login
+//     client or an unbound m2m credential.
+//
+// A zero ClientActor is refused (fail closed): a mutation with no verifiable
+// principal has no attribution and no tenant boundary to check — the exact
+// hole the request-body actor field used to open.
+type ClientActor struct {
+	UserUUID    *uuid.UUID
+	ServiceName string
+}
+
+// UserActor wraps a human administrator's UUID as the acting principal.
+func UserActor(userUUID uuid.UUID) ClientActor {
+	return ClientActor{UserUUID: &userUUID}
+}
+
+// ServiceActor names a service principal as the acting principal.
+func ServiceActor(name string) ClientActor {
+	return ClientActor{ServiceName: name}
+}
+
 type ClientService interface {
 	Get(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	// IsManagementClient reports whether the client identified by
@@ -142,8 +172,8 @@ type ClientService interface {
 	// cannot be recovered. RotateSecret is the only way to obtain one after
 	// creation.
 	GetConfigByUUID(ctx context.Context, ClientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
-	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
+	Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientCreateServiceResult, error)
+	Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error)
 	// RotateSecret generates a new secret, hashes and persists it, and keeps the old
 	// hash valid for the specified grace period (gracePeriodHours=0 revokes immediately).
 	// Returns the new plaintext secret once — it cannot be retrieved again.
@@ -571,7 +601,7 @@ func (s *clientService) resolveBrandingID(tx *gorm.DB, tenantID int64, brandingU
 	return &b.BrandingID, nil
 }
 
-func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
+func (s *clientService) Create(ctx context.Context, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientCreateServiceResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.create")
 	defer span.End()
 	span.SetAttributes(
@@ -581,7 +611,10 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 
 	var createdClient *Client
 	var plaintextSecret string
-	var capturedActorID int64
+	// nil when the actor is a service principal: created_by-style attribution
+	// columns are user FKs, and inventing a user row for a machine would be a
+	// forgery. The service name is carried in the auth-event description instead.
+	var capturedActorID *int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -593,15 +626,32 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 			return err
 		}
 
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
+		// Resolve WHO is creating this client. A human actor is looked up and
+		// checked against the tenant, as always. A service principal has no user
+		// row to check — the gRPC handler has already pinned its token to this
+		// tenant — but it may only mint another service's credential: an m2m
+		// client that is service-bound. Enforced here as well as in the handler
+		// (defense in depth), so a future transport cannot forget the rule.
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err := txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			if clientType != shared.ClientTypeM2M || serviceUUID == nil || *serviceUUID == "" {
+				return apperror.NewForbidden(
+					"a service principal may only create an m2m client bound to a service")
+			}
+		default:
+			// Fail closed: a mutation with no principal has no attribution and no
+			// tenant boundary to check.
+			return apperror.NewForbidden("client creation requires an acting principal")
 		}
-
-		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
-			return err
-		}
-		capturedActorID = actorUser.UserID
 
 		// Binding this client to a service makes its tokens carry the `svc` claim,
 		// which is the principal the policy bundle and the gRPC authorizer resolve.
@@ -739,7 +789,7 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeClientCreated, 1, tenantID,
-			).SetActor(&capturedActorID).SetSubject(&createdClient.ClientUUID, "client")); emitErr != nil {
+			).SetActor(capturedActorID).SetSubject(&createdClient.ClientUUID, "client")); emitErr != nil {
 				return emitErr
 			}
 		}
@@ -760,20 +810,30 @@ func (s *clientService) Create(ctx context.Context, tenantID int64, name string,
 	span.SetStatus(codes.Ok, "")
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzAdmin,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Client created: %s", createdClient.Name)),
+		Description: ptr.Ptr(clientMutationDescription("Client created", createdClient.Name, actor)),
 	})
 	return &ClientCreateServiceResult{
 		Client:           ToClientServiceDataResult(createdClient),
 		ClientIdentifier: identifier,
 		PlaintextSecret:  plaintextSecret,
 	}, nil
+}
+
+// clientMutationDescription names the acting service in the auth-event trail
+// when there is no user to attribute the change to: with actor_user_id NULL the
+// description is the only place the record answers "who did this".
+func clientMutationDescription(verb string, clientName string, actor ClientActor) string {
+	if actor.ServiceName != "" {
+		return fmt.Sprintf("%s: %s (by service %s)", verb, clientName, actor.ServiceName)
+	}
+	return fmt.Sprintf("%s: %s", verb, clientName)
 }
 
 func (s *clientService) resolveInitialIdentityProvider(tx *gorm.DB, repo IdentityProviderRepository, tenantID int64, identityProviderUUID string) (*IdentityProvider, error) {
@@ -810,7 +870,11 @@ func (s *clientService) resolveInitialIdentityProvider(tx *gorm.DB, repo Identit
 	return &identityProvider, nil
 }
 
-func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, client *Client, identityProvider *IdentityProvider, isDefault bool, enabled bool, displayOrder int, actorUserID int64) error {
+// ensureClientIdentityProviderConnection wires the client to its identity
+// provider. actorUserID is nil when the creation was performed by a service
+// principal: created_by/updated_by are nullable user FKs, so NULL is the honest
+// value — pointing them at any user would fabricate an attribution.
+func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, client *Client, identityProvider *IdentityProvider, isDefault bool, enabled bool, displayOrder int, actorUserID *int64) error {
 	if client == nil || identityProvider == nil {
 		return apperror.NewValidation("client and identity provider are required")
 	}
@@ -821,8 +885,8 @@ func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, clie
 		IsDefault:          isDefault,
 		Enabled:            &enabled,
 		DisplayOrder:       displayOrder,
-		CreatedBy:          &actorUserID,
-		UpdatedBy:          &actorUserID,
+		CreatedBy:          actorUserID,
+		UpdatedBy:          actorUserID,
 	}
 	var existing ClientIdentityProvider
 	err := tx.
@@ -832,7 +896,7 @@ func (s *clientService) ensureClientIdentityProviderConnection(tx *gorm.DB, clie
 		existing.IsDefault = isDefault
 		existing.Enabled = &enabled
 		existing.DisplayOrder = displayOrder
-		existing.UpdatedBy = &actorUserID
+		existing.UpdatedBy = actorUserID
 		return tx.Save(&existing).Error
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1019,7 +1083,7 @@ func assertClientSecretJWTHasKeyMaterial(c *Client, previousAuthMethod string) e
 // "unset" (see the field comment on the model).
 var magicLinkDisabledByDefault = false
 
-func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenantID int64, name string, displayName string, clientType string, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	_, span := otel.Tracer("service").Start(ctx, "client.update")
 	defer span.End()
 	span.SetAttributes(
@@ -1028,7 +1092,8 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 	)
 
 	var updatedClient *Client
-	var capturedActorID int64
+	// nil when the actor is a service principal — see Create.
+	var capturedActorID *int64
 
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		txClientRepo := s.clientRepo.WithTx(tx)
@@ -1048,17 +1113,40 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 			return err
 		}
 
-		// Get actor user with tenant info
-		actorUser, err := txUserRepo.FindByUUID(actorUserUUID, "UserIdentities.Tenant")
-		if err != nil || actorUser == nil {
-			return apperror.NewNotFoundWithReason("actor user not found")
+		// Resolve WHO is updating this client — see Create for the split. On the
+		// service-actor path the client must stay a valid service credential:
+		// the type must remain m2m, an explicit empty service_id (unbind) is
+		// refused, and an omitted one is acceptable only because the client is
+		// already bound. Without these rules a lone service token could turn the
+		// credential it just minted into a user-facing login client or strip the
+		// binding that scopes it. Enforced here as well as in the gRPC handler
+		// (defense in depth), so a future transport cannot forget the rule.
+		switch {
+		case actor.UserUUID != nil:
+			actorUser, err := txUserRepo.FindByUUID(*actor.UserUUID, "UserIdentities.Tenant")
+			if err != nil || actorUser == nil {
+				return apperror.NewNotFoundWithReason("actor user not found")
+			}
+			if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
+				return err
+			}
+			capturedActorID = &actorUser.UserID
+		case actor.ServiceName != "":
+			if clientType != shared.ClientTypeM2M {
+				return apperror.NewForbidden(
+					"a service principal cannot change a client's type away from m2m")
+			}
+			if serviceUUID != nil && *serviceUUID == "" {
+				return apperror.NewForbidden(
+					"a service principal cannot unbind a client from its service")
+			}
+			if serviceUUID == nil && Client.ServiceID == nil {
+				return apperror.NewForbidden(
+					"a service principal may only update an m2m client bound to a service")
+			}
+		default:
+			return apperror.NewForbidden("client update requires an acting principal")
 		}
-
-		// Validate tenant access permissions
-		if err := ValidateTenantAccess(actorUser, &Tenant{TenantID: tenantID}); err != nil {
-			return err
-		}
-		capturedActorID = actorUser.UserID
 
 		// System clients back the console and the hosted login UI and are resolved
 		// by name, so renaming, retyping or deactivating one breaks the tenant.
@@ -1169,7 +1257,7 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 		if s.eventService != nil {
 			if _, emitErr := s.eventService.Emit(ctx, tx, event.NewIntegrationEvent(
 				event.EventTypeClientUpdated, 1, tenantID,
-			).SetActor(&capturedActorID).SetSubject(&updatedClient.ClientUUID, "client")); emitErr != nil {
+			).SetActor(capturedActorID).SetSubject(&updatedClient.ClientUUID, "client")); emitErr != nil {
 				return emitErr
 			}
 		}
@@ -1186,14 +1274,14 @@ func (s *clientService) Update(ctx context.Context, ClientUUID uuid.UUID, tenant
 	s.invalidateUserContexts(ctx)
 	s.authEventService.Log(ctx, authevent.AuthEventInput{
 		TenantID:    tenantID,
-		ActorUserID: &capturedActorID,
+		ActorUserID: capturedActorID,
 		IPAddress:   middleware.ClientIPFromContext(ctx),
 		UserAgent:   ptr.PtrOrNil(middleware.UserAgentFromContext(ctx)),
 		Category:    authevent.AuthEventCategoryAuthz,
 		EventType:   authevent.AuthEventTypeAuthzAdmin,
 		Severity:    authevent.AuthEventSeverityInfo,
 		Result:      authevent.AuthEventResultSuccess,
-		Description: ptr.Ptr(fmt.Sprintf("Client updated: %s", updatedClient.Name)),
+		Description: ptr.Ptr(clientMutationDescription("Client updated", updatedClient.Name, actor)),
 	})
 	return ToClientServiceDataResult(updatedClient), nil
 }

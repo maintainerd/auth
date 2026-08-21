@@ -45,6 +45,11 @@ message Client {
   google.protobuf.Timestamp updated_at = 12;
   string branding_id = 13;
   bool allow_registration = 14;
+  // The UUID of the service this client is bound to (absent when unbound).
+  // Exposed so a get-or-create caller can converge on the existing client: without
+  // it the caller cannot tell a bound credential from an unbound one and would
+  // re-bind (or duplicate) on every reconcile pass.
+  optional string service_id = 15;
 }
 
 message ClientIdentityProvider {
@@ -175,6 +180,13 @@ message CreateClientRequest {
   // dedicated fields would create a second way to set the same thing, and two
   // sources of truth for a verification key is precisely how the wrong key ends
   // up deciding who may authenticate.
+
+  // Binds the new client to a service principal so the tokens it mints carry the
+  // `svc` claim — the principal the policy bundle and the gRPC authorizer
+  // resolve. It is a privilege grant, so the server enforces that the service is
+  // in the SAME tenant, ACTIVE, and that the client is m2m (a public client
+  // cannot keep a credential; a traditional client is a user-facing app).
+  optional string service_id = 12;
 }
 
 message CreateClientResponse {
@@ -200,6 +212,11 @@ message UpdateClientRequest {
   string actor_user_id = 9;
   string branding_id = 10;
   optional bool allow_registration = 11;
+
+  // Service binding (see CreateClientRequest). Absent = leave the binding
+  // unchanged; an explicit EMPTY string = unbind. The same tenant/active/m2m
+  // rules are enforced server-side on every change.
+  optional string service_id = 12;
 }
 
 message UpdateClientResponse {

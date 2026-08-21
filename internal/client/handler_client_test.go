@@ -206,7 +206,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -215,7 +215,7 @@ func TestClientHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+		svc := &mockClientService{createFn: func(tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
 			return &ClientCreateServiceResult{Client: &ClientServiceDataResult{Name: n}}, nil
 		}}
 		r := withTenantAndUser(jsonReq(t, http.MethodPost, "/clients", validClientBody()))
@@ -251,7 +251,7 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 	t.Run("service error returns 500", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientServiceDataResult, error) {
 			return nil, errors.New("db error")
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))
@@ -260,7 +260,7 @@ func TestClientHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 	t.Run("success", func(t *testing.T) {
-		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+		svc := &mockClientService{updateFn: func(id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientServiceDataResult, error) {
 			return &ClientServiceDataResult{Name: n}, nil
 		}}
 		r := withTenantAndUser(withChiParam(jsonReq(t, http.MethodPut, "/clients/"+testResourceUUID.String(), validClientBody()), "client_uuid", testResourceUUID.String()))

@@ -254,7 +254,7 @@ func TestClientService_Create_NeverMarksTheClientDefault(t *testing.T) {
 		&mockAPIRepo{}, actorUserRepo(tenantID), &mockTenantRepo{}, nil, nil)
 
 	_, err := svc.Create(context.Background(), tenantID, "app", "App", "public", "example.com",
-		nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 	require.NoError(t, err)
 	require.NotNil(t, created)
 	assert.False(t, created.IsDefault, "is_default is not tenant-admin input")
@@ -291,7 +291,7 @@ func TestClientService_Update_DoesNotPromoteToDefault(t *testing.T) {
 		&mockAPIRepo{}, actorUserRepo(tenantID), &mockTenantRepo{}, nil, nil)
 
 	_, err := svc.Update(context.Background(), cUUID, tenantID, "app", "App", "spa", "example.com",
-		nil, "active", nil, nil, nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		nil, "active", nil, nil, nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, saved)
 	assert.False(t, saved.IsDefault)

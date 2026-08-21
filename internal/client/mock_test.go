@@ -90,8 +90,8 @@ type mockClientService struct {
 	getFn                 func(ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	getByUUIDFn           func(uuid.UUID, int64) (*ClientServiceDataResult, error)
 	getConfigByUUIDFn     func(uuid.UUID, int64) (datatypes.JSON, error)
-	createFn              func(int64, string, string, string, string, datatypes.JSON, string, string, *uuid.UUID, bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientCreateServiceResult, error)
-	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, *uuid.UUID, *bool, *string, *string, *bool, *bool, uuid.UUID, *string) (*ClientServiceDataResult, error)
+	createFn              func(int64, string, string, string, string, datatypes.JSON, string, string, *uuid.UUID, bool, *string, *string, *bool, *bool, ClientActor, *string) (*ClientCreateServiceResult, error)
+	updateFn              func(uuid.UUID, int64, string, string, string, string, datatypes.JSON, string, *uuid.UUID, *bool, *string, *string, *bool, *bool, ClientActor, *string) (*ClientServiceDataResult, error)
 	setStatusByUUIDFn     func(uuid.UUID, int64, string, uuid.UUID) (*ClientServiceDataResult, error)
 	deleteByUUIDFn        func(uuid.UUID, int64, uuid.UUID) (*ClientServiceDataResult, error)
 	createURIFn           func(uuid.UUID, int64, string, string, uuid.UUID) (*ClientServiceDataResult, error)
@@ -147,13 +147,13 @@ func (m *mockClientService) GetConfigByUUID(_ context.Context, id uuid.UUID, tid
 	}
 	return nil, nil
 }
-func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
+func (m *mockClientService) Create(_ context.Context, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, idpUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientCreateServiceResult, error) {
 	if m.createFn != nil {
 		return m.createFn(tid, n, dn, ct, d, cfg, s, idpUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 	}
 	return nil, nil
 }
-func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+func (m *mockClientService) Update(_ context.Context, id uuid.UUID, tid int64, n, dn, ct, d string, cfg datatypes.JSON, s string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
 	if m.updateFn != nil {
 		return m.updateFn(id, tid, n, dn, ct, d, cfg, s, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 	}

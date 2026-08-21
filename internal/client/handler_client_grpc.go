@@ -8,6 +8,7 @@ import (
 	"github.com/maintainerd/maintainerd-auth/internal/platform/apperror"
 	authv1 "github.com/maintainerd/maintainerd-auth/internal/platform/gen/go/maintainerd/auth"
 	"github.com/maintainerd/maintainerd-auth/internal/platform/middleware"
+	"github.com/maintainerd/maintainerd-auth/internal/shared"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -154,7 +155,7 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 	if err != nil {
 		return nil, err
 	}
-	actorUUID, err := clientActorUserUUID(ctx)
+	actor, err := h.clientMutationActor(ctx, tenant.TenantID, req.GetClientType(), req.GetServiceId())
 	if err != nil {
 		return nil, err
 	}
@@ -184,11 +185,12 @@ func (h *ClientGRPCHandler) CreateClient(ctx context.Context, req *authv1.Create
 		Config:               configJSON,
 		Status:               req.GetStatus(),
 		IdentityProviderUUID: req.GetIdentityProviderId(),
+		ServiceUUID:          req.ServiceId,
 	}).Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
 
-	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), req.GetIdentityProviderId(), nil, allowReg, nil, nil, nil, nil, actorUUID, nil)
+	result, err := h.clientService.Create(ctx, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), req.GetIdentityProviderId(), nil, allowReg, nil, nil, nil, nil, actor, req.ServiceId)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -211,7 +213,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 	if err != nil {
 		return nil, err
 	}
-	actorUUID, err := clientActorUserUUID(ctx)
+	actor, err := h.clientMutationActor(ctx, tenant.TenantID, req.GetClientType(), req.GetServiceId())
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +239,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 		Domain:      req.GetDomain(),
 		Config:      configForValidation,
 		Status:      req.GetStatus(),
+		ServiceUUID: req.ServiceId,
 	}).Validate(); err != nil {
 		return nil, apperror.ToGRPCError(apperror.NewValidation(err.Error()))
 	}
@@ -244,7 +247,7 @@ func (h *ClientGRPCHandler) UpdateClient(ctx context.Context, req *authv1.Update
 		configJSON = nil
 	}
 
-	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), nil, req.AllowRegistration, nil, nil, nil, nil, nil, actorUUID, nil, nil)
+	result, err := h.clientService.Update(ctx, clientUUID, tenant.TenantID, req.GetName(), req.GetDisplayName(), req.GetClientType(), req.GetDomain(), configJSON, req.GetStatus(), nil, req.AllowRegistration, nil, nil, nil, nil, nil, actor, nil, req.ServiceId)
 	if err != nil {
 		return nil, apperror.ToGRPCError(err)
 	}
@@ -654,6 +657,51 @@ func clientActorUserUUID(ctx context.Context) (uuid.UUID, error) {
 	return middleware.GRPCActorUUID(ctx, "client changes")
 }
 
+// clientMutationActor resolves who CreateClient/UpdateClient act as.
+//
+// A HUMAN actor (the signed on_behalf_of user) is resolved exactly as before
+// and stays the default. The single sanctioned exception is a SERVICE principal
+// provisioning a machine identity — the AWS service-linked pattern: the
+// orchestrator must be able to mint credentials for the services it manages
+// with its own client_credentials token, which can never carry a user. That
+// exception is deliberately this narrow:
+//
+//   - the request must name a service binding (non-empty service_id) and an m2m
+//     client type, so a lone service token can never mint a user-facing login
+//     client or an unbound m2m credential — anything else keeps requiring a
+//     human and fails with the same error it always has;
+//   - the token's own tenant must BE the target tenant. A human actor's
+//     membership is checked in the service layer (ValidateTenantAccess), but a
+//     service has no membership rows, so the token's tenant binding is the only
+//     boundary there is. This also deliberately withholds resolveTenant's
+//     system-tenant override from bare machine tokens: provisioning INTO a
+//     tenant remotely still requires acting as a user of that tenant.
+//
+// The service layer re-checks the m2m + bound shape (defense in depth); this
+// handler owns the tenant comparison because only the transport knows the
+// verified token.
+func (h *ClientGRPCHandler) clientMutationActor(ctx context.Context, targetTenantID int64, clientType string, requestServiceID string) (ClientActor, error) {
+	principal, err := middleware.GRPCActorOrService(ctx, "client changes")
+	if err != nil {
+		return ClientActor{}, err
+	}
+	if principal.User != nil {
+		return UserActor(principal.User.UserUUID), nil
+	}
+	if requestServiceID == "" || clientType != shared.ClientTypeM2M {
+		// Not the sanctioned shape. Refuse with exactly the error the user-actor
+		// path has always produced (GRPCActor cannot succeed here — the context
+		// carries no user), so this fallback changes nothing for every other call.
+		_, actorErr := middleware.GRPCActor(ctx, "client changes")
+		return ClientActor{}, actorErr
+	}
+	if principal.TenantID == 0 || principal.TenantID != targetTenantID {
+		return ClientActor{}, status.Error(codes.PermissionDenied,
+			"a service principal may only manage clients in its own tenant")
+	}
+	return ServiceActor(principal.ServiceName), nil
+}
+
 func parseUUID(value string, label string) (uuid.UUID, error) {
 	if value == "" {
 		return uuid.Nil, apperror.ToGRPCError(apperror.NewValidation(label + " is required"))
@@ -751,6 +799,10 @@ func toClientProto(result *ClientServiceDataResult) *authv1.Client {
 		UpdatedAt:         timestamppb.New(result.UpdatedAt),
 		BrandingId:        brandingUUIDToString(result.BrandingUUID),
 		AllowRegistration: result.AllowRegistration,
+		// The bound service's UUID, absent when unbound — what lets a
+		// get-or-create caller converge on an existing credential instead of
+		// re-binding or duplicating it.
+		ServiceId: result.ServiceUUID,
 	}
 }
 

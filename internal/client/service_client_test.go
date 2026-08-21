@@ -312,7 +312,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, actorUserRepo(tenantID), &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", "not-a-valid-uuid", nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", "not-a-valid-uuid", nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid identity provider UUID")
 	})
@@ -327,7 +327,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, actorUserRepo(tenantID), &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "identity provider not found")
 	})
@@ -347,7 +347,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -371,7 +371,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -396,7 +396,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -421,7 +421,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 	})
 
@@ -444,7 +444,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure")
 	})
@@ -475,7 +475,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, &mockClientRepo{}, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "rand failure on secret")
 	})
@@ -498,7 +498,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 	})
 
@@ -520,7 +520,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		_, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.Error(t, err)
 	})
 
@@ -544,7 +544,7 @@ func TestClientService_Create(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, idpRepo,
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		res, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, actorUUID, nil)
+		res, err := svc.Create(context.Background(), tenantID, "test", "Test", "public", "example.com", nil, "active", uuid.New().String(), nil, true, nil, nil, nil, nil, UserActor(actorUUID), nil)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -569,7 +569,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, actorUserRepo(tenantID), &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -587,7 +587,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "actor user not found")
 	})
@@ -607,7 +607,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "default")
 	})
@@ -632,7 +632,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
@@ -652,7 +652,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "test", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "test", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 	})
 
@@ -670,7 +670,7 @@ func TestClientService_Update(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		res, err := svc.Update(context.Background(), cUUID, tenantID, "test", "Test", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		res, err := svc.Update(context.Background(), cUUID, tenantID, "test", "Test", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
@@ -1844,7 +1844,7 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "n", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "access denied")
 	})
@@ -1867,7 +1867,7 @@ func TestClientService_Update_ValidateTenantAccess(t *testing.T) {
 		svc := NewClientService(gormDB, clientRepo, &mockClientURIRepo{}, &mockIdentityProviderRepo{},
 			&mockPermissionRepo{}, &mockClientPermissionRepo{}, &mockClientAPIRepo{}, &mockClientRoleRepo{}, &mockRoleRepo{},
 			&mockAPIRepo{}, userRepo, &mockTenantRepo{}, nil, nil)
-		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, actorUUID, nil, nil)
+		_, err := svc.Update(context.Background(), cUUID, tenantID, "new-name", "d", "pub", "ex.com", nil, "active", nil, testBoolPtr(true), nil, nil, nil, nil, nil, UserActor(actorUUID), nil, nil)
 		require.Error(t, err)
 	})
 }

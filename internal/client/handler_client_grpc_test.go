@@ -35,8 +35,8 @@ type testClientService struct {
 	getFn                       func(ctx context.Context, filter ClientServiceGetFilter) (*ClientServiceGetResult, error)
 	getByUUIDFn                 func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (*ClientServiceDataResult, error)
 	getConfigByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error)
-	createFn                    func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error)
-	updateFn                    func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientServiceDataResult, error)
+	createFn                    func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientCreateServiceResult, error)
+	updateFn                    func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientServiceDataResult, error)
 	rotateSecretFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error)
 	setStatusByUUIDFn           func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, status string, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
 	deleteByUUIDFn              func(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID) (*ClientServiceDataResult, error)
@@ -71,11 +71,11 @@ func (m *testClientService) GetByUUID(ctx context.Context, clientUUID uuid.UUID,
 func (m *testClientService) GetConfigByUUID(ctx context.Context, clientUUID uuid.UUID, tenantID int64) (datatypes.JSON, error) {
 	return m.getConfigByUUIDFn(ctx, clientUUID, tenantID)
 }
-func (m *testClientService) Create(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, serviceUUID *string) (*ClientCreateServiceResult, error) {
-	return m.createFn(ctx, tenantID, name, displayName, clientType, domain, config, status, identityProviderUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
+func (m *testClientService) Create(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, identityProviderUUID string, brandingUUID *uuid.UUID, allowRegistration bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, serviceUUID *string) (*ClientCreateServiceResult, error) {
+	return m.createFn(ctx, tenantID, name, displayName, clientType, domain, config, status, identityProviderUUID, brandingUUID, allowRegistration, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 }
-func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actorUserUUID uuid.UUID, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
-	return m.updateFn(ctx, clientUUID, tenantID, name, displayName, clientType, domain, config, status, brandingUUID, allowRegistration, allowMagicLink, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actorUserUUID, serviceUUID)
+func (m *testClientService) Update(ctx context.Context, clientUUID uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, brandingUUID *uuid.UUID, allowRegistration *bool, allowMagicLink *bool, backchannelLogoutURI *string, frontchannelLogoutURI *string, backchannelLogoutSessionRequired *bool, dPoPRequired *bool, actor ClientActor, expectedUpdatedAt *time.Time, serviceUUID *string) (*ClientServiceDataResult, error) {
+	return m.updateFn(ctx, clientUUID, tenantID, name, displayName, clientType, domain, config, status, brandingUUID, allowRegistration, allowMagicLink, backchannelLogoutURI, frontchannelLogoutURI, backchannelLogoutSessionRequired, dPoPRequired, actor, serviceUUID)
 }
 func (m *testClientService) RotateSecret(ctx context.Context, clientUUID uuid.UUID, tenantID int64, actorUserUUID uuid.UUID, gracePeriodHours int) (string, error) {
 	return m.rotateSecretFn(ctx, clientUUID, tenantID, actorUserUUID, gracePeriodHours)
@@ -288,7 +288,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("create success", func(t *testing.T) {
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
 				return clientCreate, nil
 			},
 		}
@@ -304,7 +304,7 @@ func TestClientGRPCHandler_RPCS(t *testing.T) {
 
 	t.Run("update success", func(t *testing.T) {
 		svc := &testClientService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientServiceDataResult, error) {
 				return &clientResult, nil
 			},
 		}
@@ -730,10 +730,10 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 				return "", svcErr
 			},
 			getConfigByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64) (datatypes.JSON, error) { return nil, svcErr },
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
 				return nil, svcErr
 			},
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientServiceDataResult, error) {
 				return nil, svcErr
 			},
 			setStatusByUUIDFn: func(ctx context.Context, id uuid.UUID, tenantID int64, status string, actor uuid.UUID) (*ClientServiceDataResult, error) {
@@ -1001,7 +1001,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("createClient with config", func(t *testing.T) {
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
 				return clientCreate, nil
 			},
 		}
@@ -1017,7 +1017,7 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 
 	t.Run("updateClient with config", func(t *testing.T) {
 		svc := &testClientService{
-			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientServiceDataResult, error) {
+			updateFn: func(ctx context.Context, id uuid.UUID, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, _ *uuid.UUID, _ *bool, _ *bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientServiceDataResult, error) {
 				return &clientResult, nil
 			},
 		}
@@ -1037,9 +1037,9 @@ func TestClientGRPCHandler_AllErrorPaths(t *testing.T) {
 		callerUUID := uuid.New()
 		decoyUUID := uuid.New()
 		svc := &testClientService{
-			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor uuid.UUID, _ *string) (*ClientCreateServiceResult, error) {
-				if actor != callerUUID {
-					t.Errorf("expected the token's user %s, got %s", callerUUID, actor)
+			createFn: func(ctx context.Context, tenantID int64, name, displayName, clientType, domain string, config datatypes.JSON, status string, ipUUID string, _ *uuid.UUID, _ bool, _ *string, _ *string, _ *bool, _ *bool, actor ClientActor, _ *string) (*ClientCreateServiceResult, error) {
+				if actor.UserUUID == nil || *actor.UserUUID != callerUUID {
+					t.Errorf("expected the token's user %s, got %+v", callerUUID, actor)
 				}
 				return clientCreate, nil
 			},
