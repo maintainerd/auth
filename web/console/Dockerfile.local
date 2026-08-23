@@ -13,7 +13,24 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 
 # Install exactly what the lockfile pins (dev deps included; NODE_ENV=development)
-RUN npm ci
+# THE RETRY SETTINGS AND THE CACHE MOUNT ARE BOTH LOAD-BEARING on a laptop. The
+# dev stack builds four SPAs and four Go binaries concurrently, so four `npm ci`
+# runs compete for one connection and npm's 5-minute default read timeout expires
+# — `npm error network read ETIMEDOUT`, which fails the whole `up`.
+#
+#   --fetch-retries 5        npm's default of 2 gives up too early under contention
+#   --fetch-retry-maxtimeout capped backoff, so a slow mirror is waited out
+#   --fetch-timeout          raised from 5m; a saturated link is slow, not broken
+#
+# The BuildKit cache mount is what makes a retry cheap: packages already fetched
+# survive the failed layer, so the second attempt resumes instead of restarting a
+# ~200MB download from zero.
+RUN --mount=type=cache,target=/root/.npm,sharing=locked \
+    npm ci \
+      --fetch-retries=5 \
+      --fetch-retry-mintimeout=20000 \
+      --fetch-retry-maxtimeout=120000 \
+      --fetch-timeout=600000
 
 # Copy source code
 COPY . .
